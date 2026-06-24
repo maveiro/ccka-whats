@@ -62,14 +62,17 @@ export default function SessionCard({ session: initial }: { session: Session }) 
   }
 
   async function handleRefreshQr() {
-    if (!session.evolution_instance_name) return;
     setActionLoading(true);
-    await fetch("/api/sessions/connect", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: session.id }),
-    });
-    setActionLoading(false);
+    try {
+      const res = await fetch(`/api/sessions/${session.id}/qr`);
+      const data = await res.json() as { qrCode?: string | null; rawKeys?: string[]; error?: string };
+      if (data.qrCode) {
+        // QR code chegou direto — atualizar estado local imediatamente
+        setSession((prev) => ({ ...prev, qr_code: data.qrCode!, status: "connecting" }));
+      }
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   async function handleDisconnect() {
@@ -99,6 +102,23 @@ export default function SessionCard({ session: initial }: { session: Session }) 
   useEffect(() => {
     return () => { if (revealTimer.current) clearTimeout(revealTimer.current); };
   }, []);
+
+  // Polling automático: buscar QR a cada 5s quando está connecting sem QR
+  useEffect(() => {
+    if (session.status !== "connecting" || session.qr_code) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/sessions/${session.id}/qr`);
+        const data = await res.json() as { qrCode?: string | null };
+        if (data.qrCode) {
+          setSession((prev) => ({ ...prev, qr_code: data.qrCode!, status: "connecting" }));
+        }
+      } catch { /* silencioso */ }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [session.id, session.status, session.qr_code]);
 
   function copyToClipboard(text: string) {
     void navigator.clipboard.writeText(text);

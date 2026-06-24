@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
-  // Solicitar conexão ao Evolution API
+  // Solicitar conexão ao Evolution API — a resposta já contém o QR code
   const evoRes = await fetch(
     `${env.EVOLUTION_API_URL}/instance/connect/${session.evolution_instance_name}`,
     { headers: { "apikey": env.EVOLUTION_API_KEY } },
@@ -40,12 +40,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: text }, { status: 502 });
   }
 
-  // Atualizar status para connecting
+  // Extrair QR code da resposta imediatamente — não esperar o webhook
+  let qrCode: string | null = null;
+  try {
+    const evoJson = await evoRes.json() as Record<string, unknown>;
+    const qr = evoJson.qrcode as Record<string, unknown> | undefined;
+    qrCode = (qr?.base64 as string) ?? (evoJson.base64 as string) ?? null;
+  } catch { /* sem QR na resposta — chegará via webhook */ }
+
   const service = createAdminClient();
   await service
     .from("wa_sessions")
-    .update({ status: "connecting" })
+    .update({
+      status: "connecting",
+      ...(qrCode ? { qr_code: qrCode } : {}),
+    })
     .eq("id", sessionId);
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, hasQr: Boolean(qrCode) });
 }

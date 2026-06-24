@@ -49,13 +49,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Evolution API error: ${text}` }, { status: 502 });
   }
 
+  // Extrair QR code da resposta de criação, se disponível
+  let initialQrCode: string | null = null;
+  try {
+    const evoJson = await evoCreateRes.json() as Record<string, unknown>;
+    const qr = evoJson.qrcode as Record<string, unknown> | undefined;
+    initialQrCode = (qr?.base64 as string) ?? null;
+  } catch { /* sem QR na resposta de criação */ }
+
   // 2. Generate webhook secret
   const webhookSecret =
     crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
 
   const webhookUrl = `${env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
 
-  // 3. Insert into wa_sessions
+  // 3. Insert into wa_sessions (com QR code se já veio na criação)
   const admin = createAdminClient();
   const { data: newSession, error: insertError } = await admin
     .from("wa_sessions")
@@ -64,8 +72,9 @@ export async function POST(req: NextRequest) {
       label: label.trim(),
       phone_number: phoneNumber.trim(),
       evolution_instance_name: instanceName.trim(),
-      status: "disconnected",
+      status: initialQrCode ? "connecting" : "disconnected",
       webhook_secret: webhookSecret,
+      ...(initialQrCode ? { qr_code: initialQrCode } : {}),
     })
     .select()
     .single();

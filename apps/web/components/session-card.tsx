@@ -61,6 +61,17 @@ export default function SessionCard({ session: initial }: { session: Session }) 
     setActionLoading(false);
   }
 
+  async function handleRefreshQr() {
+    if (!session.evolution_instance_name) return;
+    setActionLoading(true);
+    await fetch("/api/sessions/connect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: session.id }),
+    });
+    setActionLoading(false);
+  }
+
   async function handleDisconnect() {
     if (!session.evolution_instance_name) return;
     setActionLoading(true);
@@ -156,13 +167,29 @@ export default function SessionCard({ session: initial }: { session: Session }) 
             alt="QR Code WhatsApp"
             className="w-48 h-48 rounded border border-gray-700 bg-white p-2"
           />
+          <button
+            onClick={handleRefreshQr}
+            disabled={actionLoading}
+            className="text-xs px-3 py-1 bg-yellow-800 hover:bg-yellow-700 text-yellow-200 rounded-md disabled:opacity-50 transition-colors"
+          >
+            {actionLoading ? "Atualizando..." : "↻ Atualizar QR"}
+          </button>
         </div>
       )}
 
       {session.status === "connecting" && !qrBase64 && (
-        <p className="text-xs text-yellow-400 animate-pulse">
-          Gerando QR Code...
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-yellow-400 animate-pulse">
+            Aguardando QR Code...
+          </p>
+          <button
+            onClick={handleRefreshQr}
+            disabled={actionLoading}
+            className="text-xs px-3 py-1 bg-yellow-800 hover:bg-yellow-700 text-yellow-200 rounded-md disabled:opacity-50 transition-colors"
+          >
+            {actionLoading ? "..." : "↻ Buscar QR"}
+          </button>
+        </div>
       )}
 
       <div className="border-t border-gray-800 pt-3 space-y-2">

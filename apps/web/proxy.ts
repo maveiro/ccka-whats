@@ -14,26 +14,37 @@ export async function proxy(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
+            request.cookies.set(name, value),
           );
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, options),
           );
         },
       },
     },
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  // Refresh de sessão — obrigatório para que getUser() funcione em Server Components
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith("/login");
+  const { pathname } = request.nextUrl;
 
-  if (!user && !isAuthRoute) {
+  // Rotas sempre públicas — sem proteção de auth
+  const publicPaths = ["/register", "/forgot-password", "/reset-password", "/api/"];
+  if (publicPaths.some((p) => pathname.startsWith(p))) {
+    return supabaseResponse;
+  }
+
+  // Protege apenas /dashboard/** — redireciona para login se não autenticado
+  if (!user && pathname.startsWith("/dashboard")) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (user && isAuthRoute) {
+  // Usuário autenticado na página de login → redireciona para dashboard
+  if (user && pathname === "/login") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

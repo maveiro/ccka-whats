@@ -213,6 +213,34 @@ async function handleMessagesUpsert(
       .select("id")
       .single();
 
+    // Para mensagens de texto com body: acionar geração de embedding de forma assíncrona
+    if (savedMessage?.id && body && body.trim().length > 0 && normalizeMessageType(messageType) === "text") {
+      triggerEmbeddingGeneration({
+        messageId: savedMessage.id,
+        body,
+        tenantId,
+        messageType: normalizeMessageType(messageType),
+      });
+    }
+
+    // Fire-and-forget webhook delivery
+    if (savedMessage?.id) {
+      fetch(`${SUPABASE_URL}/functions/v1/webhook-delivery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE_ROLE_KEY}` },
+        body: JSON.stringify({
+          tenantId,
+          event: "message.received",
+          payload: { messageId: savedMessage.id, chatId: chat?.id ?? null, fromMe, type: normalizeMessageType(messageType), body },
+        }),
+      }).catch(() => {});
+    }
+
+    // Verificar alertas para mensagens de texto com body
+    if (savedMessage?.id && body && body.trim().length > 0) {
+      checkAlerts(tenantId, sessionId, savedMessage.id, body);
+    }
+
     // Se tem mídia: criar media_file e acionar download de forma assíncrona
     if (hasMedia && savedMessage?.id) {
       const downloadUrl = extractDownloadUrl(message);
@@ -361,6 +389,27 @@ async function handleQrcodeUpdated(
   await logEvent(tenantId, sessionId, "qrcode_updated", null);
 }
 
+// ─── Trigger assíncrono do generate-embeddings ───────────────────────────────
+
+interface EmbeddingTriggerPayload {
+  messageId: string;
+  body: string;
+  tenantId: string;
+  messageType: string;
+}
+
+function triggerEmbeddingGeneration(payload: EmbeddingTriggerPayload): void {
+  // Fire-and-forget — não aguardar
+  fetch(`${SUPABASE_URL}/functions/v1/generate-embeddings`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+    },
+    body: JSON.stringify(payload),
+  }).catch((err) => console.error("Failed to trigger generate-embeddings:", err));
+}
+
 // ─── Trigger assíncrono do media-downloader ───────────────────────────────────
 
 interface MediaTriggerPayload {
@@ -485,6 +534,52 @@ function normalizeMessageType(type: string): string {
     encReactionMessage: "reaction",
   };
   return map[type] ?? "unknown";
+}
+
+// ─── Verificação de alertas ───────────────────────────────────────────────────
+
+interface AlertRow {
+  id: string;
+  keywords: string[];
+  session_id: string | null;
+}
+
+function checkAlerts(
+  tenantId: string,
+  sessionId: string,
+  messageId: string,
+  body: string,
+): void {
+  // Fire-and-forget
+  (async () => {
+    const { data: alerts } = await supabase
+      .from("alerts")
+      .select("id, keywords, session_id")
+      .eq("tenant_id", tenantId)
+      .eq("active", true);
+
+    if (!alerts || alerts.length === 0) return;
+
+    const lowerBody = body.toLowerCase();
+
+    for (const alert of alerts as AlertRow[]) {
+      // If alert scoped to a specific session, skip other sessions
+      if (alert.session_id && alert.session_id !== sessionId) continue;
+
+      for (const keyword of alert.keywords) {
+        if (lowerBody.includes(keyword.toLowerCase())) {
+          await supabase.from("alert_events").insert({
+            tenant_id: tenantId,
+            alert_id: alert.id,
+            message_id: messageId,
+            matched_keyword: keyword,
+            seen: false,
+          });
+          break; // one event per alert per message
+        }
+      }
+    }
+  })().catch((err) => console.error("checkAlerts error:", err));
 }
 
 // ─── Log de eventos ───────────────────────────────────────────────────────────

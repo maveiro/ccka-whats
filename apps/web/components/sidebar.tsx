@@ -12,8 +12,10 @@ interface SidebarProps {
 
 const navItems = [
   { label: "Mensagens", href: "/dashboard", roles: ["admin", "operator"] },
+  { label: "Analytics", href: "/dashboard/analytics", roles: ["admin", "operator"] },
   { label: "Sessões", href: "/dashboard/admin/sessions", roles: ["admin"] },
   { label: "Operadores", href: "/dashboard/admin/operators", roles: ["admin"] },
+  { label: "Alertas", href: "/dashboard/admin/alerts", roles: ["admin"] },
   { label: "Integrações", href: "/dashboard/admin/integrations", roles: ["admin"] },
   { label: "Histórico", href: "/dashboard/admin/history", roles: ["admin"] },
   { label: "Configurações", href: "/dashboard/settings", roles: ["admin"] },

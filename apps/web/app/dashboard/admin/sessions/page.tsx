@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import SessionCard from "@/components/session-card";
+import SessionsPageHeader from "@/components/sessions-page-header";
 
 export default async function SessionsPage() {
   const supabase = await createClient();
@@ -20,9 +21,9 @@ export default async function SessionsPage() {
     .order("created_at", { ascending: true });
 
   return (
-    <div className="p-6 space-y-4">
-      <h1 className="text-lg font-semibold text-white">Sessões WhatsApp</h1>
-      <div className="grid grid-cols-1 gap-4 max-w-2xl">
+    <div className="p-6 max-w-2xl space-y-4">
+      <SessionsPageHeader />
+      <div className="grid grid-cols-1 gap-4">
         {(sessions ?? []).map((session) => (
           <SessionCard key={session.id} session={session} />
         ))}

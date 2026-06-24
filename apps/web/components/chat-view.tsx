@@ -4,6 +4,20 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { formatTime } from "@/lib/utils";
 import MessageComposer from "@/components/message-composer";
 import { createClient } from "@/lib/supabase/client";
+import {
+  Check,
+  CheckCheck,
+  Reply,
+  Ban,
+  Image as ImageIcon,
+  Video,
+  Music,
+  Paperclip,
+  MapPin,
+  User,
+  BarChart2,
+  Smile,
+} from "lucide-react";
 
 interface MediaFile {
   storage_path: string | null;
@@ -55,13 +69,11 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
   const listRef = useRef<HTMLDivElement>(null);
   const topSentinelRef = useRef<HTMLDivElement>(null);
 
-  // Sincronizar quando props mudam (navegação entre chats)
   useEffect(() => {
     setMessages(initial);
     setHasMore(initialHasMore);
   }, [initial, initialHasMore]);
 
-  // Scroll para o final + zerar unread ao abrir o chat
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "instant" });
     fetch(`/api/chats/${chat.id}/read`, { method: "POST" }).catch(() => undefined);
@@ -90,7 +102,6 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
       if (older.length === 0) {
         setHasMore(false);
       } else {
-        // Preservar posição de scroll ao prepend
         const list = listRef.current;
         const prevHeight = list?.scrollHeight ?? 0;
         setMessages((prev) => [...older, ...prev]);
@@ -104,7 +115,6 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
     }
   }, [chat.id, messages, hasMore, loadingMore]);
 
-  // Scroll infinito: IntersectionObserver no sentinel do topo
   useEffect(() => {
     const sentinel = topSentinelRef.current;
     if (!sentinel) return;
@@ -120,7 +130,6 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
     return () => observer.disconnect();
   }, [hasMore, loadingMore, loadMore]);
 
-  // Realtime: receber novas mensagens do chat ativo
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
@@ -129,7 +138,6 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `chat_id=eq.${chat.id}` },
         async (payload) => {
-          // Buscar a mensagem completa com signed URL
           const res = await fetch(`/api/messages?chatId=${chat.id}&limit=1`);
           if (!res.ok) return;
           const { messages: fresh } = await res.json() as { messages: Message[] };
@@ -160,15 +168,12 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
       <div className="px-4 py-3 border-b border-gray-800 shrink-0">
         <p className="text-sm font-medium text-white">{chat.name ?? chat.jid}</p>
         <p className="text-xs text-gray-500">{chat.jid}</p>
       </div>
 
-      {/* Mensagens */}
       <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
-        {/* Sentinel invisível: ao entrar na viewport dispara loadMore */}
         <div ref={topSentinelRef} className="h-1" />
         {loadingMore && (
           <div className="flex justify-center py-2">
@@ -190,7 +195,6 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
         <div ref={bottomRef} />
       </div>
 
-      {/* Compositor */}
       <MessageComposer
         chatId={chat.id}
         onSent={refreshMessages}
@@ -203,27 +207,22 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
 
 function DeliveryTicks({ status }: { status: string | null }) {
   if (!status || status === "pending") {
-    return <span className="ml-1 opacity-60">✓</span>;
+    return <Check size={12} className="ml-1 opacity-60 inline" />;
   }
-  if (status === "server") {
-    return <span className="ml-1 opacity-60">✓✓</span>;
-  }
-  if (status === "device") {
-    return <span className="ml-1 opacity-60">✓✓</span>;
+  if (status === "server" || status === "device") {
+    return <CheckCheck size={12} className="ml-1 opacity-60 inline" />;
   }
   if (status === "read" || status === "played") {
-    return <span className="ml-1 text-blue-300">✓✓</span>;
+    return <CheckCheck size={12} className="ml-1 text-blue-300 inline" />;
   }
   return null;
 }
 
 function MessageBubble({ message, isGroup, onReply }: { message: Message; isGroup: boolean; onReply: (m: Message) => void }) {
-  const [hovered, setHovered] = useState(false);
   const { from_me, type, body, caption, timestamp, media_files, signedUrl, contacts, deleted_at, edited_at, delivery_status } = message;
   const media = media_files?.[0] ?? null;
   const senderName = contacts?.push_name ?? contacts?.name ?? null;
 
-  // Reações ficam sem balão — só emoji flutuante
   if (type === "reaction" && !deleted_at) {
     return (
       <div className={`flex ${from_me ? "justify-end" : "justify-start"}`}>
@@ -235,21 +234,15 @@ function MessageBubble({ message, isGroup, onReply }: { message: Message; isGrou
   }
 
   return (
-    <div
-      className={`flex items-end gap-1 ${from_me ? "justify-end" : "justify-start"}`}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* Botão reply — lado esquerdo para mensagens próprias */}
-      {from_me && hovered && (
+    <div className={`flex items-end gap-1 group ${from_me ? "justify-end" : "justify-start"}`}>
+      {from_me && (
         <button
           onClick={() => onReply(message)}
-          className="text-gray-600 hover:text-gray-300 p-1 transition-colors shrink-0"
+          className="text-gray-600 hover:text-gray-300 p-2 -m-1 transition-opacity opacity-0 group-hover:opacity-100 shrink-0"
           title="Responder"
+          aria-label="Responder mensagem"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-          </svg>
+          <Reply size={14} />
         </button>
       )}
 
@@ -263,7 +256,10 @@ function MessageBubble({ message, isGroup, onReply }: { message: Message; isGrou
         )}
 
         {deleted_at ? (
-          <p className="italic opacity-40 text-xs">🚫 Mensagem apagada</p>
+          <p className="italic opacity-40 text-xs flex items-center gap-1">
+            <Ban size={12} />
+            Mensagem apagada
+          </p>
         ) : (
           <MessageContent
             messageId={message.id}
@@ -282,16 +278,14 @@ function MessageBubble({ message, isGroup, onReply }: { message: Message; isGrou
         </p>
       </div>
 
-      {/* Botão reply — lado direito para mensagens recebidas */}
-      {!from_me && hovered && (
+      {!from_me && (
         <button
           onClick={() => onReply(message)}
-          className="text-gray-600 hover:text-gray-300 p-1 transition-colors shrink-0"
+          className="text-gray-600 hover:text-gray-300 p-2 -m-1 transition-opacity opacity-0 group-hover:opacity-100 shrink-0"
           title="Responder"
+          aria-label="Responder mensagem"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-          </svg>
+          <Reply size={14} />
         </button>
       )}
     </div>
@@ -357,16 +351,19 @@ function MessageContent({
         </div>
       );
     }
-    return <p className="italic opacity-50 text-xs">🖼 Imagem não disponível</p>;
+    return (
+      <p className="italic opacity-50 text-xs flex items-center gap-1.5">
+        <ImageIcon size={13} />
+        Imagem não disponível
+      </p>
+    );
   }
 
   if (type === "sticker") {
     if (signedUrl) {
-      return (
-        <img src={signedUrl} alt="sticker" className="w-28 h-28 object-contain" />
-      );
+      return <img src={signedUrl} alt="sticker" className="w-28 h-28 object-contain" />;
     }
-    return <span className="text-2xl">🎭</span>;
+    return <Smile size={32} className="opacity-50" />;
   }
 
   if (type === "video") {
@@ -377,7 +374,12 @@ function MessageContent({
         </video>
       );
     }
-    return <p className="italic opacity-70 text-xs">🎥 Vídeo não disponível</p>;
+    return (
+      <p className="italic opacity-70 text-xs flex items-center gap-1.5">
+        <Video size={13} />
+        Vídeo não disponível
+      </p>
+    );
   }
 
   if (type === "audio" || type === "ptt") {
@@ -394,7 +396,12 @@ function MessageContent({
         </div>
       );
     }
-    return <p className="italic opacity-70 text-xs">🎵 Áudio não disponível</p>;
+    return (
+      <p className="italic opacity-70 text-xs flex items-center gap-1.5">
+        <Music size={13} />
+        Áudio não disponível
+      </p>
+    );
   }
 
   if (type === "document") {
@@ -408,12 +415,17 @@ function MessageContent({
           download
           className="flex items-center gap-2 text-blue-300 hover:text-blue-200 underline-offset-2 hover:underline"
         >
-          <span>📎</span>
+          <Paperclip size={14} />
           <span className="break-all">{caption ?? `documento.${ext}`}</span>
         </a>
       );
     }
-    return <p className="italic opacity-70 text-xs">📎 {caption ?? "Documento não disponível"}</p>;
+    return (
+      <p className="italic opacity-70 text-xs flex items-center gap-1.5">
+        <Paperclip size={13} />
+        {caption ?? "Documento não disponível"}
+      </p>
+    );
   }
 
   if (type === "location") {
@@ -425,7 +437,7 @@ function MessageContent({
         rel="noopener noreferrer"
         className="flex items-center gap-1.5 text-blue-300 hover:text-blue-200"
       >
-        <span>📍</span>
+        <MapPin size={14} />
         <span className="underline">{name}</span>
       </a>
     );
@@ -434,7 +446,7 @@ function MessageContent({
   if (type === "contact") {
     return (
       <div className="flex items-center gap-2 bg-black/20 rounded px-2 py-1">
-        <span className="text-xl">👤</span>
+        <User size={18} className="opacity-70 shrink-0" />
         <span className="text-sm font-medium">{body ?? "Contato"}</span>
       </div>
     );
@@ -443,7 +455,7 @@ function MessageContent({
   if (type === "poll") {
     return (
       <div className="flex items-center gap-2 opacity-70">
-        <span>📊</span>
+        <BarChart2 size={14} />
         <span className="italic">{body ?? "Enquete"}</span>
       </div>
     );
@@ -458,7 +470,6 @@ function MessageContent({
     );
   }
 
-  // system/protocol — mostrar discretamente
   if (["system", "protocol", "unknown"].includes(type)) {
     return <p className="italic opacity-30 text-xs text-center">— mensagem de sistema —</p>;
   }

@@ -21,7 +21,7 @@ export default function ForgotPasswordPage() {
     });
 
     if (error) {
-      setError("Erro ao enviar email. Tente novamente.");
+      setError("Erro ao enviar email. Verifique o endereço e tente novamente.");
       setLoading(false);
       return;
     }
@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
         {sent ? (
           <div className="space-y-4">
             <div className="bg-green-900/30 border border-green-800 rounded-md px-4 py-3 text-sm text-green-300">
-              Email enviado! Verifique sua caixa de entrada e clique no link para redefinir sua senha.
+              Email enviado. Verifique sua caixa de entrada e clique no link para redefinir sua senha.
             </div>
             <Link
               href="/login"
@@ -54,15 +54,22 @@ export default function ForgotPasswordPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="email"
-              placeholder="Seu email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-              className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-800 text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-            />
+            <div className="space-y-1">
+              <label htmlFor="email" className="block text-xs font-medium text-gray-400">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoFocus
+                autoComplete="email"
+                className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-800 text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-950"
+              />
+            </div>
 
             {error && <p className="text-red-400 text-sm">{error}</p>}
 

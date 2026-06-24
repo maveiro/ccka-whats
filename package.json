@@ -1,0 +1,25 @@
+{
+  "name": "wa-intelligence",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "type-check": "turbo type-check",
+    "db:types": "supabase gen types typescript --local > packages/database/types.ts"
+  },
+  "devDependencies": {
+    "supabase": "^1.170.0",
+    "turbo": "^2.9.18",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@11.9.0"
+}

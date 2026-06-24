@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+dist/
+build/
+out/
+
+# Environment files — NUNCA commitar
+.env
+.env.local
+.env.*.local
+infra/evolution/.env
+
+# Supabase
+.supabase/
+supabase/.temp/
+apps/web/supabase/
+
+# Turbo
+.turbo/
+
+# OS
+.DS_Store
+Thumbs.db
+*:Zone.Identifier
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+.vercel

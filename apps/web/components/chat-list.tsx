@@ -15,7 +15,7 @@ interface Chat {
   last_message_at: string | null;
   unread_count: number;
   session_id: string;
-  wa_sessions: { label: string | null; phone_number: string } | null;
+  wa_sessions: { label: string | null; phone_number: string; status: string } | null;
 }
 
 interface ChatListProps {
@@ -48,10 +48,7 @@ function ChatAvatar({ name, jid }: { name: string | null; jid: string }) {
 
   if (isGroup) {
     return (
-      <div
-        className={`w-10 h-10 rounded-full ${color} flex items-center justify-center shrink-0`}
-        aria-hidden="true"
-      >
+      <div className={`w-10 h-10 rounded-full ${color} flex items-center justify-center shrink-0`} aria-hidden="true">
         <Users size={18} className="text-white opacity-90" />
       </div>
     );
@@ -59,27 +56,73 @@ function ChatAvatar({ name, jid }: { name: string | null; jid: string }) {
 
   const initial = (name ?? jid).charAt(0).toUpperCase();
   return (
-    <div
-      className={`w-10 h-10 rounded-full ${color} flex items-center justify-center text-sm font-bold text-white shrink-0`}
-      aria-hidden="true"
-    >
+    <div className={`w-10 h-10 rounded-full ${color} flex items-center justify-center text-sm font-bold text-white shrink-0`} aria-hidden="true">
       {initial}
     </div>
   );
 }
 
+const STATUS_DOT: Record<string, string> = {
+  connected:    "bg-green-500",
+  connecting:   "bg-yellow-400 animate-pulse",
+  disconnected: "bg-gray-500",
+  banned:       "bg-red-500",
+};
+
+function formatPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("55") && digits.length === 13) {
+    return `+55 (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9)}`;
+  }
+  if (digits.startsWith("55") && digits.length === 12) {
+    return `+55 (${digits.slice(2, 4)}) ${digits.slice(4, 8)}-${digits.slice(8)}`;
+  }
+  return `+${digits}`;
+}
+
 type FilterTab = "all" | "groups" | "contacts";
+
+interface SessionInfo {
+  id: string;
+  label: string | null;
+  phone_number: string;
+  status: string;
+  unread: number;
+}
 
 export default function ChatList({ chats: initial, operatorRole }: ChatListProps) {
   const pathname = usePathname();
   const [chats, setChats] = useState(initial);
   const [filter, setFilter] = useState<FilterTab>("all");
+  const [selectedSession, setSelectedSession] = useState<string>("all");
 
-  useEffect(() => {
-    setChats(initial);
-  }, [initial]);
+  useEffect(() => { setChats(initial); }, [initial]);
+
+  // Derive unique sessions from chats (stable order by first appearance)
+  const sessions: SessionInfo[] = [];
+  const seen = new Set<string>();
+  for (const c of chats) {
+    if (c.session_id && !seen.has(c.session_id)) {
+      seen.add(c.session_id);
+      sessions.push({
+        id: c.session_id,
+        label: c.wa_sessions?.label ?? null,
+        phone_number: c.wa_sessions?.phone_number ?? c.session_id,
+        status: c.wa_sessions?.status ?? "disconnected",
+        unread: 0,
+      });
+    }
+  }
+  // Count unread per session
+  for (const c of chats) {
+    const s = sessions.find((s) => s.id === c.session_id);
+    if (s) s.unread += c.unread_count ?? 0;
+  }
+
+  const showSessionFilter = sessions.length > 1;
 
   const filteredChats = chats.filter((c) => {
+    if (selectedSession !== "all" && c.session_id !== selectedSession) return false;
     if (filter === "groups") return c.jid.endsWith("@g.us");
     if (filter === "contacts") return !c.jid.endsWith("@g.us");
     return true;
@@ -89,25 +132,20 @@ export default function ChatList({ chats: initial, operatorRole }: ChatListProps
     const supabase = createClient();
     const channel = supabase
       .channel("chat-list-updates")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "chats" },
-        (payload) => {
-          setChats((prev) =>
-            prev.map((c) =>
-              c.id === payload.new.id
-                ? { ...c, unread_count: payload.new.unread_count, last_message_at: payload.new.last_message_at }
-                : c,
-            ).sort((a, b) => {
-              const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
-              const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
-              return tb - ta;
-            }),
-          );
-        },
-      )
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chats" }, (payload) => {
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === payload.new.id
+              ? { ...c, unread_count: payload.new.unread_count, last_message_at: payload.new.last_message_at }
+              : c,
+          ).sort((a, b) => {
+            const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+            const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+            return tb - ta;
+          }),
+        );
+      })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, []);
 
@@ -131,7 +169,7 @@ export default function ChatList({ chats: initial, operatorRole }: ChatListProps
     );
   }
 
-  const tabs: { key: FilterTab; label: string }[] = [
+  const typeTabs: { key: FilterTab; label: string }[] = [
     { key: "all", label: "Todos" },
     { key: "groups", label: "Grupos" },
     { key: "contacts", label: "Contatos" },
@@ -142,15 +180,61 @@ export default function ChatList({ chats: initial, operatorRole }: ChatListProps
       <div className="px-4 pt-3 pb-2 border-b border-gray-800 space-y-2">
         <h2 className="text-sm font-medium text-gray-300">Conversas</h2>
         <SearchBar />
+
+        {/* Session pills — only when multiple instances */}
+        {showSessionFilter && (
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none" role="tablist" aria-label="Filtrar por número">
+            <button
+              role="tab"
+              aria-selected={selectedSession === "all"}
+              onClick={() => setSelectedSession("all")}
+              className={`shrink-0 flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-colors whitespace-nowrap ${
+                selectedSession === "all"
+                  ? "bg-gray-700 border-gray-600 text-white"
+                  : "border-gray-800 text-gray-500 hover:text-gray-300 hover:border-gray-700"
+              }`}
+            >
+              Todos
+              {chats.reduce((s, c) => s + (c.unread_count ?? 0), 0) > 0 && (
+                <span className="bg-green-600 text-white text-[10px] rounded-full px-1 leading-none py-0.5">
+                  {chats.reduce((s, c) => s + (c.unread_count ?? 0), 0)}
+                </span>
+              )}
+            </button>
+            {sessions.map((s) => (
+              <button
+                key={s.id}
+                role="tab"
+                aria-selected={selectedSession === s.id}
+                onClick={() => setSelectedSession(s.id)}
+                className={`shrink-0 flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors whitespace-nowrap ${
+                  selectedSession === s.id
+                    ? "bg-gray-700 border-gray-600 text-white"
+                    : "border-gray-800 text-gray-500 hover:text-gray-300 hover:border-gray-700"
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[s.status] ?? "bg-gray-500"}`} />
+                <span className="truncate max-w-[90px]">
+                  {s.label ?? formatPhone(s.phone_number)}
+                </span>
+                {s.unread > 0 && (
+                  <span className="bg-green-600 text-white text-[10px] rounded-full px-1 leading-none py-0.5">
+                    {s.unread}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Type filter */}
         <div className="flex gap-1">
-          {tabs.map((tab) => (
+          {typeTabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setFilter(tab.key)}
               className={`flex-1 text-xs py-1 rounded-md font-medium transition-colors ${
-                filter === tab.key
-                  ? "bg-gray-700 text-white"
-                  : "text-gray-500 hover:text-gray-300"
+                filter === tab.key ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"
               }`}
             >
               {tab.label}
@@ -158,6 +242,7 @@ export default function ChatList({ chats: initial, operatorRole }: ChatListProps
           ))}
         </div>
       </div>
+
       <div className="flex-1 overflow-y-auto" role="list" aria-label="Lista de conversas">
         {filteredChats.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-2 py-12 px-6 text-center">
@@ -197,7 +282,7 @@ export default function ChatList({ chats: initial, operatorRole }: ChatListProps
                 </div>
                 {operatorRole === "admin" && chat.wa_sessions && (
                   <p className="text-xs text-gray-600 truncate mt-0.5">
-                    {chat.wa_sessions.label ?? chat.wa_sessions.phone_number}
+                    {chat.wa_sessions.label ?? formatPhone(chat.wa_sessions.phone_number)}
                   </p>
                 )}
               </div>

@@ -21,7 +21,7 @@ export default async function DashboardPage() {
       last_message_at,
       unread_count,
       session_id,
-      wa_sessions ( label, phone_number )
+      wa_sessions ( label, phone_number, status )
     `)
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .limit(50);

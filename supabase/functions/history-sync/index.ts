@@ -77,9 +77,10 @@ Deno.serve(async (req: Request) => {
   for (const chat of chatsToSync) {
     try {
       const isGroupJid = chat.remoteJid.endsWith("@g.us");
-      // Para grupos: usar name (nome do grupo). Para contatos: pushName ou name.
+      // Para grupos: NUNCA usar pushName (é o nome do último remetente, não do grupo).
+      // Se não tiver name real do grupo, usa null — o upsert preserva o nome já existente.
       const chatName = isGroupJid
-        ? (chat.name ?? chat.pushName ?? null)
+        ? (chat.name ?? null)
         : (chat.pushName ?? chat.name ?? null);
       const count = await syncChat(
         tenantId, sessionId, instanceName,
@@ -140,16 +141,30 @@ async function syncChat(
     // Upsert contato do chat (grupo ou pessoa)
     const chatContact = await upsertContact(tenantId, remoteJid, null, isGroup);
 
-    // Upsert chat — usar nome do Evolution, não o JID bruto
+    // Upsert chat — dois passos para não sobrescrever nome real de grupo com pushName errado.
+    // Passo 1: INSERT se não existir (preserva nome já gravado)
+    await supabase
+      .from("chats")
+      .upsert(
+        {
+          tenant_id: tenantId,
+          session_id: sessionId,
+          contact_id: chatContact?.id ?? null,
+          jid: remoteJid,
+          name: chatName ?? remoteJid,
+        },
+        { onConflict: "session_id,jid", ignoreDuplicates: true },
+      );
+
+    // Passo 2: atualizar contact_id e, para DMs com nome real, o nome
     const { data: chat } = await supabase
       .from("chats")
-      .upsert({
-        tenant_id: tenantId,
-        session_id: sessionId,
+      .update({
         contact_id: chatContact?.id ?? null,
-        jid: remoteJid,
-        name: chatName ?? remoteJid,
-      }, { onConflict: "session_id,jid" })
+        ...(!isGroup && chatName ? { name: chatName } : {}),
+      })
+      .eq("session_id", sessionId)
+      .eq("jid", remoteJid)
       .select("id")
       .single();
 

@@ -30,11 +30,22 @@ Deno.serve(async (req: Request) => {
   }
 
   // Verificar status + sync nomes de grupos e contatos para sessões conectadas
+  const connected = sessions.filter((s) => s.status === "connected");
   await Promise.allSettled([
     ...sessions.map(checkSession),
-    ...sessions.filter((s) => s.status === "connected").map(syncGroupNames),
-    ...sessions.filter((s) => s.status === "connected").map(syncContactNames),
+    ...connected.map(syncGroupNames),
+    ...connected.map(syncContactNames),
   ]);
+
+  // Log de execução para observabilidade
+  for (const s of sessions) {
+    await supabase.from("events_log").insert({
+      tenant_id: s.tenant_id,
+      session_id: s.id,
+      event_type: "health_check_ran",
+      payload: { status: s.status, instance: s.evolution_instance_name },
+    });
+  }
 
   return new Response("ok", { status: 200 });
 });
@@ -148,14 +159,24 @@ async function syncGroupNames(session: {
     }
 
     // Atualizar chats não resolvidos
+    let resolved = 0;
     await Promise.allSettled(
       unresolved.map(async (chat) => {
         const subject = subjectMap.get(chat.jid);
         if (subject) {
           await supabase.from("chats").update({ name: subject }).eq("id", chat.id);
+          resolved++;
         }
       }),
     );
+
+    if (resolved > 0 || unresolved.length > 0) {
+      await supabase.from("events_log").insert({
+        tenant_id: null, session_id: sessionId,
+        event_type: "names_synced",
+        payload: { type: "groups", resolved, unresolved: unresolved.length },
+      });
+    }
   } catch (err) {
     console.error(`Failed to sync group names for ${instanceName}:`, err);
   }
@@ -203,14 +224,24 @@ async function syncContactNames(session: {
       if (jid && name && name.trim()) contactMap.set(jid, name.trim());
     }
 
+    let resolved = 0;
     await Promise.allSettled(
       unresolved.map(async (chat) => {
         const name = contactMap.get(chat.jid);
         if (name) {
           await supabase.from("chats").update({ name }).eq("id", chat.id);
+          resolved++;
         }
       }),
     );
+
+    if (resolved > 0 || unresolved.length > 0) {
+      await supabase.from("events_log").insert({
+        tenant_id: null, session_id: sessionId,
+        event_type: "names_synced",
+        payload: { type: "contacts", resolved, unresolved: unresolved.length },
+      });
+    }
   } catch (err) {
     console.error(`Failed to sync contact names for ${instanceName}:`, err);
   }

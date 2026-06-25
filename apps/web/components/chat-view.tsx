@@ -17,6 +17,7 @@ import {
   User,
   BarChart2,
   Smile,
+  RefreshCw,
 } from "lucide-react";
 
 interface MediaFile {
@@ -65,6 +66,8 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loadingMore, setLoadingMore] = useState(false);
   const [quotedMessage, setQuotedMessage] = useState<QuotedMessage | null>(null);
+  const [chatName, setChatName] = useState(chat.name);
+  const [syncingName, setSyncingName] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const topSentinelRef = useRef<HTMLDivElement>(null);
@@ -73,6 +76,17 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
     setMessages(initial);
     setHasMore(initialHasMore);
   }, [initial, initialHasMore]);
+
+  async function handleSyncName() {
+    setSyncingName(true);
+    try {
+      const res = await fetch(`/api/chats/${chat.id}/sync-name`, { method: "POST" });
+      const data = await res.json() as { ok: boolean; name?: string };
+      if (data.ok && data.name) setChatName(data.name);
+    } catch { /* ignore */ } finally {
+      setSyncingName(false);
+    }
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "instant" });
@@ -168,9 +182,19 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-800 shrink-0">
-        <p className="text-sm font-medium text-white">{chat.name ?? chat.jid}</p>
-        <p className="text-xs text-gray-500">{chat.jid}</p>
+      <div className="px-4 py-3 border-b border-gray-800 shrink-0 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-white truncate">{chatName ?? chat.jid}</p>
+          <p className="text-xs text-gray-500 truncate">{chat.jid}</p>
+        </div>
+        <button
+          onClick={handleSyncName}
+          disabled={syncingName}
+          title="Sincronizar nome do contato/grupo"
+          className="shrink-0 text-gray-600 hover:text-gray-300 disabled:opacity-40 transition-colors p-1"
+        >
+          <RefreshCw size={14} className={syncingName ? "animate-spin" : ""} />
+        </button>
       </div>
 
       <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2">

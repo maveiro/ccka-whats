@@ -137,7 +137,13 @@ export default function ChatList({ chats: initial, operatorRole }: ChatListProps
         setChats((prev) =>
           prev.map((c) =>
             c.id === payload.new.id
-              ? { ...c, unread_count: payload.new.unread_count, last_message_at: payload.new.last_message_at }
+              ? {
+                  ...c,
+                  unread_count: payload.new.unread_count,
+                  last_message_at: payload.new.last_message_at,
+                  last_message_body: payload.new.last_message_body ?? c.last_message_body,
+                  name: payload.new.name ?? c.name,
+                }
               : c,
           ).sort((a, b) => {
             const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;

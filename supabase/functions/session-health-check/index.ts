@@ -29,8 +29,11 @@ Deno.serve(async (req: Request) => {
     return new Response("No active sessions", { status: 200 });
   }
 
-  // Verificar cada sessão em paralelo
-  await Promise.allSettled(sessions.map(checkSession));
+  // Verificar status + sync nomes de grupos para sessões conectadas
+  await Promise.allSettled([
+    ...sessions.map(checkSession),
+    ...sessions.filter((s) => s.status === "connected").map(syncGroupNames),
+  ]);
 
   return new Response("ok", { status: 200 });
 });
@@ -99,4 +102,60 @@ async function checkSession(session: {
     event_type: "session_status_changed",
     payload: { from: currentStatus, to: newStatus, instance: instanceName },
   });
+}
+
+// Busca grupos cujo nome ainda é o JID (não resolvido) e atualiza via Evolution API.
+async function syncGroupNames(session: {
+  id: string;
+  evolution_instance_name: string;
+}): Promise<void> {
+  const { id: sessionId, evolution_instance_name: instanceName } = session;
+
+  // Pegar grupos com nome igual ao JID (não resolvido)
+  const { data: groups } = await supabase
+    .from("chats")
+    .select("id, jid, name")
+    .eq("session_id", sessionId)
+    .like("jid", "%@g.us")
+    .limit(50);
+
+  if (!groups || groups.length === 0) return;
+
+  // Filtrar só os que o nome parece ser o JID (não resolvido)
+  const unresolved = groups.filter((g) => !g.name || g.name === g.jid || g.name.endsWith("@g.us"));
+  if (unresolved.length === 0) return;
+
+  // Buscar todos os grupos do Evolution de uma só vez
+  try {
+    const res = await fetch(
+      `${EVOLUTION_API_URL}/group/fetchAllGroups/${instanceName}?getParticipants=false`,
+      { headers: { "apikey": EVOLUTION_API_KEY } },
+    );
+    if (!res.ok) return;
+
+    const data = await res.json() as Array<Record<string, unknown>>;
+    if (!Array.isArray(data)) return;
+
+    // Montar mapa JID → subject
+    const subjectMap = new Map<string, string>();
+    for (const g of data) {
+      const jid = g.id as string | undefined;
+      const subject = (g.subject ?? g.name) as string | undefined;
+      if (jid && subject && subject.trim()) {
+        subjectMap.set(jid, subject.trim());
+      }
+    }
+
+    // Atualizar chats não resolvidos
+    await Promise.allSettled(
+      unresolved.map(async (chat) => {
+        const subject = subjectMap.get(chat.jid);
+        if (subject) {
+          await supabase.from("chats").update({ name: subject }).eq("id", chat.id);
+        }
+      }),
+    );
+  } catch (err) {
+    console.error(`Failed to sync group names for ${instanceName}:`, err);
+  }
 }

@@ -29,12 +29,15 @@ Deno.serve(async (req: Request) => {
     return new Response("No active sessions", { status: 200 });
   }
 
-  // Verificar status + sync nomes de grupos e contatos para sessões conectadas
+  // Verificar status + sync nomes + mesclar duplicatas para sessões conectadas
   const connected = sessions.filter((s) => s.status === "connected");
   await Promise.allSettled([
     ...sessions.map(checkSession),
-    ...connected.map(syncGroupNames),
-    ...connected.map(syncContactNames),
+    ...connected.map(async (s) => {
+      await syncGroupNames(s);
+      await syncContactNames(s);
+      await mergeDuplicateChats(s);
+    }),
   ]);
 
   // Log de execução para observabilidade
@@ -179,6 +182,67 @@ async function syncGroupNames(session: {
     }
   } catch (err) {
     console.error(`Failed to sync group names for ${instanceName}:`, err);
+  }
+}
+
+// Mescla automaticamente chats duplicados: mesmo nome, mesma sessão, um @lid e um @s.whatsapp.net.
+// Roda após syncContactNames para garantir que os nomes já foram resolvidos.
+async function mergeDuplicateChats(session: {
+  id: string;
+  tenant_id: string;
+}): Promise<void> {
+  const { id: sessionId, tenant_id: tenantId } = session;
+
+  // Buscar todos os chats @lid com nome resolvido (não contém @)
+  const { data: lids } = await supabase
+    .from("chats")
+    .select("id, jid, name")
+    .eq("session_id", sessionId)
+    .like("jid", "%@lid")
+    .not("name", "is", null);
+
+  if (!lids || lids.length === 0) return;
+
+  const resolvedLids = lids.filter((c) => c.name && !c.name.includes("@"));
+  if (resolvedLids.length === 0) return;
+
+  let merged = 0;
+  for (const lid of resolvedLids) {
+    const { data: phone } = await supabase
+      .from("chats")
+      .select("id, jid")
+      .eq("session_id", sessionId)
+      .eq("name", lid.name)
+      .like("jid", "%@s.whatsapp.net")
+      .maybeSingle();
+
+    if (!phone) continue;
+
+    // Mover mensagens do @lid para o @s.whatsapp.net
+    const { error: updateErr } = await supabase
+      .from("messages")
+      .update({ chat_id: phone.id })
+      .eq("chat_id", lid.id);
+
+    if (updateErr) {
+      console.error(`Failed to move messages for ${lid.jid}:`, updateErr);
+      continue;
+    }
+
+    // Remover o chat @lid
+    await supabase.from("chats").delete().eq("id", lid.id);
+
+    merged++;
+    await supabase.from("events_log").insert({
+      tenant_id: tenantId,
+      session_id: sessionId,
+      event_type: "chats_merged",
+      payload: { from_jid: lid.jid, to_jid: phone.jid, name: lid.name },
+    });
+  }
+
+  if (merged > 0) {
+    console.log(`Merged ${merged} duplicate @lid chats for session ${sessionId}`);
   }
 }
 

@@ -23,7 +23,7 @@ export default async function ChatPage({ params }: Props) {
 
   const { data: rawChats } = await supabase
     .from("chats")
-    .select(`id, jid, name, last_message_at, unread_count, session_id, wa_sessions ( label, phone_number, status )`)
+    .select(`id, jid, name, last_message_at, last_message_body, unread_count, session_id, wa_sessions ( label, phone_number, status )`)
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .limit(50);
 

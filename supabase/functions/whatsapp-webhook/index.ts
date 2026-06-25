@@ -191,7 +191,7 @@ async function handleMessagesUpsert(
           session_id: sessionId,
           contact_id: groupContact?.id ?? null,
           jid: remoteJid,
-          name: isGroup ? remoteJid : (pushName ?? remoteJid),
+          name: isGroup ? remoteJid : (!fromMe && pushName ? pushName : remoteJid),
         },
         { onConflict: "session_id,jid", ignoreDuplicates: true },
       );
@@ -209,8 +209,8 @@ async function handleMessagesUpsert(
         last_message_at: new Date(messageTimestamp * 1000).toISOString(),
         ...(previewBody ? { last_message_body: previewBody } : {}),
         ...(groupContact?.id ? { contact_id: groupContact.id } : {}),
-        // Para DMs: manter pushName atualizado; para grupos: nunca sobrescrever
-        ...(!isGroup && pushName ? { name: pushName } : {}),
+        // Para DMs recebidas: atualizar nome com pushName do contato. Para enviadas: nunca sobrescrever com seu próprio nome.
+        ...(!isGroup && !fromMe && pushName ? { name: pushName } : {}),
       })
       .eq("session_id", sessionId)
       .eq("jid", remoteJid)

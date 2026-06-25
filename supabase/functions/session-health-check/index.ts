@@ -29,10 +29,11 @@ Deno.serve(async (req: Request) => {
     return new Response("No active sessions", { status: 200 });
   }
 
-  // Verificar status + sync nomes de grupos para sessões conectadas
+  // Verificar status + sync nomes de grupos e contatos para sessões conectadas
   await Promise.allSettled([
     ...sessions.map(checkSession),
     ...sessions.filter((s) => s.status === "connected").map(syncGroupNames),
+    ...sessions.filter((s) => s.status === "connected").map(syncContactNames),
   ]);
 
   return new Response("ok", { status: 200 });
@@ -157,5 +158,60 @@ async function syncGroupNames(session: {
     );
   } catch (err) {
     console.error(`Failed to sync group names for ${instanceName}:`, err);
+  }
+}
+
+// Busca contatos (@s.whatsapp.net e @lid) cujo nome ainda é o JID bruto e resolve via Evolution API.
+async function syncContactNames(session: {
+  id: string;
+  evolution_instance_name: string;
+}): Promise<void> {
+  const { id: sessionId, evolution_instance_name: instanceName } = session;
+
+  // Chats de DM com nome que parece ser JID (contém @ — não foi resolvido ainda)
+  const { data: chats } = await supabase
+    .from("chats")
+    .select("id, jid, name")
+    .eq("session_id", sessionId)
+    .or("jid.like.%@s.whatsapp.net,jid.like.%@lid")
+    .limit(100);
+
+  if (!chats || chats.length === 0) return;
+
+  const unresolved = chats.filter(
+    (c) => !c.name || c.name === c.jid || c.name.includes("@"),
+  );
+  if (unresolved.length === 0) return;
+
+  try {
+    const res = await fetch(
+      `${EVOLUTION_API_URL}/contact/fetchContacts/${instanceName}`,
+      {
+        method: "GET",
+        headers: { "apikey": EVOLUTION_API_KEY },
+      },
+    );
+    if (!res.ok) return;
+
+    const data = await res.json() as Array<Record<string, unknown>>;
+    if (!Array.isArray(data)) return;
+
+    const contactMap = new Map<string, string>();
+    for (const c of data) {
+      const jid = (c.id ?? c.remoteJid) as string | undefined;
+      const name = (c.pushName ?? c.name ?? c.notify) as string | undefined;
+      if (jid && name && name.trim()) contactMap.set(jid, name.trim());
+    }
+
+    await Promise.allSettled(
+      unresolved.map(async (chat) => {
+        const name = contactMap.get(chat.jid);
+        if (name) {
+          await supabase.from("chats").update({ name }).eq("id", chat.id);
+        }
+      }),
+    );
+  } catch (err) {
+    console.error(`Failed to sync contact names for ${instanceName}:`, err);
   }
 }

@@ -396,10 +396,13 @@ function MessageContent({
       );
     }
     return (
-      <p className="italic opacity-50 text-xs flex items-center gap-1.5">
-        <ImageIcon size={13} />
-        Imagem não disponível
-      </p>
+      <div>
+        <p className="italic opacity-50 text-xs flex items-center gap-1.5">
+          <ImageIcon size={13} />
+          Imagem não disponível
+        </p>
+        {caption && <p className="mt-1 text-sm whitespace-pre-wrap break-words">{caption}</p>}
+      </div>
     );
   }
 
@@ -419,10 +422,13 @@ function MessageContent({
       );
     }
     return (
-      <p className="italic opacity-70 text-xs flex items-center gap-1.5">
-        <Video size={13} />
-        Vídeo não disponível
-      </p>
+      <div>
+        <p className="italic opacity-70 text-xs flex items-center gap-1.5">
+          <Video size={13} />
+          Vídeo não disponível
+        </p>
+        {caption && <p className="mt-1 text-sm whitespace-pre-wrap break-words">{caption}</p>}
+      </div>
     );
   }
 
@@ -470,7 +476,7 @@ function MessageContent({
         {caption ?? "Documento não disponível"}
       </p>
     );
-  }
+  }  // caption já está no fallback do documento acima
 
   if (type === "location") {
     const name = body ?? "Localização";

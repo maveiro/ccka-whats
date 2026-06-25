@@ -65,6 +65,11 @@ Deno.serve(async (req: Request) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
+  // OpenAI é opcional — silenciar quando a chave não estiver configurada
+  if (!OPENAI_API_KEY) {
+    return new Response("Skipped: OPENAI_API_KEY not configured", { status: 200 });
+  }
+
   // Chamada interna — sem verificação de JWT
   let payload: EmbeddingRequest;
   try {

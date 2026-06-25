@@ -123,6 +123,15 @@ async function processEvent(body: EvolutionEvent, session: SessionRow): Promise<
     case "qrcode.updated":
       await handleQrcodeUpdated(tenantId, sessionId, data);
       break;
+    case "contacts.upsert": {
+      // Temporário: logar primeiro contato para inspecionar estrutura do payload
+      const contacts = Array.isArray(data) ? data : (data.contacts as unknown[]) ?? [];
+      await logEvent(tenantId, sessionId, "contacts_upsert_sample", {
+        total: contacts.length,
+        sample: contacts.slice(0, 3),
+      });
+      break;
+    }
     default:
       break;
   }

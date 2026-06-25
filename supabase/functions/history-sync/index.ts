@@ -156,17 +156,26 @@ async function syncChat(
         { onConflict: "session_id,jid", ignoreDuplicates: true },
       );
 
-    // Passo 2: atualizar contact_id e, para DMs com nome real, o nome
+    // Passo 2: atualizar contact_id e, para grupos com nome real, também o nome
     const { data: chat } = await supabase
       .from("chats")
       .update({
         contact_id: chatContact?.id ?? null,
-        ...(!isGroup && chatName ? { name: chatName } : {}),
+        ...(chatName ? { name: chatName } : {}),
       })
       .eq("session_id", sessionId)
       .eq("jid", remoteJid)
-      .select("id")
+      .select("id, name")
       .single();
+
+    // Se o nome ainda é o JID bruto, buscar nome real do grupo na Evolution API
+    if (isGroup && chat?.id && (!chat.name || chat.name === remoteJid)) {
+      await fetchGroupSubjectAndUpdate(instanceName, remoteJid, chat.id);
+    }
+
+    // Índice para rastrear qual foi a última mensagem processada (mais recente)
+    let lastMsgBody: string | null = null;
+    let lastMsgTimestamp = 0;
 
     for (const msg of records) {
       const { key, messageType, messageTimestamp, pushName, message } = msg;
@@ -177,6 +186,13 @@ async function syncChat(
 
       const body = extractTextBody(message);
       const type = normalizeMessageType(messageType ?? deriveMessageType(message));
+      const caption = extractCaption(message);
+
+      // Rastrear última mensagem para preview do chat
+      if (messageTimestamp > lastMsgTimestamp) {
+        lastMsgTimestamp = messageTimestamp;
+        lastMsgBody = body ?? caption ?? (["image","audio","video","document","sticker"].includes(type) ? `[${type}]` : null);
+      }
 
       const { data: savedMsg } = await supabase.from("messages").upsert({
         tenant_id: tenantId,
@@ -241,11 +257,32 @@ async function syncChat(
       imported++;
     }
 
+    // Atualizar preview da última mensagem do chat
+    if (chat?.id && lastMsgBody) {
+      await supabase.from("chats").update({ last_message_body: lastMsgBody }).eq("id", chat.id);
+    }
+
     if (page >= pages) break;
     page++;
   }
 
   return imported;
+}
+
+async function fetchGroupSubjectAndUpdate(instanceName: string, groupJid: string, chatId: string): Promise<void> {
+  try {
+    const res = await fetch(
+      `${EVOLUTION_API_URL}/group/findGroupInfos/${instanceName}?groupJid=${encodeURIComponent(groupJid)}`,
+      { headers: { "apikey": EVOLUTION_API_KEY } },
+    );
+    if (!res.ok) return;
+    const data = await res.json() as Record<string, unknown>;
+    const info = Array.isArray(data) ? data[0] : data;
+    const subject = (info?.subject ?? info?.name) as string | undefined;
+    if (subject && subject.trim()) {
+      await supabase.from("chats").update({ name: subject.trim() }).eq("id", chatId);
+    }
+  } catch { /* best-effort */ }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

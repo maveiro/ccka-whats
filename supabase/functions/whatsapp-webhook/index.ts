@@ -176,6 +176,13 @@ async function handleMessagesUpsert(
     // Upsert chat — dois passos para preservar nomes de grupo
     // Passo 1: INSERT apenas se não existir (ignoreDuplicates protege o nome real do grupo)
     // Para grupos: pushName é o nome do REMETENTE, não do grupo — nunca usar como nome do chat
+    const { data: existingChat } = await supabase
+      .from("chats")
+      .select("id, name")
+      .eq("session_id", sessionId)
+      .eq("jid", remoteJid)
+      .single();
+
     await supabase
       .from("chats")
       .upsert(
@@ -189,11 +196,18 @@ async function handleMessagesUpsert(
         { onConflict: "session_id,jid", ignoreDuplicates: true },
       );
 
+    // Extrair body do texto para preview
+    const body = extractTextBody(message);
+    const caption = extractCaption(message);
+    const hasMedia = isMediaMessage(messageType);
+    const previewBody = body ?? caption ?? (hasMedia ? `[${normalizeMessageType(messageType)}]` : null);
+
     // Passo 2: atualizar last_message_at (e pushName para DMs) sem tocar no nome do grupo
     const { data: chat } = await supabase
       .from("chats")
       .update({
         last_message_at: new Date(messageTimestamp * 1000).toISOString(),
+        ...(previewBody ? { last_message_body: previewBody } : {}),
         ...(groupContact?.id ? { contact_id: groupContact.id } : {}),
         // Para DMs: manter pushName atualizado; para grupos: nunca sobrescrever
         ...(!isGroup && pushName ? { name: pushName } : {}),
@@ -203,10 +217,11 @@ async function handleMessagesUpsert(
       .select("id")
       .single();
 
-    // Extrair body do texto
-    const body = extractTextBody(message);
-    const caption = extractCaption(message);
-    const hasMedia = isMediaMessage(messageType);
+    // Se é grupo novo (nome ainda é JID), buscar nome real da Evolution API
+    const chatNameIsJid = !existingChat || existingChat.name === remoteJid;
+    if (isGroup && chatNameIsJid && chat?.id) {
+      fetchGroupSubject(instance, remoteJid, chat.id);
+    }
 
     // Upsert message — contact_id aponta para o REMETENTE (participante em grupos)
     const { data: savedMessage } = await supabase
@@ -550,6 +565,27 @@ function normalizeMessageType(type: string): string {
     encReactionMessage: "reaction",
   };
   return map[type] ?? "unknown";
+}
+
+// ─── Busca nome real do grupo via Evolution API ───────────────────────────────
+
+function fetchGroupSubject(instanceName: string, groupJid: string, chatId: string): void {
+  (async () => {
+    try {
+      const res = await fetch(
+        `${Deno.env.get("EVOLUTION_API_URL")}/group/findGroupInfos/${instanceName}?groupJid=${encodeURIComponent(groupJid)}`,
+        { headers: { "apikey": Deno.env.get("EVOLUTION_API_KEY")! } },
+      );
+      if (!res.ok) return;
+      const data = await res.json() as Record<string, unknown>;
+      // Evolution pode retornar array ou objeto direto
+      const info = Array.isArray(data) ? data[0] : data;
+      const subject = (info?.subject ?? info?.name) as string | undefined;
+      if (subject && subject.trim()) {
+        await supabase.from("chats").update({ name: subject.trim() }).eq("id", chatId);
+      }
+    } catch { /* fire-and-forget */ }
+  })();
 }
 
 // ─── Verificação de alertas ───────────────────────────────────────────────────

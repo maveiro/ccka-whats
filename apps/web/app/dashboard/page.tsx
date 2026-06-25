@@ -19,6 +19,7 @@ export default async function DashboardPage() {
       jid,
       name,
       last_message_at,
+      last_message_body,
       unread_count,
       session_id,
       wa_sessions ( label, phone_number, status )

@@ -13,6 +13,7 @@ interface Chat {
   jid: string;
   name: string | null;
   last_message_at: string | null;
+  last_message_body: string | null;
   unread_count: number;
   session_id: string;
   wa_sessions: { label: string | null; phone_number: string; status: string } | null;
@@ -280,8 +281,13 @@ export default function ChatList({ chats: initial, operatorRole }: ChatListProps
                     )}
                   </div>
                 </div>
+                {chat.last_message_body && (
+                  <p className="text-xs text-gray-500 truncate mt-0.5">
+                    {chat.last_message_body}
+                  </p>
+                )}
                 {operatorRole === "admin" && chat.wa_sessions && (
-                  <p className="text-xs text-gray-600 truncate mt-0.5">
+                  <p className="text-xs text-gray-700 truncate mt-0.5">
                     {chat.wa_sessions.label ?? formatPhone(chat.wa_sessions.phone_number)}
                   </p>
                 )}

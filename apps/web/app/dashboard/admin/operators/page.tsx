@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import InviteOperatorForm from "./invite-form";
+import OperatorActions from "./operator-actions";
 
 export default async function OperatorsPage() {
   const supabase = await createClient();
@@ -17,7 +18,6 @@ export default async function OperatorsPage() {
   const { data: operators } = await supabase
     .from("operators")
     .select("id, name, email, role, active, created_at")
-    .eq("tenant_id", operator.tenant_id)
     .order("created_at", { ascending: true });
 
   return (
@@ -52,6 +52,7 @@ export default async function OperatorsPage() {
               {!op.active && (
                 <span className="text-xs text-red-400">inativo</span>
               )}
+              <OperatorActions operator={op} currentUserId={user!.id} />
             </div>
           </div>
         ))}

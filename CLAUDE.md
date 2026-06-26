@@ -107,7 +107,7 @@ wa-intelligence/
 │   └── types/                    ← tipos compartilhados
 │
 ├── supabase/
-│   ├── migrations/               ← SQL versionado (0001–0010)
+│   ├── migrations/               ← SQL versionado (0001–0011)
 │   └── functions/
 │       ├── whatsapp-webhook/     ← recebe eventos do Evolution (JWT off)
 │       ├── media-downloader/     ← baixa mídias antes de expirar (JWT off)
@@ -155,6 +155,17 @@ wa-intelligence/
 13. **Embeddings são `number[]`, não string** — ao gravar no campo `embedding vector(1536)`,
     passar o array diretamente (ex: `.update({ embedding: arr })`). Nunca `JSON.stringify`
     — o Postgres recebe uma string e o update falha silenciosamente.
+14. **`MessageType` inclui todos os tipos reais** — além de `text/image/audio/video/document/
+    sticker/reaction/unknown`, existem: `contact`, `interactive`, `location`, `poll`, `system`.
+    Todos derivados de `normalizeMessageType()` no whatsapp-webhook. Nunca comparar com
+    subconjunto incompleto.
+15. **Isolamento multi-tenant via RLS, não via filtro de app** — as Route Handlers usam o
+    cliente Supabase autenticado do usuário; RLS filtra automaticamente por tenant. Não é
+    necessário (nem correto) adicionar `.eq("tenant_id", ...)` em queries do web app —
+    isso seria redundância que dificulta manutenção. A autoridade é o Supabase RLS.
+16. **`media_files.message_id` é FK para `messages.id` (UUID interno)** — não confundir com
+    `messages.message_id` (ID do WhatsApp, string). O campo `media_files.message_id` sempre
+    referencia o UUID primário da tabela `messages`.
 
 ---
 
@@ -207,19 +218,21 @@ REDIS_URL=
 - Multi-sessão: criar, conectar (QR code), desconectar, excluir sessões WhatsApp
 - Captura de mensagens em tempo real via webhook Evolution → Supabase
 - Download automático de mídia (imagem, áudio, vídeo, documento)
-- Sincronização de histórico via `history-sync` Edge Function (processamento paralelo)
+- Sincronização de histórico via `history-sync` Edge Function (processamento paralelo, lotes de 5)
 - Feedback em tempo real do sync: spinner com contagem + resultado final via polling de `events_log`
 - Chat list com filtro Todos / Grupos / Contatos + filtro por sessão (número)
 - Reações: agrupadas como badges emoji na bolha da mensagem-alvo (coluna `reaction_to`)
-- Resolução de nomes: botão por conversa + health-check periódico para JIDs não resolvidos
+- Resolução de nomes: botão por conversa + health-check periódico (a cada 5 min via pg_cron)
 - Merge automático de chats duplicados `@lid` ↔ `@s.whatsapp.net` (session-health-check)
-- Auditoria geral realizada Jun 2026 — corrigidos 8 bugs críticos/altos em Edge Functions
 - Busca full-text de mensagens
 - Sistema de alertas por palavra-chave
 - Analytics básico
 - Gestão de operadores (admin / operator)
-- Integrações (webhook delivery)
+- Integrações (webhook delivery com log em `events_log`)
 - Realtime: atualizações de status de sessão e novas mensagens via Supabase Realtime
+- **Auditoria completa Jun 2026** — 3 rodadas, 16+ bugs corrigidos nas Edge Functions,
+  `MessageType` completo, `EventType` completo, `DeliveryStatus` exportado,
+  `vercel.json` configurado para monorepo, padrões arquiteturais verificados e documentados
 
 ### Pendente / próximos passos
 - Notificações em tempo real de alertas disparados (badge + toast no dashboard)
@@ -245,10 +258,25 @@ REDIS_URL=
 GET /rest/v1/events_log?event_type=eq.error&order=created_at.desc&limit=20
 
 # Verificar se sync rodou:
-GET /rest/v1/events_log?payload->>type=eq.history_sync_completed&order=created_at.desc&limit=5
+GET /rest/v1/events_log?event_type=eq.webhook_received&payload->>type=eq.history_sync_completed&order=created_at.desc&limit=5
+
+# Ver entregas de webhook:
+GET /rest/v1/events_log?event_type=eq.webhook_delivery&order=created_at.desc&limit=20
+
+# Ver health-checks:
+GET /rest/v1/events_log?event_type=eq.health_check_ran&order=created_at.desc&limit=10
+
+# Nomes sincronizados:
+GET /rest/v1/events_log?event_type=eq.names_synced&order=created_at.desc&limit=10
 ```
 
 ### Armadilha: falha silenciosa em upsert
 O Supabase JS client retorna `{ data: null, error }` quando um upsert falha (ex: coluna inexistente).
 Se o código só destructura `{ data }` e ignora `error`, a mensagem é descartada sem nenhum log.
 **Sempre** checar e logar `error` em operações críticas de DB.
+
+### Operações secundárias (update de campos de estado)
+Atualizações de campos como `delivery_status`, `deleted_at`, `edited_at`, `last_seen_at`,
+`last_message_body` e nomes de chat usam `console.error` em falha (não `events_log`).
+São operações de baixo impacto: a mensagem já foi salva; apenas um campo de estado fica
+desatualizado até o próximo evento ou health-check corrigir.

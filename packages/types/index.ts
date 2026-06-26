@@ -3,7 +3,10 @@
 export type TenantPlan = "personal" | "business" | "enterprise";
 export type OperatorRole = "admin" | "operator" | "viewer";
 export type SessionStatus = "connected" | "disconnected" | "connecting" | "banned";
-export type MessageType = "text" | "image" | "audio" | "video" | "document" | "sticker" | "reaction" | "unknown";
+export type MessageType =
+  | "text" | "image" | "audio" | "video" | "document" | "sticker"
+  | "reaction" | "contact" | "interactive" | "location" | "poll" | "system"
+  | "unknown";
 export type DeliveryStatus = "pending" | "sent" | "delivered" | "read" | "played" | "error";
 export type MediaDownloadStatus = "pending" | "done" | "failed";
 export type IntegrationType = "monday" | "hubspot" | "activecamp" | "webhook" | "hermes";

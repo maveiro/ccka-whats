@@ -99,7 +99,17 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
     const res = await fetch(`/api/messages?chatId=${chat.id}&limit=50`);
     if (!res.ok) return;
     const { messages: fresh } = await res.json() as { messages: Message[] };
-    setMessages(fresh);
+    setMessages((prev) => {
+      // Manter placeholders otimistas que ainda não têm correspondente real no banco
+      const optimistics = prev.filter((m) => m.id.startsWith("opt_"));
+      if (optimistics.length === 0) return fresh;
+      // Se há mensagens from_me recentes no fresh, o webhook chegou — descartar placeholders
+      const newestOpt = Math.max(...optimistics.map((m) => new Date(m.timestamp).getTime()));
+      const webhookArrived = fresh.some(
+        (m) => m.from_me && new Date(m.timestamp).getTime() >= newestOpt - 10_000,
+      );
+      return webhookArrived ? fresh : [...fresh, ...optimistics];
+    });
     setHasMore(fresh.length === 50);
     requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
   }, [chat.id]);
@@ -123,9 +133,7 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
     };
     setMessages((prev) => [...prev, optimistic]);
     requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
-    // Fallback: refresh após 2.5s caso o Realtime não dispare a tempo
-    setTimeout(() => void refreshMessages(), 2500);
-  }, [refreshMessages]);
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore || messages.length === 0) return;

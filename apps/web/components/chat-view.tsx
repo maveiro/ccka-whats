@@ -95,6 +95,15 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
     fetch(`/api/chats/${chat.id}/read`, { method: "POST" }).catch(() => undefined);
   }, [chat.id]);
 
+  const refreshMessages = useCallback(async () => {
+    const res = await fetch(`/api/messages?chatId=${chat.id}&limit=50`);
+    if (!res.ok) return;
+    const { messages: fresh } = await res.json() as { messages: Message[] };
+    setMessages(fresh);
+    setHasMore(fresh.length === 50);
+    requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+  }, [chat.id]);
+
   const handleSent = useCallback((opt: { text?: string; mediaType?: string; caption?: string }) => {
     const optimistic: Message = {
       id: `opt_${Date.now()}`,
@@ -114,16 +123,9 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
     };
     setMessages((prev) => [...prev, optimistic]);
     requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
-  }, []);
-
-  const refreshMessages = useCallback(async () => {
-    const res = await fetch(`/api/messages?chatId=${chat.id}&limit=50`);
-    if (!res.ok) return;
-    const { messages: fresh } = await res.json() as { messages: Message[] };
-    setMessages(fresh);
-    setHasMore(fresh.length === 50);
-    requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
-  }, [chat.id]);
+    // Fallback: refresh após 2.5s caso o Realtime não dispare a tempo
+    setTimeout(() => void refreshMessages(), 2500);
+  }, [refreshMessages]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore || messages.length === 0) return;
@@ -170,27 +172,11 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel(`messages:chat_id=eq.${chat.id}`)
+      .channel(`chat-messages-${chat.id}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `chat_id=eq.${chat.id}` },
-        async (payload) => {
-          if (payload.new.from_me) {
-            // Mensagem enviada por nós chegou via webhook — substituir placeholder otimista
-            await refreshMessages();
-            return;
-          }
-          const res = await fetch(`/api/messages?chatId=${chat.id}&limit=1`);
-          if (!res.ok) return;
-          const { messages: fresh } = await res.json() as { messages: Message[] };
-          const newMsg = fresh.find((m) => m.id === payload.new.id) ?? fresh[fresh.length - 1];
-          if (!newMsg) return;
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-          });
-          requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
-        },
+        () => { void refreshMessages(); },
       )
       .on(
         "postgres_changes",
@@ -206,7 +192,7 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [chat.id]);
+  }, [chat.id, refreshMessages]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

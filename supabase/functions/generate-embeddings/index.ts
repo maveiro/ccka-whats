@@ -99,7 +99,7 @@ Deno.serve(async (req: Request) => {
 
     const { error: updateError } = await supabase
       .from("messages")
-      .update({ embedding: JSON.stringify(embedding) } as Record<string, unknown>)
+      .update({ embedding: embedding } as Record<string, unknown>)
       .eq("id", messageId)
       .eq("tenant_id", tenantId);
 

@@ -149,6 +149,12 @@ wa-intelligence/
     timeout de Edge Function. Processar chats sequencialmente com await dentro de loop
     causa timeout para volumes > ~100 chats. Usar lotes paralelos (`Promise.allSettled`
     em batches de 5) e bulk upsert por página, não um DB call por mensagem.
+12. **`events_log` usa sempre `event_type` / `payload` / `error`** — nunca `type` ou
+    `status`. Campos corretos: `{ tenant_id, session_id, event_type, payload, error }`.
+    Usar campos errados gera insert silenciosamente inválido no Postgres.
+13. **Embeddings são `number[]`, não string** — ao gravar no campo `embedding vector(1536)`,
+    passar o array diretamente (ex: `.update({ embedding: arr })`). Nunca `JSON.stringify`
+    — o Postgres recebe uma string e o update falha silenciosamente.
 
 ---
 
@@ -206,6 +212,8 @@ REDIS_URL=
 - Chat list com filtro Todos / Grupos / Contatos + filtro por sessão (número)
 - Reações: agrupadas como badges emoji na bolha da mensagem-alvo (coluna `reaction_to`)
 - Resolução de nomes: botão por conversa + health-check periódico para JIDs não resolvidos
+- Merge automático de chats duplicados `@lid` ↔ `@s.whatsapp.net` (session-health-check)
+- Auditoria geral realizada Jun 2026 — corrigidos 8 bugs críticos/altos em Edge Functions
 - Busca full-text de mensagens
 - Sistema de alertas por palavra-chave
 - Analytics básico

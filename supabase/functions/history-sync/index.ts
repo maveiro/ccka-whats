@@ -34,13 +34,13 @@ Deno.serve(async (req: Request) => {
   }
 
   // Buscar a sessão
-  const { data: session } = await supabase
+  const { data: session, error: sessionError } = await supabase
     .from("wa_sessions")
     .select("id, tenant_id, evolution_instance_name")
     .eq("id", sessionId)
     .single();
 
-  if (!session?.evolution_instance_name) {
+  if (sessionError || !session?.evolution_instance_name) {
     return new Response("Session not found or missing instance name", { status: 404 });
   }
 
@@ -232,10 +232,14 @@ async function syncChat(
     }
 
     // ── Bulk upsert de mensagens ──────────────────────────────────────────
-    const { data: savedMessages } = await supabase
+    const { data: savedMessages, error: upsertError } = await supabase
       .from("messages")
       .upsert(msgRows, { onConflict: "session_id,message_id" })
       .select("id, message_id");
+
+    if (upsertError) {
+      await logEvent(tenantId, sessionId, "error", { remoteJid, page }, `messages.upsert: ${upsertError.message}`);
+    }
 
     // ── Garantir media_files e acionar downloads ──────────────────────────
     if (savedMessages?.length && mediaIndex.size > 0) {

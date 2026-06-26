@@ -42,13 +42,13 @@ Deno.serve(async (req: Request) => {
   }
 
   // Buscar registro de media_file existente
-  const { data: mediaFile } = await supabase
+  const { data: mediaFile, error: selectError } = await supabase
     .from("media_files")
     .select("id, download_attempts")
     .eq("message_id", messageId)
     .single();
 
-  if (!mediaFile) {
+  if (selectError || !mediaFile) {
     return new Response("Media file record not found", { status: 404 });
   }
 

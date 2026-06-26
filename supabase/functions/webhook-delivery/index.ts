@@ -67,9 +67,10 @@ Deno.serve(async (req: Request) => {
 
         await supabase.from("events_log").insert({
           tenant_id: tenantId,
-          type: "webhook_delivery",
-          status: res.ok ? "success" : "error",
-          payload: { integration_id: integration.id, event, status_code: res.status },
+          session_id: null,
+          event_type: "webhook_delivery",
+          payload: { integration_id: integration.id, event, status_code: res.status, success: res.ok },
+          error: null,
         })
 
         return { success: res.ok }
@@ -77,9 +78,10 @@ Deno.serve(async (req: Request) => {
         const errMsg = err instanceof Error ? err.message : String(err)
         await supabase.from("events_log").insert({
           tenant_id: tenantId,
-          type: "webhook_delivery",
-          status: "error",
-          payload: { integration_id: integration.id, event, error: errMsg },
+          session_id: null,
+          event_type: "webhook_delivery",
+          payload: { integration_id: integration.id, event },
+          error: errMsg,
         })
         return { success: false }
       }

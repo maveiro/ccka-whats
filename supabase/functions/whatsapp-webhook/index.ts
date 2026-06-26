@@ -181,7 +181,7 @@ async function handleMessagesUpsert(
       .select("id, name")
       .eq("session_id", sessionId)
       .eq("jid", remoteJid)
-      .single();
+      .maybeSingle();
 
     await supabase
       .from("chats")
@@ -230,7 +230,7 @@ async function handleMessagesUpsert(
       : null;
 
     // Upsert message — contact_id aponta para o REMETENTE (participante em grupos)
-    const { data: savedMessage } = await supabase
+    const { data: savedMessage, error: msgError } = await supabase
       .from("messages")
       .upsert({
         tenant_id: tenantId,
@@ -250,6 +250,11 @@ async function handleMessagesUpsert(
       }, { onConflict: "session_id,message_id" })
       .select("id")
       .single();
+
+    if (msgError) {
+      await logEvent(tenantId, sessionId, "error", { messageId }, `messages.upsert: ${msgError.message}`);
+      continue;
+    }
 
     // Para mensagens de texto com body: acionar geração de embedding de forma assíncrona
     if (savedMessage?.id && body && body.trim().length > 0 && normalizeMessageType(messageType) === "text") {

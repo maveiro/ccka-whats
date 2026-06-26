@@ -122,9 +122,10 @@ async function checkSession(session: {
 // Busca grupos cujo nome ainda é o JID (não resolvido) e atualiza via Evolution API.
 async function syncGroupNames(session: {
   id: string;
+  tenant_id: string;
   evolution_instance_name: string;
 }): Promise<void> {
-  const { id: sessionId, evolution_instance_name: instanceName } = session;
+  const { id: sessionId, tenant_id: tenantId, evolution_instance_name: instanceName } = session;
 
   // Pegar grupos com nome igual ao JID (não resolvido)
   const { data: groups } = await supabase
@@ -175,7 +176,7 @@ async function syncGroupNames(session: {
 
     if (resolved > 0 || unresolved.length > 0) {
       await supabase.from("events_log").insert({
-        tenant_id: null, session_id: sessionId,
+        tenant_id: tenantId, session_id: sessionId,
         event_type: "names_synced",
         payload: { type: "groups", resolved, unresolved: unresolved.length },
       });
@@ -225,7 +226,13 @@ async function mergeDuplicateChats(session: {
       .eq("chat_id", lid.id);
 
     if (updateErr) {
-      console.error(`Failed to move messages for ${lid.jid}:`, updateErr);
+      await supabase.from("events_log").insert({
+        tenant_id: tenantId,
+        session_id: sessionId,
+        event_type: "error",
+        payload: { from_jid: lid.jid, to_jid: phone.jid },
+        error: `mergeDuplicateChats: ${updateErr.message}`,
+      });
       continue;
     }
 
@@ -249,9 +256,10 @@ async function mergeDuplicateChats(session: {
 // Busca contatos (@s.whatsapp.net e @lid) cujo nome ainda é o JID bruto e resolve via Evolution API.
 async function syncContactNames(session: {
   id: string;
+  tenant_id: string;
   evolution_instance_name: string;
 }): Promise<void> {
-  const { id: sessionId, evolution_instance_name: instanceName } = session;
+  const { id: sessionId, tenant_id: tenantId, evolution_instance_name: instanceName } = session;
 
   // Chats de DM com nome que parece ser JID (contém @ — não foi resolvido ainda)
   const { data: chats } = await supabase
@@ -301,7 +309,7 @@ async function syncContactNames(session: {
 
     if (resolved > 0 || unresolved.length > 0) {
       await supabase.from("events_log").insert({
-        tenant_id: null, session_id: sessionId,
+        tenant_id: tenantId, session_id: sessionId,
         event_type: "names_synced",
         payload: { type: "contacts", resolved, unresolved: unresolved.length },
       });

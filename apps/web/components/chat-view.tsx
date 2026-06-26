@@ -95,6 +95,27 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
     fetch(`/api/chats/${chat.id}/read`, { method: "POST" }).catch(() => undefined);
   }, [chat.id]);
 
+  const handleSent = useCallback((opt: { text?: string; mediaType?: string; caption?: string }) => {
+    const optimistic: Message = {
+      id: `opt_${Date.now()}`,
+      message_id: `opt_${Date.now()}`,
+      type: opt.mediaType ?? "text",
+      body: opt.text ?? null,
+      caption: opt.caption ?? null,
+      from_me: true,
+      timestamp: new Date().toISOString(),
+      deleted_at: null,
+      edited_at: null,
+      delivery_status: "pending",
+      reaction_to: null,
+      media_files: null,
+      signedUrl: null,
+      contacts: null,
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+  }, []);
+
   const refreshMessages = useCallback(async () => {
     const res = await fetch(`/api/messages?chatId=${chat.id}&limit=50`);
     if (!res.ok) return;
@@ -154,6 +175,11 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `chat_id=eq.${chat.id}` },
         async (payload) => {
+          if (payload.new.from_me) {
+            // Mensagem enviada por nós chegou via webhook — substituir placeholder otimista
+            await refreshMessages();
+            return;
+          }
           const res = await fetch(`/api/messages?chatId=${chat.id}&limit=1`);
           if (!res.ok) return;
           const { messages: fresh } = await res.json() as { messages: Message[] };
@@ -238,7 +264,7 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
 
       <MessageComposer
         chatId={chat.id}
-        onSent={refreshMessages}
+        onSent={handleSent}
         quotedMessage={quotedMessage}
         onClearQuote={() => setQuotedMessage(null)}
       />

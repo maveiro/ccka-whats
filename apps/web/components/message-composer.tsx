@@ -8,9 +8,15 @@ interface QuotedMessage {
   senderName: string | null;
 }
 
+interface OptimisticPayload {
+  text?: string;
+  mediaType?: string;
+  caption?: string;
+}
+
 interface MessageComposerProps {
   chatId: string;
-  onSent?: () => void;
+  onSent?: (opt: OptimisticPayload) => void;
   quotedMessage?: QuotedMessage | null;
   onClearQuote?: () => void;
 }
@@ -41,7 +47,7 @@ export default function MessageComposer({ chatId, onSent, quotedMessage, onClear
         }
         throw new Error(errMsg);
       }
-      onSent?.();
+      onSent?.({ text: (payload.text as string | undefined), mediaType: (payload.mediaType as string | undefined), caption: (payload.caption as string | undefined) });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

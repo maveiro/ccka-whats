@@ -73,6 +73,7 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const topSentinelRef = useRef<HTMLDivElement>(null);
+  const mediaRetryRef = useRef(0);
 
   useEffect(() => {
     setMessages(initial);
@@ -176,6 +177,29 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [hasMore, loadingMore, loadMore]);
+
+  // Mídia recém-enviada/recebida pode ainda estar baixando (download_status != done):
+  // o link assinado vem null. media_files atualiza fora da tabela `messages`, então o
+  // realtime não dispara — re-buscar algumas vezes até o download concluir.
+  useEffect(() => {
+    const MEDIA = ["image", "video", "audio", "ptt", "document", "sticker"];
+    const hasPending = messages.some(
+      (m) =>
+        MEDIA.includes(m.type) &&
+        !m.signedUrl &&
+        (m.media_files?.[0]?.download_status ?? "pending") !== "failed",
+    );
+    if (!hasPending) {
+      mediaRetryRef.current = 0;
+      return;
+    }
+    if (mediaRetryRef.current >= 6) return;
+    const t = setTimeout(() => {
+      mediaRetryRef.current += 1;
+      void refreshMessages();
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [messages, refreshMessages]);
 
   useEffect(() => {
     const supabase = createClient();

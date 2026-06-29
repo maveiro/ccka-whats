@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { env } from "@/lib/env";
+import { getTenantOpenAIKey } from "@/lib/ai";
 
-async function generateQueryEmbedding(query: string): Promise<number[]> {
-  const apiKey = env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
-
+async function generateQueryEmbedding(query: string, apiKey: string): Promise<number[]> {
   const response = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
     headers: {
@@ -54,12 +49,17 @@ export async function GET(req: NextRequest) {
 
   if (mode === "semantic") {
     // ── Busca semântica via embedding ──────────────────────────────────────────
+    const { key: apiKey } = await getTenantOpenAIKey(supabase);
+    if (!apiKey) {
+      return NextResponse.json({ error: "IA não configurada" }, { status: 503 });
+    }
+
     let embedding: number[];
     try {
-      embedding = await generateQueryEmbedding(q);
+      embedding = await generateQueryEmbedding(q, apiKey);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      return NextResponse.json({ error: `Embedding generation failed: ${errMsg}` }, { status: 500 });
+      return NextResponse.json({ error: `Embedding generation failed: ${errMsg}` }, { status: 502 });
     }
 
     // Chamar a função RPC de busca semântica

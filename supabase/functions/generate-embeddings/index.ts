@@ -5,9 +5,7 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+const PLATFORM_OPENAI_KEY = Deno.env.get("OPENAI_API_KEY");
 
 // Tipos de mensagem que não devem gerar embeddings
 const SKIP_TYPES = new Set(["system", "reaction"]);
@@ -19,16 +17,32 @@ interface EmbeddingRequest {
   messageType?: string;
 }
 
-async function generateEmbedding(text: string): Promise<number[]> {
-  if (!OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
+// Resolve a chave OpenAI do tenant: override BYOK (integrations) → chave da
+// plataforma (env). Mesmo modelo do helper web apps/web/lib/ai.ts.
+async function resolveTenantKey(tenantId: string): Promise<string | null> {
+  const { data: integration } = await supabase
+    .from("integrations")
+    .select("config")
+    .eq("tenant_id", tenantId)
+    .eq("type", "openai")
+    .eq("active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
+  const config = (integration?.config ?? null) as Record<string, unknown> | null;
+  const byok = config && typeof config.api_key === "string" ? config.api_key : null;
+  if (byok && byok.length > 0) return byok;
+
+  return PLATFORM_OPENAI_KEY ?? null;
+}
+
+async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
   const response = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      "Authorization": `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model: "text-embedding-3-small",
@@ -65,11 +79,6 @@ Deno.serve(async (req: Request) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  // OpenAI é opcional — silenciar quando a chave não estiver configurada
-  if (!OPENAI_API_KEY) {
-    return new Response("Skipped: OPENAI_API_KEY not configured", { status: 200 });
-  }
-
   // Chamada interna — sem verificação de JWT
   let payload: EmbeddingRequest;
   try {
@@ -94,8 +103,14 @@ Deno.serve(async (req: Request) => {
     return new Response("Missing messageId or tenantId", { status: 400 });
   }
 
+  // Resolver a chave do tenant (BYOK → plataforma). Sem chave → skip gracioso.
+  const apiKey = await resolveTenantKey(tenantId);
+  if (!apiKey) {
+    return new Response("Skipped: no OpenAI key for tenant", { status: 200 });
+  }
+
   try {
-    const embedding = await generateEmbedding(body);
+    const embedding = await generateEmbedding(body, apiKey);
 
     const { error: updateError } = await supabase
       .from("messages")

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { env } from "@/lib/env";
+import { getTenantOpenAIKey } from "@/lib/ai";
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -8,8 +8,9 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!env.OPENAI_API_KEY) {
-    return NextResponse.json({ error: "OPENAI_API_KEY não configurada" }, { status: 503 });
+  const { key: apiKey } = await getTenantOpenAIKey(supabase);
+  if (!apiKey) {
+    return NextResponse.json({ error: "IA não configurada" }, { status: 503 });
   }
 
   // Buscar mensagem e mídia
@@ -49,7 +50,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
-    headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` },
+    headers: { Authorization: `Bearer ${apiKey}` },
     body: formData,
   });
 

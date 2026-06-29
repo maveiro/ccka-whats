@@ -367,6 +367,9 @@ function AudioTranscribeButton({ messageId }: { messageId: string }) {
     try {
       const res = await fetch(`/api/messages/${messageId}/transcribe`, { method: "POST" });
       const data = await res.json() as { transcript?: string; error?: string };
+      if (res.status === 503) {
+        throw new Error("IA não configurada. Peça ao administrador para ativá-la em Configurações.");
+      }
       if (!res.ok) throw new Error(data.error ?? "Erro");
       setTranscript(data.transcript ?? null);
     } catch (e) {

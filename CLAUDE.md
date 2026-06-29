@@ -15,6 +15,16 @@ e evolui para busca semântica, alertas e integrações com ferramentas de negó
 **Não é:** chatbot, automação de marketing, ou ferramenta de atendimento.
 **É:** infraestrutura de dados de comunicação — visibilidade, histórico, inteligência.
 
+> **Decisão de posicionamento (Jun 2026):** após avaliar uma expansão para
+> plataforma de atendimento omnichannel estilo ChatPro, optou-se por **recuar
+> desse rumo**. O mercado de atendimento é saturado (ChatPro, Take Blip, Zenvia,
+> Octadesk, Chatwoot open-source) e commoditiza o produto. O wedge defensável é
+> **inteligência e governança de comunicação** (busca semântica, alertas
+> inteligentes, compliance/LGPD, resumos para gestão). Features de operação do
+> inbox (status/atribuição de conversa) só entram como apoio menor a esse
+> posicionamento — nunca como caminho para "virar atendimento". Não reabrir o
+> rumo atendimento sem uma decisão de negócio explícita.
+
 ---
 
 ## Fases do produto
@@ -190,8 +200,22 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=        # só server-side (Route Handlers)
 EVOLUTION_API_URL=                # URL do VPS com Evolution API
 EVOLUTION_API_KEY=                # API key global do Evolution
-OPENAI_API_KEY=                   # para embeddings e Whisper
+OPENAI_API_KEY=                   # chave de PLATAFORMA (IA embutida); fallback do BYOK
 ```
+
+### Modelo de IA: embutida + BYOK opcional
+A chave OpenAI é resolvida **por tenant** (`apps/web/lib/ai.ts` → `getTenantOpenAIKey`):
+1. **BYOK** — override do tenant em `integrations` (`type='openai'`, `config.api_key`); ou
+2. **Plataforma** — `OPENAI_API_KEY` do env (chave embutida, base do tier pago).
+
+Regras:
+- O helper **deriva o `tenant_id` do operador autenticado**, nunca do client (IDOR-safe).
+- Leitura de `integrations` usa `createAdminClient()` (tabela é admin-only RLS) → o
+  `.eq("tenant_id", ...)` é **obrigatório** (exceção legítima à regra 15).
+- A chave **nunca** vai ao client (só `mask()` dos últimos 4) nem ao `events_log`.
+- Edge Functions resolvem a chave inline (sem `_shared`) via service role.
+- Admin configura/testa/remove em `/dashboard/settings` (rotas `/api/tenant/ai`).
+- **Dívida datada:** mover `config.api_key` para Supabase Vault antes do 2º tenant pagante.
 
 ### supabase/functions (secrets do projeto)
 ```
@@ -234,7 +258,8 @@ REDIS_URL=
 - Analytics básico
 - Gestão de operadores: convidar, alterar role (admin/operator), ativar/desativar, excluir
 - Configurações de perfil: editar nome de exibição + trocar senha (com verificação da senha atual)
-- Card de status de funcionalidades de IA na página de configurações
+- IA embutida + BYOK por tenant: admin configura/testa/remove a chave OpenAI em Configurações
+  (chave da plataforma como padrão; override BYOK opcional via `integrations`)
 - Integrações (webhook delivery com log em `events_log`)
 - Realtime: atualizações de status de sessão e novas mensagens via Supabase Realtime
 - Admin: `POST /api/admin/retry-media` — re-dispara downloads de mídia com falha
@@ -251,12 +276,17 @@ verificar essa variável em ambos os lugares. Usar `POST /api/admin/retry-media`
 para re-disparar downloads após corrigir.
 
 ### Pendente / próximos passos
-- Configurar `OPENAI_API_KEY` nos Supabase Secrets e em `.env.local` para ativar:
-  - Geração de embeddings (`generate-embeddings` Edge Function)
-  - Transcrição de áudio via Whisper (`/api/messages/[id]/transcribe`)
-  - Busca semântica (`/api/search?mode=semantic`)
+- Configurar `OPENAI_API_KEY` (chave de plataforma) no Vercel + Supabase Secrets para a IA
+  embutida — ou cada tenant cadastra a própria via Configurações (BYOK). Ativa: embeddings,
+  transcrição Whisper, busca semântica.
+- **Roadmap de inteligência** (wedge defensável, reordenável):
+  - Resumo de conversa para gestão (usa IA já ativada)
+  - Alertas semânticos (evoluir os alertas por palavra-chave para detecção de risco)
+  - Compliance/LGPD: retenção, trilha de auditoria, exportação
+  - Operação mínima do inbox (status/quick-replies) — só se/quando ≥2 operadores reais
+- Áudio transcrito não gera embedding (busca semântica não cobre áudios) — limitação conhecida
+- Medição de uso/quota por tenant — pré-requisito para cobrar o tier de IA embutida
 - Webhook secret visível na página de Integrações (copiar token sem acessar o banco)
-- Adicionar segundo número corporativo e validar multi-sessão em produção
 
 ---
 

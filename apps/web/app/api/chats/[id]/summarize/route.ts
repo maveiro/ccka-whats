@@ -38,10 +38,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { key: apiKey } = await getTenantOpenAIKey(supabase);
   if (!apiKey) return NextResponse.json({ error: "IA não configurada" }, { status: 503 });
 
-  const body = await req.json().catch(() => ({})) as { period?: unknown };
+  const body = await req.json().catch(() => ({})) as { period?: unknown; focus?: unknown };
   const period: Period = (["last50", "today", "7d", "30d", "all"] as const).includes(body.period as Period)
     ? (body.period as Period)
     : "last50";
+  const focus = typeof body.focus === "string" ? body.focus.trim().slice(0, 200) : "";
 
   // Buscar mensagens (RLS filtra por tenant). last50 = últimas 50; períodos = janela + teto.
   let query = supabase
@@ -76,10 +77,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .filter(Boolean)
     .join("\n");
 
-  const prompt = `Você é um analista de comunicação. Resuma a conversa de WhatsApp abaixo para um gestor que NÃO acompanhou o atendimento. Seja objetivo e use português do Brasil.
+  const focusBlock = focus
+    ? `\nFOCO DO GESTOR: concentre o resumo em "${focus}". Priorize o que se relaciona a esse assunto e omita o que não for relevante a ele. Se o assunto não aparecer na conversa, diga isso claramente.\n`
+    : "";
 
+  const prompt = `Você é um analista de comunicação. Resuma a conversa de WhatsApp abaixo para um gestor que NÃO acompanhou o atendimento. Seja objetivo e use português do Brasil.
+${focusBlock}
 Responda em markdown com estas seções (omita uma seção se não houver informação):
-**Resumo** — 2-3 frases do que aconteceu.
+**Resumo** — 2-3 frases do que aconteceu${focus ? ` sobre "${focus}"` : ""}.
 **Pontos principais** — bullets dos temas tratados.
 **Pendências** — o que ficou em aberto / aguardando resposta.
 **Sentimento do cliente** — neutro/positivo/negativo + por quê.

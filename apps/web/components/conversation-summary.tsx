@@ -16,6 +16,7 @@ const PERIOD_LABELS: Record<Period, string> = {
 export default function ConversationSummary({ chatId }: { chatId: string }) {
   const [open, setOpen] = useState(false);
   const [period, setPeriod] = useState<Period>("last50");
+  const [focus, setFocus] = useState("");
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [meta, setMeta] = useState<{ messageCount: number } | null>(null);
@@ -29,7 +30,7 @@ export default function ConversationSummary({ chatId }: { chatId: string }) {
       const res = await fetch(`/api/chats/${chatId}/summarize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ period }),
+        body: JSON.stringify({ period, focus: focus.trim() || undefined }),
       });
       const data = await res.json() as { summary?: string; messageCount?: number; error?: string };
       if (res.status === 503) throw new Error("IA não configurada. Peça ao administrador para ativá-la em Configurações.");
@@ -70,24 +71,35 @@ export default function ConversationSummary({ chatId }: { chatId: string }) {
               </button>
             </div>
 
-            <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-2">
-              <select
-                value={period}
-                onChange={(e) => setPeriod(e.target.value as Period)}
+            <div className="px-4 py-3 border-b border-gray-800 space-y-2">
+              <div className="flex items-center gap-2">
+                <select
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value as Period)}
+                  disabled={loading}
+                  className="flex-1 bg-gray-800 border border-gray-700 rounded-md px-2 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+                >
+                  {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
+                    <option key={p} value={p}>{PERIOD_LABELS[p]}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={generate}
+                  disabled={loading}
+                  className="px-4 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm rounded-md transition-colors shrink-0"
+                >
+                  {loading ? "Gerando..." : "Gerar"}
+                </button>
+              </div>
+              <input
+                type="text"
+                value={focus}
+                onChange={(e) => setFocus(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !loading) generate(); }}
                 disabled={loading}
-                className="flex-1 bg-gray-800 border border-gray-700 rounded-md px-2 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500"
-              >
-                {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
-                  <option key={p} value={p}>{PERIOD_LABELS[p]}</option>
-                ))}
-              </select>
-              <button
-                onClick={generate}
-                disabled={loading}
-                className="px-4 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm rounded-md transition-colors shrink-0"
-              >
-                {loading ? "Gerando..." : "Gerar"}
-              </button>
+                placeholder="Foco (opcional): ex. tudo sobre preços / entrega / reclamações"
+                className="w-full bg-gray-800 border border-gray-700 rounded-md px-2 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+              />
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 py-4">

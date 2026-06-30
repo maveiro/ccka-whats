@@ -73,15 +73,19 @@ export interface ValidateResult {
 }
 
 /**
- * Valida uma chave OpenAI chamando GET /v1/models.
- * Distingue inválida (401) / sem quota (429) / erro de rede.
- * Não loga a chave.
+ * Valida uma chave OpenAI com uma chamada MÍNIMA de embeddings (custo ~zero).
+ * Importante: NÃO usar /v1/models — ele retorna 200 mesmo numa conta sem
+ * créditos, dando falsa sensação de "funciona". A chamada de embeddings exerce
+ * a quota de verdade e detecta `insufficient_quota`.
+ * Distingue inválida (401) / sem quota (429) / erro de rede. Não loga a chave.
  */
 export async function validateOpenAIKey(key: string): Promise<ValidateResult> {
   let res: Response;
   try {
-    res = await fetch("https://api.openai.com/v1/models", {
-      headers: { Authorization: `Bearer ${key}` },
+    res = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ model: "text-embedding-3-small", input: "ping", dimensions: 1536 }),
       signal: AbortSignal.timeout(8000),
     });
   } catch {
@@ -89,6 +93,8 @@ export async function validateOpenAIKey(key: string): Promise<ValidateResult> {
   }
 
   if (res.ok) return { ok: true };
+  if (res.status === 401) return { ok: false, reason: "invalid" };
+  // 429 = quota esgotada (insufficient_quota) ou rate limit — ambos impedem uso agora
   if (res.status === 429) return { ok: false, reason: "no_quota" };
   return { ok: false, reason: "invalid" };
 }

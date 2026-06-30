@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getTenantOpenAIKey } from "@/lib/ai";
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -30,8 +30,9 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Áudio ainda não baixado" }, { status: 400 });
   }
 
-  // Baixar áudio do Storage
-  const { data: fileData, error: downloadErr } = await supabase.storage
+  // Baixar áudio do Storage (bucket privado → admin client; o usuário já passou
+  // pela RLS de `messages` ao buscar a mensagem acima)
+  const { data: fileData, error: downloadErr } = await createAdminClient().storage
     .from("media")
     .download(media.storage_path);
 

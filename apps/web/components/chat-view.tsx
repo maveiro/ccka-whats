@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { formatTime } from "@/lib/utils";
 import MessageComposer from "@/components/message-composer";
+import ConversationSummary from "@/components/conversation-summary";
 import { createClient } from "@/lib/supabase/client";
 import {
   Check,
@@ -233,14 +234,17 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
           <p className="text-sm font-medium text-white truncate">{chatName ?? chat.jid}</p>
           <p className="text-xs text-gray-500 truncate">{chat.jid}</p>
         </div>
-        <button
-          onClick={handleSyncName}
-          disabled={syncingName}
-          title="Sincronizar nome do contato/grupo"
-          className="shrink-0 text-gray-600 hover:text-gray-300 disabled:opacity-40 transition-colors p-1"
-        >
-          <RefreshCw size={14} className={syncingName ? "animate-spin" : ""} />
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <ConversationSummary chatId={chat.id} />
+          <button
+            onClick={handleSyncName}
+            disabled={syncingName}
+            title="Sincronizar nome do contato/grupo"
+            className="text-gray-600 hover:text-gray-300 disabled:opacity-40 transition-colors p-1"
+          >
+            <RefreshCw size={14} className={syncingName ? "animate-spin" : ""} />
+          </button>
+        </div>
       </div>
 
       <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2">

@@ -2,15 +2,23 @@
 
 import { useState } from "react"
 
-interface AnalyticsData {
+export interface AnalyticsData {
   totalMessages: number
   messagesToday: number
   messagesThisWeek: number
   totalChats: number
   activeChats: number
+  chatsByType: { groups: number; contacts: number }
+  messagesByKind: { groups: number; contacts: number }
   messagesByDay: { date: string; count: number }[]
   messagesByType: { type: string; count: number }[]
-  topChats: { name: string; jid: string; count: number }[]
+  topChats: { name: string; jid: string; count: number; isGroup?: boolean }[]
+}
+
+interface SessionOpt {
+  id: string
+  label: string | null
+  phone_number: string | null
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -28,20 +36,69 @@ const TYPE_LABELS: Record<string, string> = {
   interactive: "Interativa",
 }
 
-export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
+export function AnalyticsDashboard({ initialData, sessions }: { initialData: AnalyticsData; sessions: SessionOpt[] }) {
+  const [data, setData] = useState<AnalyticsData>(initialData)
+  const [sessionId, setSessionId] = useState<string>("all")
+  const [loading, setLoading] = useState(false)
+  const [hoveredDay, setHoveredDay] = useState<string | null>(null)
+
   const maxDayCount   = Math.max(...data.messagesByDay.map(d => d.count), 1)
   const maxTypeCount  = Math.max(...data.messagesByType.map(t => t.count), 1)
   const maxChatCount  = Math.max(...data.topChats.map(c => c.count), 1)
-  const [hoveredDay, setHoveredDay] = useState<string | null>(null)
+
+  async function applyFilter(sid: string) {
+    setSessionId(sid)
+    setLoading(true)
+    try {
+      const qs = sid === "all" ? "" : `?sessionId=${encodeURIComponent(sid)}`
+      const res = await fetch(`/api/analytics${qs}`, { cache: "no-store" })
+      if (res.ok) setData(await res.json() as AnalyticsData)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const sessionLabel = (s: SessionOpt) => s.label || s.phone_number || s.id.slice(0, 8)
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${loading ? "opacity-60 pointer-events-none transition-opacity" : ""}`}>
+      {/* Filtro por número */}
+      {sessions.length > 0 && (
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-400">Número:</label>
+          <select
+            value={sessionId}
+            onChange={(e) => void applyFilter(e.target.value)}
+            className="bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+          >
+            <option value="all">Todos os números</option>
+            {sessions.map((s) => (
+              <option key={s.id} value={s.id}>{sessionLabel(s)}</option>
+            ))}
+          </select>
+          {loading && <span className="text-xs text-gray-500 animate-pulse">Atualizando...</span>}
+        </div>
+      )}
+
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard label="Total de mensagens" value={data.totalMessages} />
         <StatCard label="Mensagens hoje"      value={data.messagesToday} />
-        <StatCard label="Total de conversas"  value={data.totalChats} />
+        <StatCard
+          label="Total de conversas"
+          value={data.totalChats}
+          sub={`${data.chatsByType.groups.toLocaleString("pt-BR")} grupos · ${data.chatsByType.contacts.toLocaleString("pt-BR")} contatos`}
+        />
       </div>
+
+      {/* Grupos vs Contatos */}
+      <section className="bg-gray-800 rounded-xl p-5">
+        <h2 className="text-white font-semibold mb-4">Grupos vs Contatos</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <SplitBar title="Conversas" groups={data.chatsByType.groups} contacts={data.chatsByType.contacts} />
+          <SplitBar title="Mensagens" groups={data.messagesByKind.groups} contacts={data.messagesByKind.contacts} />
+        </div>
+      </section>
 
       {/* Messages by Day */}
       <section
@@ -165,7 +222,10 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                   <div key={c.jid} className="flex items-center gap-3" role="listitem">
                     <span className="text-gray-600 text-sm tabular-nums w-4 shrink-0">{i + 1}.</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-gray-300 text-sm truncate">{c.name || c.jid}</p>
+                      <p className="text-gray-300 text-sm truncate">
+                        {c.isGroup && <span className="text-xs text-gray-500 mr-1">[grupo]</span>}
+                        {c.name || c.jid}
+                      </p>
                       <div
                         className="w-full bg-gray-700 rounded-full h-1 mt-1"
                         role="meter"
@@ -193,13 +253,33 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
   )
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value, sub }: { label: string; value: number; sub?: string }) {
   return (
     <div className="bg-gray-800 rounded-xl p-5">
       <p className="text-gray-400 text-sm">{label}</p>
       <p className="text-white text-3xl font-bold mt-1 tabular-nums">
         {value.toLocaleString("pt-BR")}
       </p>
+      {sub && <p className="text-gray-500 text-xs mt-1">{sub}</p>}
+    </div>
+  )
+}
+
+function SplitBar({ title, groups, contacts }: { title: string; groups: number; contacts: number }) {
+  const total = groups + contacts
+  const gPct = total ? Math.round((groups / total) * 100) : 0
+  const cPct = total ? 100 - gPct : 0
+  return (
+    <div>
+      <p className="text-gray-400 text-sm mb-2">{title} <span className="text-gray-600">({total.toLocaleString("pt-BR")})</span></p>
+      <div className="flex h-2.5 rounded-full overflow-hidden bg-gray-700">
+        <div className="bg-emerald-500" style={{ width: `${gPct}%` }} title={`Grupos: ${groups}`} />
+        <div className="bg-sky-500" style={{ width: `${cPct}%` }} title={`Contatos: ${contacts}`} />
+      </div>
+      <div className="flex justify-between mt-2 text-xs">
+        <span className="text-emerald-400">Grupos: {groups.toLocaleString("pt-BR")} ({gPct}%)</span>
+        <span className="text-sky-400">Contatos: {contacts.toLocaleString("pt-BR")} ({cPct}%)</span>
+      </div>
     </div>
   )
 }

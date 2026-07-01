@@ -249,17 +249,29 @@ REDIS_URL=
 - Resolução de nomes: botão por conversa + health-check periódico (a cada 5 min via pg_cron)
 - Merge automático de chats duplicados `@lid` ↔ `@s.whatsapp.net` (session-health-check)
 - Busca full-text de mensagens (`search_vector` + FTS websearch em português)
-- Busca semântica via embedding (`/api/search?mode=semantic`) — requer `OPENAI_API_KEY`
+- Busca semântica via embedding (`/api/search?mode=semantic`) — embeddings do histórico
+  já backfilled (~14,7k msgs); threshold de similaridade 0.3
 - Envio de mensagens pelo dashboard: texto, mídia (imagem/vídeo/áudio/documento), quote (`MessageComposer`)
   - Optimistic update: mensagem aparece imediatamente; substituída pelo dado real quando webhook chega
-- Transcrição de áudio via Whisper (`/api/messages/[id]/transcribe`) — requer `OPENAI_API_KEY`
+- Mídia: signed URLs e download de transcrição usam `createAdminClient()` (bucket `media` é
+  privado; o client autenticado não tem policy de storage p/ assinar). chat-view re-busca o
+  signed URL até o download concluir (media_files atualiza fora da tabela `messages`)
+- Transcrição de áudio via Whisper (`/api/messages/[id]/transcribe`) — usa a chave por tenant
+- Resumo de conversa para gestão (`/api/chats/[id]/summarize`, gpt-4o-mini): seletor de período
+  (últimas 50 / hoje / 7d / 30d / tudo) + campo de **foco por assunto** opcional; botão no header
+  do chat-view; log de governança `summary_generated`
 - Sistema de alertas por palavra-chave + notificações em tempo real (badge no sidebar + toast `sonner`)
 - Histórico paginado de `alert_events` com marcação automática de vistos (`/dashboard/admin/alerts/history`)
-- Analytics básico
+- Alertas: clicar num evento leva à mensagem (`/dashboard/chat/[id]?msg=`) e a destaca
+- Analytics: agregados corretos (scan paginado — corrige cap de 1000 linhas do PostgREST),
+  atividade por `timestamp`, **filtro por número/instância** e **separação Grupos × Contatos**
 - Gestão de operadores: convidar, alterar role (admin/operator), ativar/desativar, excluir
 - Configurações de perfil: editar nome de exibição + trocar senha (com verificação da senha atual)
 - IA embutida + BYOK por tenant: admin configura/testa/remove a chave OpenAI em Configurações
-  (chave da plataforma como padrão; override BYOK opcional via `integrations`)
+  (chave da plataforma como padrão; override BYOK opcional via `integrations`).
+  `validateOpenAIKey` usa uma chamada real de embeddings (não `/v1/models`) p/ detectar
+  `insufficient_quota` — chave sem crédito é reprovada com mensagem clara
+- Menu lateral colapsável (completo ↔ só ícones), estado persistido em localStorage
 - Integrações (webhook delivery com log em `events_log`)
 - Realtime: atualizações de status de sessão e novas mensagens via Supabase Realtime
 - Admin: `POST /api/admin/retry-media` — re-dispara downloads de mídia com falha
@@ -276,15 +288,26 @@ verificar essa variável em ambos os lugares. Usar `POST /api/admin/retry-media`
 para re-disparar downloads após corrigir.
 
 ### Pendente / próximos passos
-- Configurar `OPENAI_API_KEY` (chave de plataforma) no Vercel + Supabase Secrets para a IA
-  embutida — ou cada tenant cadastra a própria via Configurações (BYOK). Ativa: embeddings,
-  transcrição Whisper, busca semântica.
-- **Roadmap de inteligência** (wedge defensável, reordenável):
-  - Resumo de conversa para gestão (usa IA já ativada)
-  - Alertas semânticos (evoluir os alertas por palavra-chave para detecção de risco)
+- **Roadmap de inteligência** (wedge defensável, reordenável) — próximo é alertas semânticos:
+  - Alertas semânticos (evoluir os alertas por palavra-chave para detecção de risco por
+    significado). Design previsto: colunas novas em `alerts` (`type` keyword|semantic,
+    `semantic_query`, `query_embedding vector(1536)`, `threshold`); a checagem semântica roda
+    dentro da `generate-embeddings` (onde o embedding da mensagem já existe), comparando com o
+    embedding da consulta do alerta. **Precisa de migration** (ver nota de DDL abaixo).
   - Compliance/LGPD: retenção, trilha de auditoria, exportação
   - Operação mínima do inbox (status/quick-replies) — só se/quando ≥2 operadores reais
 - Áudio transcrito não gera embedding (busca semântica não cobre áudios) — limitação conhecida
+- Medição de uso/quota de IA por tenant — pré-requisito para cobrar o tier embutido
+
+### Notas operacionais desta fase (Jun–Jul 2026)
+- **Aplicação de migrations/secrets:** o token Supabase disponível via CLI dá **403** para
+  operações privilegiadas (deploy de Edge Function, set de secrets, provavelmente DDL). Deploys
+  de Edge Function e migrations DDL precisam de um token com privilégio de owner, ou rodar o SQL
+  no **SQL Editor do dashboard** do Supabase. O deploy do web (Vercel CLI) funciona normalmente.
+- **BYOK:** `config.api_key` em `integrations` está em texto plano — mover para Supabase Vault
+  antes do 2º tenant pagante (dívida datada).
+- **Escala do Analytics:** faz scan paginado de todas as mensagens (teto de 200k). Acima disso,
+  migrar para uma função SQL com `GROUP BY`.
 - Medição de uso/quota por tenant — pré-requisito para cobrar o tier de IA embutida
 - Webhook secret visível na página de Integrações (copiar token sem acessar o banco)
 

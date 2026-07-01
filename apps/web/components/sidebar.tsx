@@ -15,8 +15,12 @@ import {
   History,
   Settings,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import AlertBadge from "@/components/alert-badge";
+
+const COLLAPSE_KEY = "wa-sidebar-collapsed";
 
 interface SidebarProps {
   operatorName: string;
@@ -104,6 +108,19 @@ function SessionStatusDot() {
 export default function Sidebar({ operatorName, role }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem(COLLAPSE_KEY) === "1") setCollapsed(true);
+  }, []);
+
+  function toggle() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+      return next;
+    });
+  }
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -114,46 +131,73 @@ export default function Sidebar({ operatorName, role }: SidebarProps) {
   const visibleItems = navItems.filter((item) => item.roles.includes(role));
 
   return (
-    <aside className="w-56 flex flex-col border-r border-gray-800 bg-gray-950 shrink-0">
-      {/* Logo */}
-      <div className="px-4 py-5 border-b border-gray-800">
-        <span className="text-sm font-semibold text-green-400">WA Intelligence</span>
+    <aside
+      className={`${collapsed ? "w-16" : "w-56"} flex flex-col border-r border-gray-800 bg-gray-950 shrink-0 transition-[width] duration-200`}
+    >
+      {/* Logo + toggle */}
+      <div className={`h-[57px] border-b border-gray-800 flex items-center ${collapsed ? "justify-center" : "justify-between px-4"}`}>
+        {!collapsed && <span className="text-sm font-semibold text-green-400 truncate">WA Intelligence</span>}
+        <button
+          onClick={toggle}
+          className="text-gray-500 hover:text-white transition-colors p-1.5 rounded-md hover:bg-gray-900"
+          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+          title={collapsed ? "Expandir menu" : "Recolher menu"}
+        >
+          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+        </button>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-2 py-3 overflow-y-auto" aria-label="Navegação principal">
+      <nav className="flex-1 px-2 py-3 overflow-y-auto overflow-x-hidden" aria-label="Navegação principal">
         {visibleItems.map((item, idx) => {
           const active = pathname === item.href;
           const Icon = item.icon;
           const isFirstAdmin =
             item.section === "admin" &&
             (idx === 0 || visibleItems[idx - 1].section !== "admin");
+          const showStatus = item.showStatus && role === "admin";
+          const showAlert = item.showAlertBadge && role === "admin";
 
           return (
             <div key={item.href}>
               {isFirstAdmin && (
-                <div className="px-3 pt-4 pb-1">
-                  <p className="text-xs font-medium text-gray-600 uppercase tracking-widest">
-                    Administração
-                  </p>
-                </div>
+                collapsed ? (
+                  <div className="my-2 mx-2 border-t border-gray-800" />
+                ) : (
+                  <div className="px-3 pt-4 pb-1">
+                    <p className="text-xs font-medium text-gray-600 uppercase tracking-widest">
+                      Administração
+                    </p>
+                  </div>
+                )
               )}
               <Link
                 href={item.href}
-                className={`flex items-center gap-2.5 px-3 min-h-[44px] rounded-md text-sm transition-colors ${
+                title={collapsed ? item.label : undefined}
+                className={`flex items-center min-h-[44px] rounded-md text-sm transition-colors ${
+                  collapsed ? "justify-center px-0" : "gap-2.5 px-3"
+                } ${
                   active
                     ? "bg-gray-800 text-white"
                     : "text-gray-400 hover:bg-gray-900 hover:text-white"
                 }`}
               >
-                <Icon
-                  size={16}
-                  className={`shrink-0 ${active ? "text-green-400" : ""}`}
-                  aria-hidden="true"
-                />
-                <span className="flex-1">{item.label}</span>
-                {item.showStatus && role === "admin" && <SessionStatusDot />}
-                {item.showAlertBadge && role === "admin" && <AlertBadge />}
+                <span className="relative shrink-0 flex items-center justify-center">
+                  <Icon size={16} className={active ? "text-green-400" : ""} aria-hidden="true" />
+                  {collapsed && (showStatus || showAlert) && (
+                    <span className="absolute -top-1.5 -right-1.5">
+                      {showStatus && <SessionStatusDot />}
+                      {showAlert && <AlertBadge />}
+                    </span>
+                  )}
+                </span>
+                {!collapsed && (
+                  <>
+                    <span className="flex-1">{item.label}</span>
+                    {showStatus && <SessionStatusDot />}
+                    {showAlert && <AlertBadge />}
+                  </>
+                )}
               </Link>
             </div>
           );
@@ -161,13 +205,15 @@ export default function Sidebar({ operatorName, role }: SidebarProps) {
       </nav>
 
       {/* Operator footer */}
-      <div className="px-3 py-3 border-t border-gray-800">
-        <div className="flex items-center gap-2.5">
+      <div className={`py-3 border-t border-gray-800 ${collapsed ? "px-2" : "px-3"}`}>
+        <div className={`flex items-center ${collapsed ? "flex-col gap-2" : "gap-2.5"}`}>
           <OperatorAvatar name={operatorName} />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-white truncate">{operatorName}</p>
-            <p className="text-xs text-gray-600 capitalize">{role}</p>
-          </div>
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-white truncate">{operatorName}</p>
+              <p className="text-xs text-gray-600 capitalize">{role}</p>
+            </div>
+          )}
           <button
             onClick={handleSignOut}
             className="shrink-0 text-gray-500 hover:text-white transition-colors p-2 rounded-md hover:bg-gray-900 flex items-center justify-center"

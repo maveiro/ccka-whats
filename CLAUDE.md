@@ -176,6 +176,27 @@ wa-intelligence/
 16. **`media_files.message_id` é FK para `messages.id` (UUID interno)** — não confundir com
     `messages.message_id` (ID do WhatsApp, string). O campo `media_files.message_id` sempre
     referencia o UUID primário da tabela `messages`.
+17. **Requests via PostgREST/RPC (client Supabase, `admin.rpc(...)`) têm teto de ~8s** —
+    quem estabelece a conexão física é o role `authenticator` (não `service_role`, mesmo
+    autenticando com a service role key), e `authenticator` tem `statement_timeout` fixado
+    via `ALTER ROLE` (hoje 60s neste projeto, era 8s até 21/07/2026). **`SET LOCAL
+    statement_timeout` dentro de uma função `security definer` chamada via RPC NÃO
+    sobrescreve esse limite** — confirmado empiricamente (um `pg_sleep(9)` isolado, sem
+    nenhum I/O de tabela, foi cancelado no teto do `authenticator` mesmo com `SET LOCAL
+    statement_timeout = '120s'` como primeira linha da função). Não perder tempo tentando
+    essa rota de novo. Para qualquer operação potencialmente longa (cascades grandes,
+    batch jobs) chamada via client Supabase: (a) rodar numa Edge Function fazendo múltiplos
+    requests HTTP pequenos em vez de 1 statement grande (cada request é seu próprio teto),
+    como em `delete-session` e `history-sync`; ou (b) se precisar mesmo de 1 statement
+    longo, subir o timeout do role `authenticator` via `ALTER ROLE authenticator SET
+    statement_timeout = 'Xs'` — mas isso afeta **todo** o tráfego da Data API (anon,
+    authenticated, service_role), não só a operação em questão.
+18. **Exclusão de sessão com histórico grande usa a Edge Function `delete-session`**
+    (não um DELETE direto em `wa_sessions` via client) — apaga `messages` em lotes de 500
+    (`.delete().eq("session_id", ...).limit(500).select("id")`, sem `.order()`: ordenar
+    antes do limit força sort e não ajuda em nada aqui) até zerar, depois `chats`, depois a
+    sessão. Ver regra 17 para o motivo. `DELETE /api/sessions/[id]` tem
+    `export const maxDuration = 90` por causa disso.
 
 ---
 
@@ -275,6 +296,11 @@ REDIS_URL=
 - Integrações (webhook delivery com log em `events_log`)
 - Realtime: atualizações de status de sessão e novas mensagens via Supabase Realtime
 - Admin: `POST /api/admin/retry-media` — re-dispara downloads de mídia com falha
+- Exclusão de sessão corrigida (21/07/2026): sessões com histórico grande (30k+ mensagens)
+  não excluíam — DELETE cascade via PostgREST/RPC estourava o teto de 8s do role
+  `authenticator`. Agora roda na Edge Function `delete-session` (lotes) + timeout do
+  `authenticator` subido pra 60s; UI mostra erro via toast em vez de falhar em silêncio
+  (ver regras 17/18)
 - **Auditoria completa Jun 2026** — 4 rodadas, 20+ fixes, codebase limpo
 
 ### Armadilha conhecida: porta da Evolution API

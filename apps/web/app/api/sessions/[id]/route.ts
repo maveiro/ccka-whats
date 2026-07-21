@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
+
+// Sessões com histórico grande levam dezenas de segundos pra apagar em lotes
+// na Edge Function (ver supabase/functions/delete-session) — precisa de mais
+// que o default do Vercel.
+export const maxDuration = 90;
 
 export async function DELETE(
   _req: NextRequest,
@@ -24,7 +29,7 @@ export async function DELETE(
 
   const { data: session } = await supabase
     .from("wa_sessions")
-    .select("evolution_instance_name")
+    .select("id")
     .eq("id", id)
     .single();
 
@@ -32,26 +37,26 @@ export async function DELETE(
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
-  // Remover instância do Evolution API (best-effort — não falha se já não existir)
-  if (session.evolution_instance_name) {
-    await fetch(
-      `${env.EVOLUTION_API_URL}/instance/delete/${session.evolution_instance_name}`,
-      {
-        method: "DELETE",
-        headers: { "apikey": env.EVOLUTION_API_KEY },
+  // Exclusão (Evolution API + cascade de messages/chats em lotes + events_log)
+  // roda na Edge Function delete-session — um DELETE cascata direto via
+  // PostgREST/RPC estoura o timeout de ~9s da API pra sessões com muito
+  // histórico (30k+ mensagens).
+  const res = await fetch(
+    `${env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/delete-session`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
       },
-    ).catch(() => {});
-  }
+      body: JSON.stringify({ sessionId: id }),
+    },
+  );
 
-  // Deletar do banco (cascade remove chats, messages, media_files via FK)
-  const admin = createAdminClient();
-  const { error } = await admin
-    .from("wa_sessions")
-    .delete()
-    .eq("id", id);
+  const data = await res.json().catch(() => null) as { error?: string } | null;
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!res.ok) {
+    return NextResponse.json({ error: data?.error ?? "Falha ao excluir sessão" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

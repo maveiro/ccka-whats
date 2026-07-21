@@ -24,6 +24,7 @@ jobs:
           supabase functions deploy history-sync          --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
           supabase functions deploy generate-embeddings   --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
           supabase functions deploy webhook-delivery      --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+          supabase functions deploy delete-session        --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 

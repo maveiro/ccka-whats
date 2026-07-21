@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ChevronDown, Copy, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
 interface Session {
   id: string;
@@ -126,6 +127,10 @@ export default function SessionCard({ session: initial }: { session: Session }) 
     if (res.ok) {
       setDeleted(true);
     } else {
+      const data = await res.json().catch(() => null) as { error?: string } | null;
+      toast.error("Não foi possível excluir a sessão", {
+        description: data?.error ?? `Erro inesperado (${res.status})`,
+      });
       setDeleteLoading(false);
       setDeleteConfirm(false);
     }

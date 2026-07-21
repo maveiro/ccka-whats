@@ -290,20 +290,34 @@ para re-disparar downloads após corrigir.
 ### Pendente / próximos passos
 - **Roadmap de inteligência** (wedge defensável, reordenável) — próximo é alertas semânticos:
   - Alertas semânticos (evoluir os alertas por palavra-chave para detecção de risco por
-    significado). Design previsto: colunas novas em `alerts` (`type` keyword|semantic,
-    `semantic_query`, `query_embedding vector(1536)`, `threshold`); a checagem semântica roda
+    significado). Colunas em `alerts` (`type` keyword|semantic, `semantic_query`,
+    `query_embedding vector(1536)`, `threshold`) — migration `0012_semantic_alerts.sql`
+    **já aplicada em produção** (21/07/2026). **Falta implementar** a checagem semântica
     dentro da `generate-embeddings` (onde o embedding da mensagem já existe), comparando com o
-    embedding da consulta do alerta. **Precisa de migration** (ver nota de DDL abaixo).
+    embedding da consulta do alerta.
   - Compliance/LGPD: retenção, trilha de auditoria, exportação
   - Operação mínima do inbox (status/quick-replies) — só se/quando ≥2 operadores reais
 - Áudio transcrito não gera embedding (busca semântica não cobre áudios) — limitação conhecida
 - Medição de uso/quota de IA por tenant — pré-requisito para cobrar o tier embutido
 
 ### Notas operacionais desta fase (Jun–Jul 2026)
-- **Aplicação de migrations/secrets:** o token Supabase disponível via CLI dá **403** para
-  operações privilegiadas (deploy de Edge Function, set de secrets, provavelmente DDL). Deploys
-  de Edge Function e migrations DDL precisam de um token com privilégio de owner, ou rodar o SQL
-  no **SQL Editor do dashboard** do Supabase. O deploy do web (Vercel CLI) funciona normalmente.
+- **Aplicação de migrations/secrets:** um Personal Access Token da Supabase com escopo de owner
+  (gerado em supabase.com/dashboard/account/tokens) resolve o 403 visto anteriormente — com ele
+  `supabase link --project-ref byuggqcnvezendgrcysb` + `supabase db push` funcionam normalmente.
+  Um token de escopo mais restrito ainda pode dar 403; nesse caso, rodar o SQL no **SQL Editor do
+  dashboard** do Supabase como alternativa. O deploy do web (Vercel CLI) sempre funcionou normalmente.
+- **Histórico de migrations fora de sincronia:** como migrations passadas foram aplicadas via SQL
+  Editor (sem passar pelo CLI), a tabela `supabase_migrations.schema_migrations` remota não as
+  registrava — `supabase migration list` mostrava tudo como não aplicado e `db push` tentava
+  reaplicar desde a 0001, falhando com "relation already exists". Corrigido em 21/07/2026 com
+  `supabase migration repair --status applied 0001 ... 0011`. Novas migrations devem seguir sendo
+  aplicadas via `supabase db push` a partir de agora para não reabrir esse desalinhamento.
+- **Acesso Vercel/Supabase neste ambiente:** projeto Vercel `wa-intelligence` (org
+  `marcelos-projects-017e3fe7`) linkado em `apps/web/`; projeto Supabase `byuggqcnvezendgrcysb`
+  (`ccka_whats`) linkado na raiz. Tokens não ficam salvos no repo nem em memória — se precisar
+  religar em uma sessão nova, pedir novos tokens (Vercel: vercel.com/account/tokens; Supabase:
+  supabase.com/dashboard/account/tokens) e rodar `vercel link` / `vercel env pull apps/web/.env.local`
+  e `supabase link --project-ref byuggqcnvezendgrcysb`.
 - **BYOK:** `config.api_key` em `integrations` está em texto plano — mover para Supabase Vault
   antes do 2º tenant pagante (dívida datada).
 - **Escala do Analytics:** faz scan paginado de todas as mensagens (teto de 200k). Acima disso,

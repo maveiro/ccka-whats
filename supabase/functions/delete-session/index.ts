@@ -79,11 +79,33 @@ Deno.serve(async (req: Request) => {
     const { error: sessionDeleteErr } = await supabase.from("wa_sessions").delete().eq("id", sessionId);
     if (sessionDeleteErr) throw new Error(`delete wa_sessions: ${sessionDeleteErr.message}`);
 
+    // media_files (e os arquivos que apontavam) já foram cascade-deletados junto com as
+    // mensagens, mas os objetos no Storage não são removidos por cascade de FK — o
+    // storage_path só existia na linha já apagada. Sem isso, os arquivos ficam órfãos
+    // no bucket para sempre (achado em produção em 22/07/2026: ~960MB órfãos numa única sessão).
+    let mediaDeleted = 0;
+    const mediaPrefix = `${tenantId}/${sessionId}`;
+    while (true) {
+      const { data: objects, error: listErr } = await supabase.storage
+        .from("media")
+        .list(mediaPrefix, { limit: BATCH_SIZE });
+
+      if (listErr) throw new Error(`list media: ${listErr.message}`);
+      if (!objects || objects.length === 0) break;
+
+      const paths = objects.map((obj) => `${mediaPrefix}/${obj.name}`);
+      const { error: removeErr } = await supabase.storage.from("media").remove(paths);
+      if (removeErr) throw new Error(`remove media: ${removeErr.message}`);
+
+      mediaDeleted += paths.length;
+      if (objects.length < BATCH_SIZE) break;
+    }
+
     await supabase.from("events_log").insert({
       tenant_id: tenantId,
       session_id: null,
       event_type: "session_deleted",
-      payload: { label, evolution_instance_name: instanceName, messagesDeleted: totalDeleted },
+      payload: { label, evolution_instance_name: instanceName, messagesDeleted: totalDeleted, mediaFilesDeleted: mediaDeleted },
       error: null,
     });
 

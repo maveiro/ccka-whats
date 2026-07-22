@@ -196,7 +196,13 @@ wa-intelligence/
     (`.delete().eq("session_id", ...).limit(500).select("id")`, sem `.order()`: ordenar
     antes do limit força sort e não ajuda em nada aqui) até zerar, depois `chats`, depois a
     sessão. Ver regra 17 para o motivo. `DELETE /api/sessions/[id]` tem
-    `export const maxDuration = 90` por causa disso.
+    `export const maxDuration = 90` por causa disso. Depois de apagar a sessão, também
+    limpa `storage/media/{tenant_id}/{session_id}/` em lotes via `.storage.from("media")
+    .list()` + `.remove()` — o cascade de FK apaga a linha `media_files` (que tinha o
+    `storage_path`) mas não o objeto físico no bucket; sem esse passo os arquivos ficam
+    órfãos no Storage para sempre (achado em produção em 22/07/2026, ~960MB órfãos numa
+    única sessão de teste — corrigido no mesmo dia; os arquivos órfãos pré-existentes
+    ainda não foram limpos manualmente).
 19. **Login via Google (domínios em `GOOGLE_ONLY_DOMAINS`, hoje só `plauz.com.br`) nunca
     autocadastra** — `apps/web/app/auth/callback/route.ts` exige (a) email termina em um
     domínio de `GOOGLE_ONLY_DOMAINS` (`lib/google-only-domains.ts`) e (b) já existe uma
@@ -371,6 +377,12 @@ REDIS_URL=
   `authenticator`. Agora roda na Edge Function `delete-session` (lotes) + timeout do
   `authenticator` subido pra 60s; UI mostra erro via toast em vez de falhar em silêncio
   (ver regras 17/18)
+- Limpeza de Storage na exclusão de sessão corrigida (22/07/2026): `delete-session` apagava
+  `messages`/`chats`/`wa_sessions` (e `media_files` em cascade) mas nunca os objetos no
+  bucket `media` — ficavam órfãos para sempre. Achado investigando suspeita do usuário após
+  excluir a sessão "Marcelo Pessoal" (~960MB confirmados órfãos em 3 pastas de sessão do
+  tenant Welcome Trips). Agora `delete-session` também limpa `storage/media/{tenant_id}/
+  {session_id}/` (ver regra 18). Órfãos pré-existentes ainda não foram removidos.
 - **Auditoria completa Jun 2026** — 4 rodadas, 20+ fixes, codebase limpo
 - Tenants "Plauz" e "Plauz Produções LTDA" unificados (22/07/2026) — eram dois tenants
   duplicados com o mesmo número de WhatsApp (+5541984408713) conectado duas vezes em

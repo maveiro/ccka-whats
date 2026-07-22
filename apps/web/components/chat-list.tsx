@@ -121,6 +121,7 @@ export default function ChatList({ chats: initial, operatorRole }: ChatListProps
   }
 
   const showSessionFilter = sessions.length > 1;
+  const totalUnread = chats.reduce((s, c) => s + (c.unread_count ?? 0), 0);
 
   const filteredChats = chats.filter((c) => {
     if (selectedSession !== "all" && c.session_id !== selectedSession) return false;
@@ -188,49 +189,51 @@ export default function ChatList({ chats: initial, operatorRole }: ChatListProps
         <h2 className="text-sm font-medium text-gray-300">Conversas</h2>
         <SearchBar />
 
-        {/* Session pills — only when multiple instances */}
+        {/* Trocador de caixa — cada número é sua própria "inbox", como trocar de conta */}
         {showSessionFilter && (
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none" role="tablist" aria-label="Filtrar por número">
+          <div className="border border-gray-800 rounded-lg overflow-hidden" role="tablist" aria-label="Selecionar caixa de entrada">
             <button
               role="tab"
               aria-selected={selectedSession === "all"}
               onClick={() => setSelectedSession("all")}
-              className={`shrink-0 flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-colors whitespace-nowrap ${
+              className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors ${
                 selectedSession === "all"
-                  ? "bg-gray-700 border-gray-600 text-white"
-                  : "border-gray-800 text-gray-500 hover:text-gray-300 hover:border-gray-700"
+                  ? "bg-gray-800 text-white font-medium"
+                  : "text-gray-300 hover:bg-gray-900"
               }`}
             >
-              Todos
-              {chats.reduce((s, c) => s + (c.unread_count ?? 0), 0) > 0 && (
-                <span className="bg-green-600 text-white text-[10px] rounded-full px-1 leading-none py-0.5">
-                  {chats.reduce((s, c) => s + (c.unread_count ?? 0), 0)}
+              <span>Todas as conversas</span>
+              {totalUnread > 0 && (
+                <span className="bg-green-600 text-white text-[10px] rounded-full px-1.5 leading-none py-0.5">
+                  {totalUnread}
                 </span>
               )}
             </button>
-            {sessions.map((s) => (
-              <button
-                key={s.id}
-                role="tab"
-                aria-selected={selectedSession === s.id}
-                onClick={() => setSelectedSession(s.id)}
-                className={`shrink-0 flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors whitespace-nowrap ${
-                  selectedSession === s.id
-                    ? "bg-gray-700 border-gray-600 text-white"
-                    : "border-gray-800 text-gray-500 hover:text-gray-300 hover:border-gray-700"
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[s.status] ?? "bg-gray-500"}`} />
-                <span className="truncate max-w-[90px]">
-                  {s.label ?? formatPhone(s.phone_number)}
-                </span>
-                {s.unread > 0 && (
-                  <span className="bg-green-600 text-white text-[10px] rounded-full px-1 leading-none py-0.5">
-                    {s.unread}
+            <div className="border-t border-gray-800">
+              {sessions.map((s) => (
+                <button
+                  key={s.id}
+                  role="tab"
+                  aria-selected={selectedSession === s.id}
+                  onClick={() => setSelectedSession(s.id)}
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors ${
+                    selectedSession === s.id
+                      ? "bg-gray-800 text-white"
+                      : "text-gray-500 hover:bg-gray-900 hover:text-gray-300"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[s.status] ?? "bg-gray-500"}`} />
+                  <span className="flex-1 text-left truncate">
+                    {s.label ?? formatPhone(s.phone_number)}
                   </span>
-                )}
-              </button>
-            ))}
+                  {s.unread > 0 && (
+                    <span className="bg-green-600 text-white text-[10px] rounded-full px-1.5 leading-none py-0.5">
+                      {s.unread}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

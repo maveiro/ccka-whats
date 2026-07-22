@@ -16,7 +16,7 @@ export default async function InboxLayout({ children }: { children: React.ReactN
     .eq("id", user!.id)
     .single();
 
-  const { data: rawChats } = await supabase
+  const { data: rawChats, error: chatsError } = await supabase
     .from("chats")
     .select(`
       id,
@@ -31,6 +31,8 @@ export default async function InboxLayout({ children }: { children: React.ReactN
     `)
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .limit(50);
+
+  if (chatsError) console.error("InboxLayout: failed to load chats:", chatsError.message);
 
   const chats = (rawChats ?? []).map((c) => ({
     ...c,

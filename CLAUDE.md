@@ -197,6 +197,14 @@ wa-intelligence/
     antes do limit força sort e não ajuda em nada aqui) até zerar, depois `chats`, depois a
     sessão. Ver regra 17 para o motivo. `DELETE /api/sessions/[id]` tem
     `export const maxDuration = 90` por causa disso.
+19. **Login via Google (`@plauz.com.br`) nunca autocadastra** — `apps/web/app/auth/callback/route.ts`
+    exige (a) email termina em `plauz.com.br` (`ALLOWED_GOOGLE_DOMAINS`) e (b) já existe uma
+    linha em `operators` com esse `id` (checada via `createAdminClient()`, exceção à regra 15 —
+    mesmo padrão do `integrations`). Falhando qualquer um dos dois: `signOut()` +
+    redirect `/login?error=...`. Continua exigindo convite do admin como única porta de
+    entrada — Google só troca a credencial de quem já existe, não cria operador/tenant novo.
+    `/auth` está em `publicPaths` no `proxy.ts` (roda antes do middleware considerar a
+    sessão "oficial").
 
 ---
 
@@ -302,6 +310,17 @@ REDIS_URL=
   `authenticator` subido pra 60s; UI mostra erro via toast em vez de falhar em silêncio
   (ver regras 17/18)
 - **Auditoria completa Jun 2026** — 4 rodadas, 20+ fixes, codebase limpo
+- Tenants "Plauz" e "Plauz Produções LTDA" unificados (22/07/2026) — eram dois tenants
+  duplicados com o mesmo número de WhatsApp (+5541984408713) conectado duas vezes em
+  instâncias Evolution diferentes. Sobreviveu `Plauz Produções LTDA`
+  (`d4f8fff3-b176-4c53-bb97-69bc7ce01e5b`); a sessão duplicada com menos histórico
+  (`comercial-plauz`) foi excluída via `delete-session`, `contacts`/`operators` do
+  tenant absorvido foram reatribuídos, e o tenant vazio removido. Ambos os admins
+  (`marcelo@plauz.com.br`, `mayara@plauz.com.br`) agora coexistem no mesmo tenant.
+- Login via Google em andamento (22/07/2026) — código pronto (`/auth/callback`, botão
+  no login, ver regra 19) mas **ainda não ativado**: falta habilitar o provider Google
+  no Supabase Auth com Client ID/Secret do Google Cloud Console (passo manual, fora do
+  alcance do CLI). Até lá, `@plauz.com.br` continua logando por senha normalmente.
 
 ### Armadilha conhecida: porta da Evolution API
 A `EVOLUTION_API_URL` deve usar a porta **32769** (não 32768).

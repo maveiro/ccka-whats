@@ -33,7 +33,7 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Rotas sempre públicas — sem proteção de auth
-  const publicPaths = ["/register", "/forgot-password", "/reset-password", "/api/"];
+  const publicPaths = ["/register", "/forgot-password", "/reset-password", "/auth/", "/api/"];
   if (publicPaths.some((p) => pathname.startsWith(p))) {
     return supabaseResponse;
   }

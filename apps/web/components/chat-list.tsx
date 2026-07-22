@@ -4,14 +4,17 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { formatDistanceToNow } from "@/lib/utils";
+import { formatPhone, displayChatName } from "@/lib/chat-display";
 import { createClient } from "@/lib/supabase/client";
 import SearchBar from "@/components/search-bar";
+import ChatAvatar from "@/components/chat-avatar";
 import { Users } from "lucide-react";
 
 interface Chat {
   id: string;
   jid: string;
   name: string | null;
+  avatar_url: string | null;
   last_message_at: string | null;
   last_message_body: string | null;
   unread_count: number;
@@ -24,62 +27,12 @@ interface ChatListProps {
   operatorRole: string;
 }
 
-const AVATAR_COLORS = [
-  "bg-violet-600",
-  "bg-blue-600",
-  "bg-teal-600",
-  "bg-orange-500",
-  "bg-pink-600",
-  "bg-indigo-600",
-  "bg-emerald-600",
-  "bg-amber-600",
-];
-
-function avatarColor(jid: string): string {
-  let hash = 0;
-  for (let i = 0; i < jid.length; i++) {
-    hash = (hash * 31 + jid.charCodeAt(i)) | 0;
-  }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
-function ChatAvatar({ name, jid }: { name: string | null; jid: string }) {
-  const isGroup = jid.endsWith("@g.us");
-  const color = avatarColor(jid);
-
-  if (isGroup) {
-    return (
-      <div className={`w-10 h-10 rounded-full ${color} flex items-center justify-center shrink-0`} aria-hidden="true">
-        <Users size={18} className="text-white opacity-90" />
-      </div>
-    );
-  }
-
-  const initial = (name ?? jid).charAt(0).toUpperCase();
-  return (
-    <div className={`w-10 h-10 rounded-full ${color} flex items-center justify-center text-sm font-bold text-white shrink-0`} aria-hidden="true">
-      {initial}
-    </div>
-  );
-}
-
 const STATUS_DOT: Record<string, string> = {
   connected:    "bg-green-500",
   connecting:   "bg-yellow-400 animate-pulse",
   disconnected: "bg-gray-500",
   banned:       "bg-red-500",
 };
-
-function formatPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.startsWith("55") && digits.length === 13) {
-    return `+55 (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9)}`;
-  }
-  if (digits.startsWith("55") && digits.length === 12) {
-    return `+55 (${digits.slice(2, 4)}) ${digits.slice(4, 8)}-${digits.slice(8)}`;
-  }
-  return `+${digits}`;
-}
 
 type FilterTab = "all" | "groups" | "contacts";
 
@@ -271,11 +224,11 @@ export default function ChatList({ chats: initial, operatorRole }: ChatListProps
               }`}
               aria-current={active ? "page" : undefined}
             >
-              <ChatAvatar name={chat.name} jid={chat.jid} />
+              <ChatAvatar name={chat.name} jid={chat.jid} avatarUrl={chat.avatar_url} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-medium text-white truncate">
-                    {chat.name ?? chat.jid}
+                    {displayChatName(chat.name, chat.jid)}
                   </p>
                   <div className="flex flex-col items-end shrink-0 gap-1">
                     {chat.last_message_at && (

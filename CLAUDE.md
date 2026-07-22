@@ -237,6 +237,34 @@ wa-intelligence/
     admin, dado o default `restricted` da regra 20, não precisa fazer nada — o número que
     o operador acabou de criar já é o único que ele vê, a não ser que já tivesse outros
     liberados antes).
+22. **Nome/avatar de contato e grupo vêm de `POST /chat/findContacts/{instance}`, não de
+    `GET /contact/fetchContacts/{instance}`** — o segundo é um endpoint que não existe
+    nesta versão do Evolution API (sempre retornava 404; achado em produção em 22/07/2026
+    testando a resposta real do endpoint). Era o único caminho de resolução de nome pra
+    contatos/`@lid` sem `pushName` no payload do webhook (a resolução em tempo real via
+    webhook cobre a maioria dos casos — só falha quando a msg é `fromMe`-only ou o
+    WhatsApp omite `pushName`), então o bug deixava esses chats presos com o JID bruto
+    como nome pra sempre. `/chat/findContacts` retorna array com `remoteJid` (campo pra
+    casar com `chats.jid` — **não** `id`, que ali é um id interno do Evolution, não o
+    JID), `pushName` e `profilePicUrl`, cobrindo contatos **e** grupos numa única
+    chamada. Nome de grupo continua resolvido preferencialmente via `subject` de
+    `/group/fetchAllGroups` (mais confiável/atualizado que o `pushName` do
+    findContacts) — `findContacts` supre o avatar do grupo e o nome+avatar de contato.
+    Usado em `sync-name` (botão manual) e `session-health-check` (`fetchContactsBulk`,
+    uma chamada por sessão conectada, reaproveitada tanto pra nome de contato quanto
+    avatar de contato/grupo). Coluna `chats.avatar_url text` (migration
+    `0018_chats_avatar_url.sql`) guarda a URL do CDN da Meta diretamente — sem baixar
+    pra Storage: ao contrário de mídia de mensagem (regra 3), o link de foto de perfil
+    não expira em minutos, e o health-check já roda a cada 5 min re-sincronizando/
+    corrigindo caso mude.
+23. **`chats.name` nunca é `null` quando não resolvido — é o próprio JID** (ver
+    `whatsapp-webhook`, insert/update de `chats.name`). `chat.name === chat.jid` é o
+    sinal de "nome não resolvido", não `!chat.name`. `displayChatName(name, jid)` em
+    `apps/web/lib/chat-display.ts` centraliza esse fallback: se não resolvido, mostra
+    telefone formatado (pra `@s.whatsapp.net`) ou "Contato/Grupo sem nome" (pra `@lid`
+    e grupos sem subject) em vez do JID bruto — usado em `chat-list.tsx`, `chat-view.tsx`,
+    `search-bar.tsx` e `/api/analytics`. `@lid` (ID de vínculo do WhatsApp, esconde o
+    número real) não tem telefone pra formatar, daí o fallback textual.
 
 ---
 
@@ -308,6 +336,8 @@ REDIS_URL=
 - Chat list com filtro Todos / Grupos / Contatos + filtro por sessão (número)
 - Reações: agrupadas como badges emoji na bolha da mensagem-alvo (coluna `reaction_to`)
 - Resolução de nomes: botão por conversa + health-check periódico (a cada 5 min via pg_cron)
+- Avatar de contato/grupo (`chats.avatar_url`, ver regra 22) + fallback de nome amigável
+  em vez do JID bruto (regra 23) — mesmo caminho de sincronização acima
 - Merge automático de chats duplicados `@lid` ↔ `@s.whatsapp.net` (session-health-check)
 - Busca full-text de mensagens (`search_vector` + FTS websearch em português)
 - Busca semântica via embedding (`/api/search?mode=semantic`) — embeddings do histórico

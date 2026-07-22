@@ -22,6 +22,7 @@ export default async function InboxLayout({ children }: { children: React.ReactN
       id,
       jid,
       name,
+      avatar_url,
       last_message_at,
       last_message_body,
       unread_count,

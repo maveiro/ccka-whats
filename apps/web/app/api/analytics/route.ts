@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { displayChatName } from '@/lib/chat-display'
 
 const PAGE = 1000
 const MAX_PAGES = 200 // teto de segurança (200k msgs); acima disso migrar p/ RPC GROUP BY
@@ -117,7 +118,8 @@ export async function GET(req: NextRequest) {
   const chatInfo = new Map((topChatRows ?? []).map((c) => [c.id, c]))
   const topChats = top5.map(([id, count]) => {
     const c = chatInfo.get(id)
-    return { name: c?.name ?? c?.jid ?? id, jid: c?.jid ?? id, count, isGroup: (c?.jid ?? '').endsWith('@g.us') }
+    const jid = c?.jid ?? id
+    return { name: displayChatName(c?.name ?? null, jid), jid, count, isGroup: jid.endsWith('@g.us') }
   })
 
   return NextResponse.json({

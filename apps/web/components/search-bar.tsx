@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { formatTime } from "@/lib/utils";
+import { displayChatName } from "@/lib/chat-display";
 
 interface MessageResult {
   id: string;
@@ -170,8 +171,8 @@ export default function SearchBar() {
                   onClick={() => { setOpen(false); setQuery(""); }}
                   className="block px-3 py-2 hover:bg-gray-800 transition-colors"
                 >
-                  <p className="text-sm text-white">{highlight(chat.name ?? chat.jid, query)}</p>
-                  {chat.name && <p className="text-xs text-gray-500">{chat.jid}</p>}
+                  <p className="text-sm text-white">{highlight(displayChatName(chat.name, chat.jid), query)}</p>
+                  {chat.name && chat.name !== chat.jid && <p className="text-xs text-gray-500">{chat.jid}</p>}
                 </Link>
               ))}
             </div>
@@ -193,7 +194,7 @@ export default function SearchBar() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-xs text-gray-400 truncate">
-                          {msg.chats?.name ?? msg.chats?.jid ?? "Chat"}
+                          {msg.chats ? displayChatName(msg.chats.name, msg.chats.jid) : "Chat"}
                           {sender && <span className="ml-1 text-gray-500">· {sender}</span>}
                           {searchMode === "semantic" && msg.similarity != null && (
                             <span className="ml-1 text-green-500/70">

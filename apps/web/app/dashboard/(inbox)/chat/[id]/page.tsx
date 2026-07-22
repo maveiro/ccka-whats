@@ -14,7 +14,7 @@ export default async function ChatPage({ params }: Props) {
 
   const { data: chat } = await supabase
     .from("chats")
-    .select("id, name, jid, session_id")
+    .select("id, name, jid, session_id, avatar_url")
     .eq("id", id)
     .single();
 

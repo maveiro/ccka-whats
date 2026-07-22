@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { formatTime } from "@/lib/utils";
+import { displayChatName } from "@/lib/chat-display";
 import MessageComposer from "@/components/message-composer";
 import ConversationSummary from "@/components/conversation-summary";
+import ChatAvatar from "@/components/chat-avatar";
 import { createClient } from "@/lib/supabase/client";
 import {
   Check,
@@ -50,6 +52,7 @@ interface Chat {
   name: string | null;
   jid: string;
   session_id: string;
+  avatar_url: string | null;
 }
 
 interface ChatViewProps {
@@ -71,6 +74,7 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
   const [loadingMore, setLoadingMore] = useState(false);
   const [quotedMessage, setQuotedMessage] = useState<QuotedMessage | null>(null);
   const [chatName, setChatName] = useState(chat.name);
+  const [avatarUrl, setAvatarUrl] = useState(chat.avatar_url);
   const [syncingName, setSyncingName] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -89,8 +93,9 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
     setSyncingName(true);
     try {
       const res = await fetch(`/api/chats/${chat.id}/sync-name`, { method: "POST" });
-      const data = await res.json() as { ok: boolean; name?: string };
+      const data = await res.json() as { ok: boolean; name?: string; avatarUrl?: string };
       if (data.ok && data.name) setChatName(data.name);
+      if (data.ok && data.avatarUrl) setAvatarUrl(data.avatarUrl);
     } catch { /* ignore */ } finally {
       setSyncingName(false);
     }
@@ -245,9 +250,12 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-800 shrink-0 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-white truncate">{chatName ?? chat.jid}</p>
-          <p className="text-xs text-gray-500 truncate">{chat.jid}</p>
+        <div className="flex items-center gap-3 min-w-0">
+          <ChatAvatar name={chatName} jid={chat.jid} avatarUrl={avatarUrl} size={36} />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-white truncate">{displayChatName(chatName, chat.jid)}</p>
+            <p className="text-xs text-gray-500 truncate">{chat.jid}</p>
+          </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <ConversationSummary chatId={chat.id} />

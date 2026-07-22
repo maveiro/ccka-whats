@@ -34,8 +34,9 @@ Deno.serve(async (req: Request) => {
   await Promise.allSettled([
     ...sessions.map(checkSession),
     ...connected.map(async (s) => {
-      await syncGroupNames(s);
-      await syncContactNames(s);
+      const bulk = await fetchContactsBulk(s.evolution_instance_name);
+      await syncGroupNames(s, bulk);
+      await syncContactNames(s, bulk);
       await mergeDuplicateChats(s);
     }),
   ]);
@@ -121,18 +122,56 @@ async function checkSession(session: {
   });
 }
 
+interface ContactInfo {
+  name?: string;
+  avatarUrl?: string;
+}
+
+// Busca contatos + grupos com nome e foto de perfil de uma vez (usado tanto pro
+// nome de contatos quanto pro avatar de contatos e grupos). `/chat/findContacts`
+// (POST) é o endpoint correto nesta versão do Evolution API — o antigo
+// `/contact/fetchContacts` (GET) usado aqui antes sempre retornava 404, então
+// contatos (principalmente @lid) nunca tinham o nome resolvido por este caminho.
+async function fetchContactsBulk(instanceName: string): Promise<Map<string, ContactInfo>> {
+  const map = new Map<string, ContactInfo>();
+  try {
+    const res = await fetch(
+      `${EVOLUTION_API_URL}/chat/findContacts/${instanceName}`,
+      {
+        method: "POST",
+        headers: { "apikey": EVOLUTION_API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
+    if (!res.ok) return map;
+
+    const data = await res.json() as Array<Record<string, unknown>>;
+    if (!Array.isArray(data)) return map;
+
+    for (const c of data) {
+      const jid = c.remoteJid as string | undefined;
+      if (!jid) continue;
+      const pushName = (c.pushName as string | undefined)?.trim();
+      const avatarUrl = c.profilePicUrl as string | undefined;
+      map.set(jid, { name: pushName || undefined, avatarUrl: avatarUrl || undefined });
+    }
+  } catch (err) {
+    console.error(`Failed to fetch contacts bulk for ${instanceName}:`, err);
+  }
+  return map;
+}
+
 // Busca grupos cujo nome ainda é o JID (não resolvido) e atualiza via Evolution API.
-async function syncGroupNames(session: {
-  id: string;
-  tenant_id: string;
-  evolution_instance_name: string;
-}): Promise<void> {
+// Também aproveita `bulk` (já buscado uma vez pelo caller) pra preencher avatar_url.
+async function syncGroupNames(
+  session: { id: string; tenant_id: string; evolution_instance_name: string },
+  bulk: Map<string, ContactInfo>,
+): Promise<void> {
   const { id: sessionId, tenant_id: tenantId, evolution_instance_name: instanceName } = session;
 
-  // Pegar grupos com nome igual ao JID (não resolvido)
   const { data: groups } = await supabase
     .from("chats")
-    .select("id, jid, name")
+    .select("id, jid, name, avatar_url")
     .eq("session_id", sessionId)
     .like("jid", "%@g.us")
     .limit(50);
@@ -141,51 +180,61 @@ async function syncGroupNames(session: {
 
   // Filtrar só os que o nome parece ser o JID (não resolvido)
   const unresolved = groups.filter((g) => !g.name || g.name === g.jid || g.name.endsWith("@g.us"));
-  if (unresolved.length === 0) return;
 
-  // Buscar todos os grupos do Evolution de uma só vez
-  try {
-    const res = await fetch(
-      `${EVOLUTION_API_URL}/group/fetchAllGroups/${instanceName}?getParticipants=false`,
-      { headers: { "apikey": EVOLUTION_API_KEY } },
-    );
-    if (!res.ok) return;
+  if (unresolved.length > 0) {
+    // Buscar todos os grupos do Evolution de uma só vez (subject é mais confiável que findContacts)
+    try {
+      const res = await fetch(
+        `${EVOLUTION_API_URL}/group/fetchAllGroups/${instanceName}?getParticipants=false`,
+        { headers: { "apikey": EVOLUTION_API_KEY } },
+      );
+      if (res.ok) {
+        const data = await res.json() as Array<Record<string, unknown>>;
+        if (Array.isArray(data)) {
+          // Montar mapa JID → subject
+          const subjectMap = new Map<string, string>();
+          for (const g of data) {
+            const jid = g.id as string | undefined;
+            const subject = (g.subject ?? g.name) as string | undefined;
+            if (jid && subject && subject.trim()) {
+              subjectMap.set(jid, subject.trim());
+            }
+          }
 
-    const data = await res.json() as Array<Record<string, unknown>>;
-    if (!Array.isArray(data)) return;
+          let resolved = 0;
+          await Promise.allSettled(
+            unresolved.map(async (chat) => {
+              const subject = subjectMap.get(chat.jid);
+              if (subject) {
+                const { error: nameErr } = await supabase.from("chats").update({ name: subject }).eq("id", chat.id);
+                if (nameErr) console.error(`group name update failed for ${chat.jid}: ${nameErr.message}`);
+                else resolved++;
+              }
+            }),
+          );
 
-    // Montar mapa JID → subject
-    const subjectMap = new Map<string, string>();
-    for (const g of data) {
-      const jid = g.id as string | undefined;
-      const subject = (g.subject ?? g.name) as string | undefined;
-      if (jid && subject && subject.trim()) {
-        subjectMap.set(jid, subject.trim());
-      }
-    }
-
-    // Atualizar chats não resolvidos
-    let resolved = 0;
-    await Promise.allSettled(
-      unresolved.map(async (chat) => {
-        const subject = subjectMap.get(chat.jid);
-        if (subject) {
-          const { error: nameErr } = await supabase.from("chats").update({ name: subject }).eq("id", chat.id);
-          if (nameErr) console.error(`group name update failed for ${chat.jid}: ${nameErr.message}`);
-          else resolved++;
+          await supabase.from("events_log").insert({
+            tenant_id: tenantId, session_id: sessionId,
+            event_type: "names_synced",
+            payload: { type: "groups", resolved, unresolved: unresolved.length },
+          });
         }
+      }
+    } catch (err) {
+      console.error(`Failed to sync group names for ${instanceName}:`, err);
+    }
+  }
+
+  // Backfill de avatar (independente do nome já estar resolvido)
+  const needsAvatar = groups.filter((g) => !g.avatar_url && bulk.get(g.jid)?.avatarUrl);
+  if (needsAvatar.length > 0) {
+    await Promise.allSettled(
+      needsAvatar.map(async (chat) => {
+        const avatarUrl = bulk.get(chat.jid)?.avatarUrl;
+        const { error: avatarErr } = await supabase.from("chats").update({ avatar_url: avatarUrl }).eq("id", chat.id);
+        if (avatarErr) console.error(`group avatar update failed for ${chat.jid}: ${avatarErr.message}`);
       }),
     );
-
-    if (resolved > 0 || unresolved.length > 0) {
-      await supabase.from("events_log").insert({
-        tenant_id: tenantId, session_id: sessionId,
-        event_type: "names_synced",
-        payload: { type: "groups", resolved, unresolved: unresolved.length },
-      });
-    }
-  } catch (err) {
-    console.error(`Failed to sync group names for ${instanceName}:`, err);
   }
 }
 
@@ -266,69 +315,49 @@ async function mergeDuplicateChats(session: {
   }
 }
 
-// Busca contatos (@s.whatsapp.net e @lid) cujo nome ainda é o JID bruto e resolve via Evolution API.
-async function syncContactNames(session: {
-  id: string;
-  tenant_id: string;
-  evolution_instance_name: string;
-}): Promise<void> {
-  const { id: sessionId, tenant_id: tenantId, evolution_instance_name: instanceName } = session;
+// Busca contatos (@s.whatsapp.net e @lid) cujo nome ainda é o JID bruto e/ou sem
+// avatar, e resolve os dois usando o mapa `bulk` já buscado pelo caller.
+async function syncContactNames(
+  session: { id: string; tenant_id: string; evolution_instance_name: string },
+  bulk: Map<string, ContactInfo>,
+): Promise<void> {
+  const { id: sessionId, tenant_id: tenantId } = session;
 
-  // Chats de DM com nome que parece ser JID (contém @ — não foi resolvido ainda)
   const { data: chats } = await supabase
     .from("chats")
-    .select("id, jid, name")
+    .select("id, jid, name, avatar_url")
     .eq("session_id", sessionId)
     .or("jid.like.%@s.whatsapp.net,jid.like.%@lid")
     .limit(100);
 
   if (!chats || chats.length === 0) return;
 
-  const unresolved = chats.filter(
-    (c) => !c.name || c.name === c.jid || c.name.includes("@"),
+  // Nome que parece ser o JID bruto (contém @) = não resolvido ainda
+  const unresolved = chats.filter((c) => !c.name || c.name === c.jid || c.name.includes("@"));
+  const needsAvatar = chats.filter((c) => !c.avatar_url && bulk.get(c.jid)?.avatarUrl);
+  const toUpdate = new Map(
+    [...unresolved, ...needsAvatar].map((c) => [c.id, c]),
   );
-  if (unresolved.length === 0) return;
+  if (toUpdate.size === 0) return;
 
-  try {
-    const res = await fetch(
-      `${EVOLUTION_API_URL}/contact/fetchContacts/${instanceName}`,
-      {
-        method: "GET",
-        headers: { "apikey": EVOLUTION_API_KEY },
-      },
-    );
-    if (!res.ok) return;
+  let resolved = 0;
+  await Promise.allSettled(
+    [...toUpdate.values()].map(async (chat) => {
+      const info = bulk.get(chat.jid);
+      const update: Record<string, string> = {};
+      if (unresolved.includes(chat) && info?.name) update.name = info.name;
+      if (needsAvatar.includes(chat) && info?.avatarUrl) update.avatar_url = info.avatarUrl;
+      if (Object.keys(update).length === 0) return;
 
-    const data = await res.json() as Array<Record<string, unknown>>;
-    if (!Array.isArray(data)) return;
+      const { error: updateErr } = await supabase.from("chats").update(update).eq("id", chat.id);
+      if (updateErr) console.error(`contact sync failed for ${chat.jid}: ${updateErr.message}`);
+      else if (update.name) resolved++;
+    }),
+  );
 
-    const contactMap = new Map<string, string>();
-    for (const c of data) {
-      const jid = (c.id ?? c.remoteJid) as string | undefined;
-      const name = (c.pushName ?? c.name ?? c.notify) as string | undefined;
-      if (jid && name && name.trim()) contactMap.set(jid, name.trim());
-    }
-
-    let resolved = 0;
-    await Promise.allSettled(
-      unresolved.map(async (chat) => {
-        const name = contactMap.get(chat.jid);
-        if (name) {
-          const { error: nameErr } = await supabase.from("chats").update({ name }).eq("id", chat.id);
-          if (nameErr) console.error(`contact name update failed for ${chat.jid}: ${nameErr.message}`);
-          else resolved++;
-        }
-      }),
-    );
-
-    if (resolved > 0 || unresolved.length > 0) {
-      await supabase.from("events_log").insert({
-        tenant_id: tenantId, session_id: sessionId,
-        event_type: "names_synced",
-        payload: { type: "contacts", resolved, unresolved: unresolved.length },
-      });
-    }
-  } catch (err) {
-    console.error(`Failed to sync contact names for ${instanceName}:`, err);
-  }
+  await supabase.from("events_log").insert({
+    tenant_id: tenantId, session_id: sessionId,
+    event_type: "names_synced",
+    payload: { type: "contacts", resolved, unresolved: unresolved.length },
+  });
 }

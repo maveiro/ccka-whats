@@ -17,7 +17,7 @@ export async function POST(_req: NextRequest, { params }: RouteContext) {
 
   const { data: chat } = await admin
     .from("chats")
-    .select("id, jid, session_id, wa_sessions ( evolution_instance_name )")
+    .select("id, jid, session_id, tenant_id, wa_sessions ( evolution_instance_name )")
     .eq("id", id)
     .single();
 
@@ -29,9 +29,34 @@ export async function POST(_req: NextRequest, { params }: RouteContext) {
 
   const jid: string = chat.jid;
   let resolvedName: string | null = null;
+  let avatarUrl: string | null = null;
+
+  // Nome + avatar de contatos (@s.whatsapp.net e @lid) e avatar de grupos vêm todos
+  // do mesmo endpoint bulk `/chat/findContacts` (POST), casados por `remoteJid`.
+  // `/contact/fetchContacts` (GET) usado antes aqui não existe nesta versão do
+  // Evolution API — sempre retornava 404 e o nome nunca era resolvido.
+  try {
+    const res = await fetch(
+      `${env.EVOLUTION_API_URL}/chat/findContacts/${instanceName}`,
+      {
+        method: "POST",
+        headers: { apikey: env.EVOLUTION_API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
+    if (res.ok) {
+      const contacts = await res.json() as Array<Record<string, unknown>>;
+      if (Array.isArray(contacts)) {
+        const match = contacts.find((c) => c.remoteJid === jid);
+        const pushName = match?.pushName as string | undefined;
+        if (!jid.endsWith("@g.us") && pushName?.trim()) resolvedName = pushName.trim();
+        if (match?.profilePicUrl) avatarUrl = match.profilePicUrl as string;
+      }
+    }
+  } catch { /* ignore */ }
 
   if (jid.endsWith("@g.us")) {
-    // Grupo: buscar pelo endpoint de grupos
+    // Grupo: nome vem do subject (mais confiável e atualizado que o findContacts)
     try {
       const res = await fetch(
         `${env.EVOLUTION_API_URL}/group/findGroupInfos/${instanceName}?groupJid=${encodeURIComponent(jid)}`,
@@ -44,29 +69,27 @@ export async function POST(_req: NextRequest, { params }: RouteContext) {
         if (subject?.trim()) resolvedName = subject.trim();
       }
     } catch { /* ignore */ }
-  } else {
-    // Contato (@s.whatsapp.net ou @lid): buscar via fetchContacts
-    try {
-      const res = await fetch(
-        `${env.EVOLUTION_API_URL}/contact/fetchContacts/${instanceName}`,
-        { headers: { apikey: env.EVOLUTION_API_KEY } },
-      );
-      if (res.ok) {
-        const contacts = await res.json() as Array<Record<string, unknown>>;
-        if (Array.isArray(contacts)) {
-          const match = contacts.find((c) => c.id === jid || c.remoteJid === jid);
-          const name = (match?.pushName ?? match?.name ?? match?.verifiedName) as string | undefined;
-          if (name?.trim()) resolvedName = name.trim();
-        }
-      }
-    } catch { /* ignore */ }
   }
 
-  if (!resolvedName) {
-    return NextResponse.json({ ok: false, message: "Nome não encontrado no Evolution" });
+  if (!resolvedName && !avatarUrl) {
+    return NextResponse.json({ ok: false, message: "Nada encontrado no Evolution" });
   }
 
-  await admin.from("chats").update({ name: resolvedName }).eq("id", id);
+  const update: Record<string, string> = {};
+  if (resolvedName) update.name = resolvedName;
+  if (avatarUrl) update.avatar_url = avatarUrl;
 
-  return NextResponse.json({ ok: true, name: resolvedName });
+  const { error } = await admin.from("chats").update(update).eq("id", id);
+  if (error) {
+    await admin.from("events_log").insert({
+      tenant_id: chat.tenant_id,
+      session_id: chat.session_id,
+      event_type: "error",
+      payload: { chat_id: id, jid },
+      error: `sync-name update failed: ${error.message}`,
+    });
+    return NextResponse.json({ error: "Falha ao salvar" }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, name: resolvedName, avatarUrl });
 }

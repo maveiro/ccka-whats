@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     .eq("id", user.id)
     .single();
 
-  if (operator?.role !== "admin") {
+  if (operator?.role !== "admin" && operator?.role !== "operator") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -81,6 +81,16 @@ export async function POST(req: NextRequest) {
 
   if (insertError) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
+  }
+
+  // Quem cria via self-service (operador, não admin) recebe acesso automático a essa
+  // sessão — a única com acesso, até o admin liberar outras (ver regra 21 do CLAUDE.md).
+  if (operator.role === "operator") {
+    await admin.from("operator_session_access").insert({
+      operator_id: user.id,
+      session_id: newSession.id,
+      tenant_id: operator.tenant_id,
+    });
   }
 
   // 4. Register webhook on Evolution instance (fire-and-forget on failure)

@@ -30,7 +30,7 @@ interface SidebarProps {
 const navItems = [
   { label: "Mensagens",     href: "/dashboard",                      roles: ["admin", "operator"], icon: MessageSquare, section: "main" },
   { label: "Analytics",     href: "/dashboard/analytics",            roles: ["admin", "operator"], icon: BarChart2,     section: "main" },
-  { label: "Sessões",       href: "/dashboard/admin/sessions",       roles: ["admin"],             icon: Smartphone,   section: "admin", showStatus: true },
+  { label: "Sessões",       href: "/dashboard/admin/sessions",       roles: ["admin", "operator"], icon: Smartphone,   section: "admin", showStatus: true },
   { label: "Operadores",    href: "/dashboard/admin/operators",      roles: ["admin"],             icon: Users,        section: "admin" },
   { label: "Alertas",       href: "/dashboard/admin/alerts",         roles: ["admin"],             icon: Bell,         section: "admin", showAlertBadge: true },
   { label: "Integrações",   href: "/dashboard/admin/integrations",   roles: ["admin"],             icon: Plug,         section: "admin" },

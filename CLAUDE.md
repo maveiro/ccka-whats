@@ -214,16 +214,29 @@ wa-intelligence/
     que devia ser Google-only (achado em produção em 22/07/2026: dois convites reais
     foram feitos antes desse fix existir — corrigidos manualmente invalidando a senha).
 20. **Acesso por número (`operator_session_access`) é aplicado via RLS, não filtro de app** —
-    `admin` sempre vê todas as sessões do tenant; `operator` vê tudo (`session_scope='all'`,
-    default — ninguém perde acesso sem o admin restringir explicitamente) ou só as sessões
-    concedidas (`session_scope='restricted'` + linhas em `operator_session_access`). A
-    função `has_session_access(session_id)` (security definer, mesmo padrão de
+    `admin` sempre vê todas as sessões do tenant; `operator` vê tudo (`session_scope='all'`)
+    ou só as sessões concedidas (`session_scope='restricted'` + linhas em
+    `operator_session_access`). Default da coluna é `'restricted'` desde 22/07/2026
+    (migration 0017) — antes disso era `'all'`; operadores convidados antes dessa data
+    ficaram com `'all'` explícito na própria linha (não retroagiu, ninguém perdeu acesso).
+    A função `has_session_access(session_id)` (security definer, mesmo padrão de
     `my_tenant_id()`/`my_role()`) decide isso e é usada nas policies de `wa_sessions`,
     `chats`, `messages` e `media_files` — substituíram `tenant_isolation` (não somaram: a
     tentativa antiga de RLS por sessão, `operator_own_session` em `messages`, nunca
     funcionou por causa do OR entre policies permissivas — não repetir esse erro). Gerência
     em `/dashboard/admin/operators` (só aparece pra `role='operator'` — admin não precisa,
     sempre vê tudo), grava via `PUT /api/operators/[id]/session-access`.
+21. **Operador pode criar/conectar/desconectar sessão (não só admin)** — `POST
+    /api/sessions/create`, `/api/sessions/connect` e `/api/sessions/disconnect` aceitam
+    `role IN (admin, operator)`. Excluir sessão e ver/rotacionar webhook secret continuam
+    **admin-only**, mesmo pra sessão que o próprio operador conectou (`SessionCard` recebe
+    `isAdmin` e esconde "Zona de perigo" + "Configuração do Webhook" pra operador —
+    `webhook_secret` nem é passado como prop pro client dele em
+    `dashboard/admin/sessions/page.tsx`, não é só esconder na UI). Quando um `operator`
+    cria uma sessão, ganha grant automático em `operator_session_access` pra ela (o
+    admin, dado o default `restricted` da regra 20, não precisa fazer nada — o número que
+    o operador acabou de criar já é o único que ele vê, a não ser que já tivesse outros
+    liberados antes).
 
 ---
 

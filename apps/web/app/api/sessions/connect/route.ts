@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     .eq("id", user.id)
     .single();
 
-  if (operator?.role !== "admin") {
+  if (operator?.role !== "admin" && operator?.role !== "operator") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

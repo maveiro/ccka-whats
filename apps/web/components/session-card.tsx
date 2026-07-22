@@ -23,7 +23,7 @@ const statusConfig: Record<string, { dot: string; label: string; text: string }>
   banned:       { dot: "bg-red-500",    label: "Banido",       text: "text-red-400" },
 };
 
-export default function SessionCard({ session: initial }: { session: Session }) {
+export default function SessionCard({ session: initial, isAdmin = true }: { session: Session; isAdmin?: boolean }) {
   const [session, setSession]           = useState(initial);
   const [actionLoading, setActionLoading] = useState(false);
   const [rotateLoading, setRotateLoading] = useState(false);
@@ -228,7 +228,8 @@ export default function SessionCard({ session: initial }: { session: Session }) 
         </div>
       )}
 
-      {/* ── Webhook (colapsável) ── */}
+      {/* ── Webhook (colapsável, só admin) ── */}
+      {isAdmin && (
       <div className="border-t border-gray-800">
         <button
           onClick={() => setWebhookOpen((v) => !v)}
@@ -295,8 +296,10 @@ export default function SessionCard({ session: initial }: { session: Session }) 
           </div>
         )}
       </div>
+      )}
 
-      {/* ── Zona de perigo ── */}
+      {/* ── Zona de perigo (só admin) ── */}
+      {isAdmin && (
       <div className="border-t border-gray-800 px-4 py-3 flex items-center justify-between">
         <p className="text-xs text-gray-700">Zona de perigo</p>
         <div className="flex items-center gap-2">
@@ -324,6 +327,7 @@ export default function SessionCard({ session: initial }: { session: Session }) 
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }

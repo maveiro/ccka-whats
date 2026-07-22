@@ -13,7 +13,9 @@ export default async function SessionsPage() {
     .eq("id", user!.id)
     .single();
 
-  if (operator?.role !== "admin") redirect("/dashboard");
+  if (operator?.role !== "admin" && operator?.role !== "operator") redirect("/dashboard");
+
+  const isAdmin = operator.role === "admin";
 
   const { data: sessions } = await supabase
     .from("wa_sessions")
@@ -25,7 +27,13 @@ export default async function SessionsPage() {
       <SessionsPageHeader />
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
         {(sessions ?? []).map((session) => (
-          <SessionCard key={session.id} session={session} />
+          <SessionCard
+            key={session.id}
+            // webhook_secret nunca chega ao client de um operador — não é só esconder
+            // na UI, o dado não deve nem sair do server component nesse caso.
+            session={{ ...session, webhook_secret: isAdmin ? session.webhook_secret : null }}
+            isAdmin={isAdmin}
+          />
         ))}
       </div>
     </div>

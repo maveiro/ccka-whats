@@ -205,6 +205,17 @@ wa-intelligence/
     entrada — Google só troca a credencial de quem já existe, não cria operador/tenant novo.
     `/auth` está em `publicPaths` no `proxy.ts` (roda antes do middleware considerar a
     sessão "oficial").
+20. **Acesso por número (`operator_session_access`) é aplicado via RLS, não filtro de app** —
+    `admin` sempre vê todas as sessões do tenant; `operator` vê tudo (`session_scope='all'`,
+    default — ninguém perde acesso sem o admin restringir explicitamente) ou só as sessões
+    concedidas (`session_scope='restricted'` + linhas em `operator_session_access`). A
+    função `has_session_access(session_id)` (security definer, mesmo padrão de
+    `my_tenant_id()`/`my_role()`) decide isso e é usada nas policies de `wa_sessions`,
+    `chats`, `messages` e `media_files` — substituíram `tenant_isolation` (não somaram: a
+    tentativa antiga de RLS por sessão, `operator_own_session` em `messages`, nunca
+    funcionou por causa do OR entre policies permissivas — não repetir esse erro). Gerência
+    em `/dashboard/admin/operators` (só aparece pra `role='operator'` — admin não precisa,
+    sempre vê tudo), grava via `PUT /api/operators/[id]/session-access`.
 
 ---
 

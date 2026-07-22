@@ -11,13 +11,13 @@ export default function InviteOperatorForm({ tenantId }: Props) {
   const [name, setName] = useState("");
   const [role, setRole] = useState<"operator" | "admin">("operator");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState<"password" | "google" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleInvite() {
     setLoading(true);
     setError(null);
-    setSuccess(false);
+    setSuccess(null);
 
     try {
       const res = await fetch("/api/operators/invite", {
@@ -31,7 +31,8 @@ export default function InviteOperatorForm({ tenantId }: Props) {
         throw new Error(text || `Erro ${res.status}`);
       }
 
-      setSuccess(true);
+      const data = await res.json() as { authMethod: "password" | "google" };
+      setSuccess(data.authMethod);
       setEmail("");
       setName("");
       setRole("operator");
@@ -87,7 +88,13 @@ export default function InviteOperatorForm({ tenantId }: Props) {
         {loading ? "Enviando convite..." : "Convidar"}
       </button>
 
-      {success && (
+      {success === "google" && (
+        <div className="bg-green-900/30 border border-green-800 rounded-md p-3 text-sm text-green-300">
+          Conta criada. Como o e-mail é de um domínio Google-only, a pessoa já pode
+          entrar direto em &quot;Entrar com Google&quot; — sem senha, sem e-mail de convite.
+        </div>
+      )}
+      {success === "password" && (
         <div className="bg-green-900/30 border border-green-800 rounded-md p-3 text-sm text-green-300">
           Convite enviado. O operador receberá um e-mail para definir a senha.
         </div>

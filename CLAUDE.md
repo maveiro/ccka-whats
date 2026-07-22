@@ -197,14 +197,22 @@ wa-intelligence/
     antes do limit força sort e não ajuda em nada aqui) até zerar, depois `chats`, depois a
     sessão. Ver regra 17 para o motivo. `DELETE /api/sessions/[id]` tem
     `export const maxDuration = 90` por causa disso.
-19. **Login via Google (`@plauz.com.br`) nunca autocadastra** — `apps/web/app/auth/callback/route.ts`
-    exige (a) email termina em `plauz.com.br` (`ALLOWED_GOOGLE_DOMAINS`) e (b) já existe uma
+19. **Login via Google (domínios em `GOOGLE_ONLY_DOMAINS`, hoje só `plauz.com.br`) nunca
+    autocadastra** — `apps/web/app/auth/callback/route.ts` exige (a) email termina em um
+    domínio de `GOOGLE_ONLY_DOMAINS` (`lib/google-only-domains.ts`) e (b) já existe uma
     linha em `operators` com esse `id` (checada via `createAdminClient()`, exceção à regra 15 —
     mesmo padrão do `integrations`). Falhando qualquer um dos dois: `signOut()` +
     redirect `/login?error=...`. Continua exigindo convite do admin como única porta de
     entrada — Google só troca a credencial de quem já existe, não cria operador/tenant novo.
     `/auth` está em `publicPaths` no `proxy.ts` (roda antes do middleware considerar a
-    sessão "oficial").
+    sessão "oficial"). **`POST /api/operators/invite` verifica o mesmo domínio** — pra
+    e-mail Google-only usa `admin.createUser({ email_confirm: true })` sem senha (sem
+    e-mail de convite, a pessoa já entra direto por "Entrar com Google"); pra qualquer
+    outro domínio, mantém `inviteUserByEmail` (fluxo de definir senha por e-mail). Nunca
+    usar `inviteUserByEmail` pra um e-mail Google-only — manda um convite de senha que
+    nunca deveria existir, e deixa uma credencial de senha válida por engano num domínio
+    que devia ser Google-only (achado em produção em 22/07/2026: dois convites reais
+    foram feitos antes desse fix existir — corrigidos manualmente invalidando a senha).
 20. **Acesso por número (`operator_session_access`) é aplicado via RLS, não filtro de app** —
     `admin` sempre vê todas as sessões do tenant; `operator` vê tudo (`session_scope='all'`,
     default — ninguém perde acesso sem o admin restringir explicitamente) ou só as sessões

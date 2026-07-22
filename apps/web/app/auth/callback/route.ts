@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { GOOGLE_ONLY_DOMAINS } from "@/lib/google-only-domains";
 
 // Login via Google fica restrito a operadores já convidados (nunca autocadastra) e,
-// hoje, ao domínio @plauz.com.br — ver regra correspondente no CLAUDE.md.
-const ALLOWED_GOOGLE_DOMAINS = ["plauz.com.br"];
-
+// hoje, ao(s) domínio(s) em GOOGLE_ONLY_DOMAINS — ver regra 19 do CLAUDE.md.
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
@@ -23,7 +22,7 @@ export async function GET(req: NextRequest) {
   const email = data.user.email ?? "";
   const domain = email.split("@")[1]?.toLowerCase();
 
-  if (!domain || !ALLOWED_GOOGLE_DOMAINS.includes(domain)) {
+  if (!domain || !GOOGLE_ONLY_DOMAINS.includes(domain)) {
     await supabase.auth.signOut();
     return NextResponse.redirect(`${origin}/login?error=unauthorized_domain`);
   }

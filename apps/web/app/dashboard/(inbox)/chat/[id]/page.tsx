@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import ChatView from "@/components/chat-view";
-import ChatList from "@/components/chat-list";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -12,25 +11,6 @@ const INITIAL_LIMIT = 50;
 export default async function ChatPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const { data: operator } = await supabase
-    .from("operators")
-    .select("role")
-    .eq("id", user!.id)
-    .single();
-
-  const { data: rawChats } = await supabase
-    .from("chats")
-    .select(`id, jid, name, last_message_at, last_message_body, unread_count, session_id, wa_sessions ( label, phone_number, status )`)
-    .order("last_message_at", { ascending: false, nullsFirst: false })
-    .limit(50);
-
-  const chats = (rawChats ?? []).map((c) => ({
-    ...c,
-    wa_sessions: Array.isArray(c.wa_sessions) ? c.wa_sessions[0] ?? null : c.wa_sessions,
-  }));
 
   const { data: chat } = await supabase
     .from("chats")
@@ -78,14 +58,11 @@ export default async function ChatPage({ params }: Props) {
   const hasMore = (rawMessages?.length ?? 0) === INITIAL_LIMIT;
 
   return (
-    <div className="flex h-full">
-      <ChatList chats={chats ?? []} operatorRole={operator?.role ?? "operator"} />
-      <ChatView
-        chat={chat}
-        messages={messages}
-        isGroup={isGroup}
-        hasMore={hasMore}
-      />
-    </div>
+    <ChatView
+      chat={chat}
+      messages={messages}
+      isGroup={isGroup}
+      hasMore={hasMore}
+    />
   );
 }

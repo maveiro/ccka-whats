@@ -200,9 +200,10 @@ wa-intelligence/
     limpa `storage/media/{tenant_id}/{session_id}/` em lotes via `.storage.from("media")
     .list()` + `.remove()` — o cascade de FK apaga a linha `media_files` (que tinha o
     `storage_path`) mas não o objeto físico no bucket; sem esse passo os arquivos ficam
-    órfãos no Storage para sempre (achado em produção em 22/07/2026, ~960MB órfãos numa
-    única sessão de teste — corrigido no mesmo dia; os arquivos órfãos pré-existentes
-    ainda não foram limpos manualmente).
+    órfãos no Storage para sempre (achado em produção em 22/07/2026 — código corrigido no
+    mesmo dia; ~960MB/1.839 arquivos pré-existentes de 3 sessões já excluídas antes do fix
+    foram limpos manualmente em 23/07/2026, ver "Estado atual" e regra 6 sobre o log em
+    `events_log`).
 19. **Login via Google (domínios em `GOOGLE_ONLY_DOMAINS`, hoje só `plauz.com.br`) nunca
     autocadastra** — `apps/web/app/auth/callback/route.ts` exige (a) email termina em um
     domínio de `GOOGLE_ONLY_DOMAINS` (`lib/google-only-domains.ts`) e (b) já existe uma

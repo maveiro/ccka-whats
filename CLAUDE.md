@@ -382,7 +382,8 @@ REDIS_URL=
   bucket `media` — ficavam órfãos para sempre. Achado investigando suspeita do usuário após
   excluir a sessão "Marcelo Pessoal" (~960MB confirmados órfãos em 3 pastas de sessão do
   tenant Welcome Trips). Agora `delete-session` também limpa `storage/media/{tenant_id}/
-  {session_id}/` (ver regra 18). Órfãos pré-existentes ainda não foram removidos.
+  {session_id}/` (ver regra 18). Os ~960MB (1.839 arquivos) pré-existentes órfãos foram
+  removidos manualmente em 23/07/2026 (log em `events_log`, `event_type=storage_orphan_cleanup`).
 - **Auditoria completa Jun 2026** — 4 rodadas, 20+ fixes, codebase limpo
 - Tenants "Plauz" e "Plauz Produções LTDA" unificados (22/07/2026) — eram dois tenants
   duplicados com o mesmo número de WhatsApp (+5541984408713) conectado duas vezes em

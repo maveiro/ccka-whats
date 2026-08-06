@@ -133,6 +133,15 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
                   Disparar
                 </button>
               )}
+              {c.status === "paused" && (
+                <button
+                  onClick={() => handleFire(c.id)}
+                  title="Pausada por atingir o teto de mensagens/24h da Meta — retomar continua de onde parou"
+                  className="text-xs px-3 py-1 bg-orange-600 hover:bg-orange-500 text-white rounded-md transition-colors"
+                >
+                  Retomar
+                </button>
+              )}
               {c.total_recipients > 0 && (
                 <button
                   onClick={() => handleReport(c)}

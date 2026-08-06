@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
 
-// Idempotente por construção: o UPDATE só afeta a linha se status='ready'.
-// Um duplo-clique/retry que não encontra a linha nesse estado não invoca a
-// Edge Function de novo — retorna "já disparando" em vez de duplicar o job.
+// Idempotente por construção: o UPDATE só afeta a linha se status for
+// 'ready' (primeiro disparo) ou 'paused' (retomada após teto de tier de
+// mensageria — ver campaign-sender, MESSAGING_LIMIT_CODES). Um duplo-clique/
+// retry que não encontra a linha num desses estados não invoca a Edge
+// Function de novo — retorna "já disparando" em vez de duplicar o job.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
@@ -21,7 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .update({ status: "sending", updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("tenant_id", operator.tenant_id)
-    .eq("status", "ready")
+    .in("status", ["ready", "paused"])
     .select("id")
     .maybeSingle();
 

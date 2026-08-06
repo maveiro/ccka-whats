@@ -45,6 +45,7 @@ interface CloudInboundMessage {
     button_reply?: { id: string; title: string };
     list_reply?: { id: string; title: string };
   };
+  context?: { id: string; from?: string }; // id = wamid da mensagem original (respostas/cliques)
 }
 
 // Texto exato do(s) botão(ões) que o negócio usa como "sair da lista" em
@@ -287,8 +288,17 @@ async function handleInboundMessage(
     ...(MEDIA_TYPES.has(type) ? { mediaDownload: "cloud_api_media_not_yet_supported" } : {}),
   });
 
-  if (buttonText && OPT_OUT_BUTTON_TEXTS.has(buttonText.trim().toLowerCase())) {
-    await registerOptOut(tenantId, jid, buttonText);
+  if (buttonText) {
+    // Liga o clique de volta ao destinatário exato da campanha via
+    // context.id (wamid da mensagem original) — funciona pra qualquer
+    // botão de qualquer template, sem precisar hardcodar texto. Alimenta
+    // o CSV de Relatório (GET /api/campaigns/[id]/recipients).
+    if (message.context?.id) {
+      await linkButtonReplyToRecipient(message.context.id, buttonText);
+    }
+    if (OPT_OUT_BUTTON_TEXTS.has(buttonText.trim().toLowerCase())) {
+      await registerOptOut(tenantId, jid, buttonText);
+    }
   }
 }
 
@@ -305,6 +315,20 @@ function extractButtonText(message: CloudInboundMessage): string | null {
     ?? message.interactive?.button_reply?.title
     ?? message.interactive?.list_reply?.title
     ?? null;
+}
+
+async function linkButtonReplyToRecipient(originalWamid: string, buttonText: string): Promise<void> {
+  const { error } = await supabase
+    .from("campaign_recipients")
+    .update({ button_reply: buttonText, button_reply_at: new Date().toISOString() })
+    .eq("wamid", originalWamid);
+
+  // Sem erro de "not found" — a maioria dos cliques não é resposta a uma
+  // campanha (conversa normal também gera context.id ao responder alguém),
+  // então 0 linhas afetadas é o caso comum, não uma falha.
+  if (error) {
+    await logEvent(null, "error", { originalWamid }, `campaign_recipients button_reply update: ${error.message}`);
+  }
 }
 
 async function registerOptOut(tenantId: string, phoneE164: string, buttonText: string): Promise<void> {

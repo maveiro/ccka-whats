@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { data, error } = await supabase
     .from("campaign_recipients")
-    .select("phone_e164, status, wamid, error, attempts, sent_at, delivered_at, read_at, failed_at, created_at")
+    .select("phone_e164, status, wamid, error, attempts, button_reply, button_reply_at, sent_at, delivered_at, read_at, failed_at, created_at")
     .eq("campaign_id", id)
     .order("created_at", { ascending: true });
 

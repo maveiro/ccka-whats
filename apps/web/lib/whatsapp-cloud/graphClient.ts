@@ -173,3 +173,45 @@ export async function sendTemplateMessage(
 
   return { wamid };
 }
+
+export interface SendFreeformTextParams {
+  phoneNumberId: string;
+  accessToken: string;
+  to: string; // E.164, sem "+"
+  body: string;
+}
+
+/**
+ * POST /{phone_number_id}/messages, type "text" — mensagem livre, só
+ * permitida dentro da janela de 24h desde a última mensagem inbound do
+ * contato (fora disso a Graph API rejeita com erro 131047 e exige
+ * template). O caller (messages/send/route.ts) checa a janela antes de
+ * chamar esta função.
+ */
+export async function sendFreeformTextMessage(
+  params: SendFreeformTextParams,
+): Promise<SendTemplateMessageResult> {
+  const { phoneNumberId, accessToken, to, body: text } = params;
+
+  const response = await fetchWithRetry(`${GRAPH_API_BASE}/${phoneNumberId}/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to,
+      type: "text",
+      text: { body: text },
+    }),
+  });
+
+  if (!response.ok) throw await parseGraphError(response, `${phoneNumberId}/messages`);
+
+  const json = (await response.json()) as { messages?: { id: string }[] };
+  const wamid = json.messages?.[0]?.id;
+  if (!wamid) throw new GraphApiError("Resposta sem wamid", response.status, json);
+
+  return { wamid };
+}

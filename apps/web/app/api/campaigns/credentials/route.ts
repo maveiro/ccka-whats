@@ -48,6 +48,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "wabaId, phoneNumberId e accessToken são obrigatórios" }, { status: 400 });
   }
 
+  // Verifica o token/phone_number_id contra a Graph API ANTES de salvar —
+  // pega credencial inválida na hora em vez de deixar uma sessão
+  // "conectada" que nunca vai receber nada. Também dá o nome/telefone
+  // exibido pra sessão auto-provisionada abaixo.
+  const verifyRes = await fetch(
+    `https://graph.facebook.com/v23.0/${phoneNumberId.trim()}?fields=display_phone_number,verified_name`,
+    { headers: { Authorization: `Bearer ${accessToken.trim()}` } },
+  );
+  if (!verifyRes.ok) {
+    const errBody = await verifyRes.json().catch(() => ({}));
+    const reason = (errBody as { error?: { message?: string } })?.error?.message;
+    return NextResponse.json(
+      { error: `Token ou Phone Number ID inválido — Graph API rejeitou a verificação${reason ? `: ${reason}` : ""}` },
+      { status: 400 },
+    );
+  }
+  const verified = await verifyRes.json() as { display_phone_number?: string; verified_name?: string };
+
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("whatsapp_cloud_credentials")
@@ -55,7 +73,9 @@ export async function POST(req: NextRequest) {
       tenant_id: operator.tenant_id,
       waba_id: wabaId.trim(),
       phone_number_id: phoneNumberId.trim(),
-      display_phone_number: typeof displayPhoneNumber === "string" ? displayPhoneNumber.trim() : null,
+      display_phone_number: typeof displayPhoneNumber === "string" && displayPhoneNumber.trim()
+        ? displayPhoneNumber.trim()
+        : (verified.display_phone_number ?? null),
       access_token: accessToken.trim(),
       active: true,
       updated_at: new Date().toISOString(),
@@ -64,6 +84,23 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Auto-provisiona a sessão na caixa de entrada compartilhada — é isso
+  // que faz o número aparecer em /dashboard/admin/sessions e receber
+  // respostas de campanha no mesmo inbox do pipeline Evolution.
+  const { error: sessionError } = await admin.from("wa_sessions").upsert({
+    tenant_id: operator.tenant_id,
+    operator_id: user.id,
+    phone_number: verified.display_phone_number ?? phoneNumberId.trim(),
+    label: verified.verified_name ?? "WhatsApp Cloud API",
+    status: "connected",
+    channel: "cloud_api",
+    cloud_credential_id: data.id,
+  }, { onConflict: "cloud_credential_id" });
+
+  if (sessionError) {
+    console.error("[campaigns/credentials] wa_sessions upsert failed:", sessionError.message);
+  }
 
   await admin.from("events_log").insert({
     tenant_id: operator.tenant_id,

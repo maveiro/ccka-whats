@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
+import { getCloudCredential } from "@/lib/whatsapp-cloud/getCloudCredential";
+import { sendFreeformTextMessage, GraphApiError } from "@/lib/whatsapp-cloud/graphClient";
+
+const CLOUD_API_REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,14 +43,27 @@ async function handleSend(req: NextRequest): Promise<NextResponse> {
   // Buscar chat + sessão
   const { data: chat } = await supabase
     .from("chats")
-    .select("jid, session_id, wa_sessions ( evolution_instance_name )")
+    .select("jid, session_id, tenant_id, wa_sessions ( evolution_instance_name, channel )")
     .eq("id", chatId)
     .single();
 
   if (!chat) return NextResponse.json({ error: "Chat não encontrado" }, { status: 404 });
 
   const sessions = Array.isArray(chat.wa_sessions) ? chat.wa_sessions[0] : chat.wa_sessions;
-  const instanceName = (sessions as { evolution_instance_name: string | null } | null)?.evolution_instance_name;
+  const session = sessions as { evolution_instance_name: string | null; channel: string } | null;
+
+  if (session?.channel === "cloud_api") {
+    return sendViaCloudApi(supabase, {
+      chatId,
+      sessionId: chat.session_id,
+      chatJid: chat.jid,
+      tenantId: chat.tenant_id,
+      text,
+      mediaBase64,
+    });
+  }
+
+  const instanceName = session?.evolution_instance_name;
 
   if (!instanceName) return NextResponse.json({ error: "Sessão sem instância Evolution" }, { status: 400 });
 
@@ -95,5 +112,84 @@ async function handleSend(req: NextRequest): Promise<NextResponse> {
     result = await evoRes.json().catch(() => null);
   }
   return NextResponse.json({ ok: true, result });
+}
+
+// ─── WhatsApp Cloud API (módulo de campanhas) ─────────────────────────────
+//
+// Diferença importante do fluxo Evolution acima: lá, o envio ecoa de volta
+// pelo whatsapp-webhook (Evolution) e é esse eco que persiste a mensagem
+// enviada em `messages`. O webhook Cloud API só carrega `statuses`/
+// `messages` inbound, nunca uma cópia do que a própria conta mandou — por
+// isso este branch insere a linha em `messages` explicitamente.
+
+async function sendViaCloudApi(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  params: { chatId: string; sessionId: string; chatJid: string; tenantId: string; text?: string; mediaBase64?: string },
+): Promise<NextResponse> {
+  const { chatId, sessionId, chatJid, tenantId, text, mediaBase64 } = params;
+
+  if (mediaBase64) {
+    return NextResponse.json({ error: "Envio de mídia via WhatsApp Cloud API ainda não suportado" }, { status: 400 });
+  }
+  if (!text) {
+    return NextResponse.json({ error: "text é obrigatório para envio via Cloud API" }, { status: 400 });
+  }
+
+  // Janela de 24h: Cloud API só permite texto livre dentro de 24h da
+  // última mensagem inbound do contato — fora disso a Graph API rejeita
+  // (erro 131047) e exige template. Checar antes evita um erro confuso
+  // vindo direto do Meta.
+  const { data: lastInbound } = await supabase
+    .from("messages")
+    .select("timestamp")
+    .eq("chat_id", chatId)
+    .eq("from_me", false)
+    .order("timestamp", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const withinWindow = lastInbound
+    ? Date.now() - new Date(lastInbound.timestamp).getTime() < CLOUD_API_REPLY_WINDOW_MS
+    : false;
+
+  if (!withinWindow) {
+    return NextResponse.json(
+      { error: "Fora da janela de 24h desde a última mensagem do contato — use um template em Campanhas" },
+      { status: 409 },
+    );
+  }
+
+  const credential = await getCloudCredential(tenantId);
+  if (!credential) {
+    return NextResponse.json({ error: "Nenhuma credencial do WhatsApp Cloud API cadastrada" }, { status: 404 });
+  }
+
+  let wamid: string;
+  try {
+    const result = await sendFreeformTextMessage({
+      phoneNumberId: credential.phone_number_id,
+      accessToken: credential.access_token,
+      to: chatJid,
+      body: text,
+    });
+    wamid = result.wamid;
+  } catch (err) {
+    const message = err instanceof GraphApiError ? err.message : String(err);
+    return NextResponse.json({ error: `Cloud API error: ${message}` }, { status: 502 });
+  }
+
+  const { error: insertError } = await supabase.from("messages").insert({
+    tenant_id: tenantId,
+    session_id: sessionId,
+    chat_id: chatId,
+    message_id: wamid,
+    from_me: true,
+    type: "text",
+    body: text,
+    timestamp: new Date().toISOString(),
+  });
+  if (insertError) console.error("[messages/send] cloud_api messages insert failed:", insertError.message);
+
+  return NextResponse.json({ ok: true, result: { wamid } });
 }
 

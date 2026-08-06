@@ -18,5 +18,8 @@ export function displayChatName(name: string | null, jid: string): string {
     const digits = jid.split("@")[0];
     if (/^\d+$/.test(digits)) return formatPhone(digits);
   }
+  // jid do WhatsApp Cloud API (módulo de campanhas): número E.164 puro,
+  // sem sufixo de domínio — ex: "5541999999999".
+  if (/^\d+$/.test(jid)) return formatPhone(jid);
   return "Contato sem nome";
 }

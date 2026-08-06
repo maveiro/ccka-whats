@@ -1,7 +1,10 @@
-// Webhook de status de entrega do WhatsApp Cloud API (oficial) — separado
-// de whatsapp-webhook (Evolution/Baileys), zero código em comum além de
-// events_log. GET responde o handshake de assinatura do Meta; POST recebe
-// eventos de status (sent/delivered/read/failed) por wamid.
+// Webhook do WhatsApp Cloud API (oficial) — separado de whatsapp-webhook
+// (Evolution/Baileys), zero código em comum além de events_log. GET
+// responde o handshake de assinatura do Meta; POST recebe dois tipos de
+// evento: status de entrega de campanha (sent/delivered/read/failed, por
+// wamid) e mensagens inbound (respostas de contato), que caem na mesma
+// caixa de entrada compartilhada (chats/messages) usada pelo pipeline
+// Evolution — ver docs/plans ou CLAUDE.md, seção "Módulo de campanhas".
 // verify_jwt=false — chamada pelo Meta, sem Authorization Supabase.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -24,6 +27,25 @@ const STATUS_RANK: Record<string, number> = {
   failed: 1, // terminal, mas não "mais avançado" que delivered/read
 };
 
+interface CloudInboundMessage {
+  from: string; // E.164 puro, sem sufixo (ex: "5541999999999")
+  id: string; // wamid
+  timestamp: string;
+  type: string; // text|image|audio|video|document|sticker|location|...
+  text?: { body: string };
+  image?: { id: string; mime_type: string; caption?: string };
+  audio?: { id: string; mime_type: string };
+  video?: { id: string; mime_type: string; caption?: string };
+  document?: { id: string; mime_type: string; filename?: string; caption?: string };
+  sticker?: { id: string; mime_type: string };
+  location?: { latitude: number; longitude: number; name?: string };
+}
+
+interface CloudContact {
+  profile?: { name?: string };
+  wa_id: string;
+}
+
 interface CloudWebhookPayload {
   entry?: {
     id: string;
@@ -37,9 +59,20 @@ interface CloudWebhookPayload {
           timestamp: string;
           errors?: { code: number; title: string }[];
         }[];
+        messages?: CloudInboundMessage[];
+        contacts?: CloudContact[];
       };
     }[];
   }[];
+}
+
+// Mesmo vocabulário de messages.type usado no whatsapp-webhook (Evolution)
+// — replicado aqui, não importado, porque as duas Deno functions são
+// deploys independentes sem módulo compartilhado.
+const MEDIA_TYPES = new Set(["image", "audio", "video", "document", "sticker"]);
+function normalizeCloudMessageType(type: string): string {
+  const known = new Set(["text", "image", "audio", "video", "document", "sticker", "location", "contacts", "reaction", "interactive", "button"]);
+  return known.has(type) ? type : "unknown";
 }
 
 Deno.serve(async (req: Request) => {
@@ -115,8 +148,133 @@ async function processEvent(body: CloudWebhookPayload): Promise<void> {
       for (const status of change.value.statuses ?? []) {
         await handleStatus(status);
       }
+
+      for (const message of change.value.messages ?? []) {
+        await handleInboundMessage(message, change.value.metadata?.phone_number_id, change.value.contacts);
+      }
     }
   }
+}
+
+// ─── Mensagem inbound (resposta de contato) → caixa de entrada compartilhada ──
+
+async function handleInboundMessage(
+  message: CloudInboundMessage,
+  phoneNumberId: string | undefined,
+  contacts: CloudContact[] | undefined,
+): Promise<void> {
+  if (!phoneNumberId) {
+    await logEvent(null, "error", { messageId: message.id }, "inbound message sem phone_number_id no metadata");
+    return;
+  }
+
+  const { data: credential, error: credError } = await supabase
+    .from("whatsapp_cloud_credentials")
+    .select("id, tenant_id")
+    .eq("phone_number_id", phoneNumberId)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (credError || !credential) {
+    await logEvent(null, "error", { phoneNumberId, messageId: message.id }, credError?.message ?? "no active credential for phone_number_id");
+    return;
+  }
+
+  const { data: session, error: sessionError } = await supabase
+    .from("wa_sessions")
+    .select("id, tenant_id")
+    .eq("cloud_credential_id", credential.id)
+    .maybeSingle();
+
+  if (sessionError || !session) {
+    await logEvent(credential.tenant_id, "error", { phoneNumberId, messageId: message.id }, sessionError?.message ?? "no wa_sessions row for cloud_credential_id");
+    return;
+  }
+
+  const { id: sessionId, tenant_id: tenantId } = session;
+  const jid = message.from; // E.164 puro — ver fix em apps/web/lib/chat-display.ts
+  const pushName = contacts?.[0]?.profile?.name ?? null;
+  const type = normalizeCloudMessageType(message.type);
+
+  // Upsert contato
+  const { data: contact } = await supabase
+    .from("contacts")
+    .upsert({ tenant_id: tenantId, jid, push_name: pushName, is_group: false }, { onConflict: "tenant_id,jid" })
+    .select("id")
+    .single();
+
+  // Upsert chat em dois passos — mesmo padrão de whatsapp-webhook (Evolution):
+  // insert-if-absent primeiro pra nunca sobrescrever um nome já resolvido.
+  await supabase
+    .from("chats")
+    .upsert(
+      { tenant_id: tenantId, session_id: sessionId, contact_id: contact?.id ?? null, jid, name: pushName ?? jid },
+      { onConflict: "session_id,jid", ignoreDuplicates: true },
+    );
+
+  const body = message.text?.body ?? extractCaption(message) ?? (MEDIA_TYPES.has(type) ? `[${type}]` : null);
+
+  const { data: chat } = await supabase
+    .from("chats")
+    .update({
+      last_message_at: new Date(Number(message.timestamp) * 1000).toISOString(),
+      ...(body ? { last_message_body: body } : {}),
+      ...(contact?.id ? { contact_id: contact.id } : {}),
+      ...(pushName ? { name: pushName } : {}),
+    })
+    .eq("session_id", sessionId)
+    .eq("jid", jid)
+    .select("id")
+    .single();
+
+  const { data: savedMessage, error: msgError } = await supabase
+    .from("messages")
+    .upsert({
+      tenant_id: tenantId,
+      session_id: sessionId,
+      chat_id: chat?.id ?? null,
+      contact_id: contact?.id ?? null,
+      message_id: message.id,
+      from_me: false,
+      type,
+      body,
+      timestamp: new Date(Number(message.timestamp) * 1000).toISOString(),
+      raw_payload: message,
+    }, { onConflict: "session_id,message_id" })
+    .select("id")
+    .single();
+
+  if (msgError) {
+    await logEvent(tenantId, "error", { sessionId, messageId: message.id }, `messages.upsert: ${msgError.message}`);
+    return;
+  }
+
+  // Mídia inbound do Cloud API: download binário não suportado na v1
+  // (fluxo de download é totalmente diferente do Evolution — media_id +
+  // GET /{media_id} autenticado). Registra o metadata, preserva
+  // raw_payload pra reprocessamento futuro, sem baixar o arquivo.
+  if (MEDIA_TYPES.has(type) && savedMessage?.id) {
+    const mediaMeta = (message as unknown as Record<string, { mime_type?: string }>)[type];
+    // media_files não tem coluna de erro — o motivo ("ainda não suportado",
+    // não "falhou de verdade") fica só no events_log abaixo.
+    await supabase.from("media_files").insert({
+      tenant_id: tenantId,
+      message_id: savedMessage.id,
+      mime_type: mediaMeta?.mime_type ?? "application/octet-stream",
+      download_status: "failed",
+    });
+  }
+
+  await logEvent(tenantId, "inbound_cloud_message", {
+    sessionId,
+    messageId: savedMessage?.id,
+    type,
+    ...(MEDIA_TYPES.has(type) ? { mediaDownload: "cloud_api_media_not_yet_supported" } : {}),
+  });
+}
+
+function extractCaption(message: CloudInboundMessage): string | null {
+  return message.image?.caption ?? message.video?.caption ?? message.document?.caption ?? null;
 }
 
 async function handleStatus(status: {

@@ -14,6 +14,7 @@ interface Session {
   evolution_instance_name: string | null;
   qr_code: string | null;
   webhook_secret: string | null;
+  channel?: string; // "evolution" | "cloud_api" — ausente em sessões antigas, trata como evolution
 }
 
 const statusConfig: Record<string, { dot: string; label: string; text: string }> = {
@@ -143,6 +144,7 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
     copyTimer.current = setTimeout(() => setCopied(null), 2000);
   }
 
+  const isCloudApi = session.channel === "cloud_api";
   const cfg = statusConfig[session.status] ?? statusConfig.disconnected;
   const maskedSecret = session.webhook_secret ? `${session.webhook_secret.slice(0, 8)}...` : null;
   const showQr = session.status === "connecting" && session.qr_code;
@@ -169,6 +171,9 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
           <p className="text-xs text-gray-500 mt-0.5">{session.phone_number}</p>
           {session.evolution_instance_name && (
             <p className="text-xs text-gray-700 mt-0.5">{session.evolution_instance_name}</p>
+          )}
+          {isCloudApi && (
+            <p className="text-xs text-blue-400 mt-0.5">WhatsApp Cloud API (oficial)</p>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -228,8 +233,9 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
         </div>
       )}
 
-      {/* ── Webhook (colapsável, só admin) ── */}
-      {isAdmin && (
+      {/* ── Webhook (colapsável, só admin) — só faz sentido pra Evolution;
+          Cloud API usa webhook do Meta App, configurado fora daqui ── */}
+      {isAdmin && !isCloudApi && (
       <div className="border-t border-gray-800">
         <button
           onClick={() => setWebhookOpen((v) => !v)}

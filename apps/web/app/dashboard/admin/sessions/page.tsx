@@ -19,7 +19,7 @@ export default async function SessionsPage() {
 
   const { data: sessions } = await supabase
     .from("wa_sessions")
-    .select("id, phone_number, label, status, last_seen_at, evolution_instance_name, qr_code, webhook_secret")
+    .select("id, phone_number, label, status, last_seen_at, evolution_instance_name, qr_code, webhook_secret, channel")
     .order("created_at", { ascending: true });
 
   return (

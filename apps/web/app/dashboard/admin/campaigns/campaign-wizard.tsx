@@ -35,7 +35,9 @@ function countPlaceholders(components: Template["components"]): number {
 }
 
 export default function CampaignWizard({ credentials }: { credentials: Credential[] }) {
-  const [step, setStep] = useState<Step>(credentials.length > 0 ? "template" : "credential");
+  const hasCredential = credentials.length > 0;
+  const currentCredential = credentials[0] ?? null;
+  const [step, setStep] = useState<Step>(hasCredential ? "template" : "credential");
   const [error, setError] = useState<string | null>(null);
 
   // Credencial
@@ -194,22 +196,35 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
 
       {step === "credential" && (
         <div className="space-y-3">
-          <p className="text-sm font-medium text-white">Conectar WhatsApp Cloud API</p>
+          <p className="text-sm font-medium text-white">
+            {hasCredential ? "Trocar credencial do WhatsApp Cloud API" : "Conectar WhatsApp Cloud API"}
+          </p>
           <p className="text-xs text-gray-500">
             Dados do WhatsApp Business Account (WABA) no Meta Business Manager. O token de
             acesso nunca é reexibido depois de salvo.
+            {hasCredential && " Salvar aqui desativa a credencial atual (histórico de campanhas é preservado)."}
           </p>
           <Field label="WABA ID" value={wabaId} onChange={setWabaId} />
           <Field label="Phone Number ID" value={phoneNumberId} onChange={setPhoneNumberId} />
           <Field label="Número exibido (opcional)" value={displayPhoneNumber} onChange={setDisplayPhoneNumber} />
           <Field label="Access Token (permanente)" value={accessToken} onChange={setAccessToken} type="password" />
-          <button
-            onClick={handleSaveCredential}
-            disabled={savingCredential || !wabaId || !phoneNumberId || !accessToken}
-            className="w-full py-2 px-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
-          >
-            {savingCredential ? "Salvando..." : "Salvar e continuar"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveCredential}
+              disabled={savingCredential || !wabaId || !phoneNumberId || !accessToken}
+              className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+            >
+              {savingCredential ? "Salvando..." : "Salvar e continuar"}
+            </button>
+            {hasCredential && (
+              <button
+                onClick={() => { setStep("template"); setError(null); }}
+                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-md transition-colors"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -221,6 +236,19 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
               {loadingTemplates ? "Carregando..." : "Recarregar"}
             </button>
           </div>
+          {currentCredential && (
+            <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-800/50 rounded-md px-3 py-2">
+              <span>
+                Conectado: {currentCredential.display_phone_number || currentCredential.phone_number_id}
+              </span>
+              <button
+                onClick={() => { setStep("credential"); setError(null); }}
+                className="text-green-400 hover:text-green-300"
+              >
+                Trocar credencial
+              </button>
+            </div>
+          )}
           {templates.length === 0 && !loadingTemplates && (
             <button onClick={loadTemplates} className="text-xs text-green-400 hover:text-green-300">
               Buscar templates aprovados na Meta

@@ -67,6 +67,24 @@ export async function POST(req: NextRequest) {
   const verified = await verifyRes.json() as { display_phone_number?: string; verified_name?: string };
 
   const admin = createAdminClient();
+
+  // getCloudCredential(tenantId) assume no máximo 1 credencial ATIVA por
+  // tenant (.eq("active", true).maybeSingle()) — se o admin troca de Meta
+  // App (WABA/phone_number_id diferente), a credencial antiga não pode
+  // continuar active=true, senão essa query passa a ter 2 candidatas e
+  // quebra. Desativa (não apaga — campanhas antigas referenciam
+  // credential_id via FK, apagar violaria a constraint e perderia
+  // histórico) qualquer outra credencial deste tenant antes de gravar a nova.
+  const { error: deactivateError } = await admin
+    .from("whatsapp_cloud_credentials")
+    .update({ active: false, updated_at: new Date().toISOString() })
+    .eq("tenant_id", operator.tenant_id)
+    .neq("phone_number_id", phoneNumberId.trim());
+
+  if (deactivateError) {
+    console.error("[campaigns/credentials] falha ao desativar credenciais antigas:", deactivateError.message);
+  }
+
   const { data, error } = await admin
     .from("whatsapp_cloud_credentials")
     .upsert({
@@ -100,6 +118,22 @@ export async function POST(req: NextRequest) {
 
   if (sessionError) {
     console.error("[campaigns/credentials] wa_sessions upsert failed:", sessionError.message);
+  }
+
+  // Mesma lógica do passo acima, pro lado da sessão: marca a(s) sessão(ões)
+  // cloud_api antiga(s) deste tenant como desconectada — sem apagar (chats/
+  // messages têm FK cascade em wa_sessions, apagar perderia o histórico de
+  // conversa). Novas mensagens já resolvem pra sessão nova via
+  // phone_number_id no webhook; a antiga só para de receber.
+  const { error: staleSessionError } = await admin
+    .from("wa_sessions")
+    .update({ status: "disconnected" })
+    .eq("tenant_id", operator.tenant_id)
+    .eq("channel", "cloud_api")
+    .neq("cloud_credential_id", data.id);
+
+  if (staleSessionError) {
+    console.error("[campaigns/credentials] falha ao desconectar sessões cloud_api antigas:", staleSessionError.message);
   }
 
   await admin.from("events_log").insert({

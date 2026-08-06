@@ -24,6 +24,18 @@ e evolui para busca semântica, alertas e integrações com ferramentas de negó
 > inbox (status/atribuição de conversa) só entram como apoio menor a esse
 > posicionamento — nunca como caminho para "virar atendimento". Não reabrir o
 > rumo atendimento sem uma decisão de negócio explícita.
+>
+> **Reabertura parcial e consciente (06/08/2026):** o módulo de **campanhas
+> via WhatsApp Cloud API** (`app/dashboard/admin/campaigns`, ver seção
+> "Módulo de campanhas" abaixo) é, tecnicamente, automação de disparo/
+> marketing — o que a decisão acima excluiu. Foi uma decisão de negócio
+> explícita do fundador, não uma contradição silenciosa: usa exclusivamente
+> a **API oficial** (Cloud API/WABA, nunca Baileys/Evolution — a base de
+> captura de mensagens não muda em nada), é aditivo (nenhuma tabela/rota do
+> pipeline Evolution foi alterada), e não é "virar atendimento" (sem inbox
+> de resposta, sem status/atribuição de conversa — é broadcast admin-only
+> de template pré-aprovado). Não usar este precedente para justificar
+> reabrir o resto do escopo de atendimento sem uma decisão explícita própria.
 
 ---
 
@@ -44,7 +56,8 @@ A arquitetura já é a da Fase 3 — apenas com 1 tenant ativo.
 
 | Camada | Tecnologia |
 |--------|------------|
-| WhatsApp | Evolution API (VPS Hostinger) |
+| WhatsApp (captura) | Evolution API (VPS Hostinger) — não-oficial (Baileys) |
+| WhatsApp (campanhas) | WhatsApp Cloud API oficial, Graph API v23.0 — módulo separado, ver "Módulo de campanhas" |
 | Ingestão | Supabase Edge Functions (Deno) |
 | Banco | Supabase PostgreSQL + pgvector |
 | Storage | Supabase Storage |
@@ -83,6 +96,7 @@ wa-intelligence/
 │       │   │   ├── admin/sessions/
 │       │   │   ├── admin/operators/
 │       │   │   ├── admin/alerts/
+│       │   │   ├── admin/campaigns/  ← módulo de campanhas (Cloud API), ver seção própria
 │       │   │   ├── admin/integrations/
 │       │   │   ├── admin/history/
 │       │   │   ├── analytics/
@@ -105,7 +119,12 @@ wa-intelligence/
 │       │       ├── chats/
 │       │       │   └── [id]/sync-name/   ← resolve JID → nome real via Evolution API
 │       │       ├── integrations/
+│       │       ├── campaigns/            ← módulo de campanhas (Cloud API), ver seção própria
+│       │       │   ├── credentials/
+│       │       │   ├── templates/
+│       │       │   └── [id]/fire, [id]/status
 │       │       └── register/
+│       ├── lib/whatsapp-cloud/       ← graphClient.ts, getCloudCredential.ts (módulo de campanhas)
 │       └── components/
 │           ├── chat-list.tsx         ← filtro Todos/Grupos/Contatos
 │           ├── chat-view.tsx
@@ -124,7 +143,9 @@ wa-intelligence/
 │       ├── history-sync/         ← sincroniza histórico via Evolution API
 │       ├── generate-embeddings/  ← embeddings OpenAI para busca semântica
 │       ├── session-health-check/ ← monitora sessões periodicamente (JWT off)
-│       └── webhook-delivery/     ← entrega webhooks para integrações
+│       ├── webhook-delivery/     ← entrega webhooks para integrações
+│       ├── campaign-sender/         ← envia lotes de campanha via Cloud API (JWT on)
+│       └── whatsapp-cloud-webhook/  ← status de entrega Cloud API (JWT off, assinatura própria)
 │
 └── infra/
     └── evolution/                ← docker-compose + .env.example do VPS
@@ -275,6 +296,49 @@ wa-intelligence/
 
 ---
 
+## Módulo de campanhas (WhatsApp Cloud API, oficial) — 06/08/2026
+
+Aditivo, isolado do pipeline Evolution/Baileys acima — compartilha só
+`tenants`/`operators`/`events_log`. Fluxo: admin cadastra credencial do
+WABA (`whatsapp_cloud_credentials`, RLS deny-all — mesmo padrão de
+`meta_ads.ad_account_tokens` no monorepo `plauz-core`) → escolhe um
+template aprovado (`listMessageTemplates`) → sobe CSV de destinatários
+(`phone` + colunas de variável posicionais `{{1}}`, `{{2}}`...) → dispara
+→ acompanha progresso.
+
+**Migrations:** `0019_cloud_api_campaigns.sql` (schema + `claim_campaign_recipients`/
+`reclaim_stuck_campaign_recipients`/`recompute_campaign_counters`),
+`0020_campaign_sender_cron.sql` (pg_cron a cada minuto).
+
+**Por que não é uma única request/RPC (regra 17/11 acima):** disparo em
+massa não cabe no teto de `statement_timeout`/Edge Function timeout — é
+Edge Function (`campaign-sender`) processando em lotes de 50, reinvocada
+por `pg_cron` a cada minuto para toda campanha `sending` com destinatário
+pendente. **Claim atômico** via `claim_campaign_recipients()`
+(`FOR UPDATE SKIP LOCKED`) garante que invocações sobrepostas (cron tick +
+retry manual) nunca processam a mesma linha — zero risco de double-send.
+
+**Teto de tier de mensageria:** a Cloud API rejeita com 4xx de
+elegibilidade de negócio (códigos 130472/131048/131056), não 429, quando o
+número bate no limite de mensagens/24h. `campaign-sender` trata isso como
+**pausar a campanha** (`status='paused'`, destinatários voltam a
+`pending`), nunca como falha definitiva dos restantes.
+
+**Compliance mínimo embutido (não é débito futuro):** `whatsapp_opt_outs`
+é checado antes de aceitar um destinatário numa campanha; `template_category`
+é armazenado por campanha.
+
+**Cada tentativa de envio grava `events_log`** (`campaign_send_attempt`,
+sucesso ou rejeição) além do início/fim da campanha — é o que atende
+"logar todo o movimento" além do status de entrega vindo do webhook.
+
+**Credenciais nunca em env var** — `META_APP_SECRET`/`META_WEBHOOK_VERIFY_TOKEN`
+são os únicos valores globais (verificação de assinatura do webhook, um
+único Meta App para todos os tenants); `waba_id`/`phone_number_id`/
+`access_token` são sempre por-tenant, em `whatsapp_cloud_credentials`.
+
+---
+
 ## Convenções de código
 
 - TypeScript estrito (`strict: true`) em todo o projeto
@@ -297,6 +361,8 @@ SUPABASE_SERVICE_ROLE_KEY=        # só server-side (Route Handlers)
 EVOLUTION_API_URL=                # URL do VPS com Evolution API
 EVOLUTION_API_KEY=                # API key global do Evolution
 OPENAI_API_KEY=                   # chave de PLATAFORMA (IA embutida); fallback do BYOK
+META_APP_SECRET=                  # módulo de campanhas — verificação de assinatura do webhook Cloud API
+META_WEBHOOK_VERIFY_TOKEN=        # módulo de campanhas — handshake de registro do webhook
 ```
 
 ### Modelo de IA: embutida + BYOK opcional
@@ -320,6 +386,8 @@ SUPABASE_SERVICE_ROLE_KEY=        # injetado automaticamente
 EVOLUTION_API_URL=                # URL do VPS
 EVOLUTION_API_KEY=                # API key global do Evolution
 OPENAI_API_KEY=                   # para Whisper e embeddings
+META_APP_SECRET=                  # whatsapp-cloud-webhook — mesmo valor do apps/web
+META_WEBHOOK_VERIFY_TOKEN=        # whatsapp-cloud-webhook — mesmo valor do apps/web
 ```
 
 ### infra/evolution (.env)
@@ -407,6 +475,20 @@ Deve estar correta em **dois lugares**:
 Se imagens/áudios não carregarem e `media-downloader` falhar com timeout,
 verificar essa variável em ambos os lugares. Usar `POST /api/admin/retry-media`
 para re-disparar downloads após corrigir.
+
+### Módulo de campanhas — pendências de deploy (código pronto, não validado em produção)
+- Aplicar migrations `0019_cloud_api_campaigns.sql`/`0020_campaign_sender_cron.sql`
+  (`supabase db push`).
+- Configurar `META_APP_SECRET`/`META_WEBHOOK_VERIFY_TOKEN` no Vercel e nos secrets das
+  Edge Functions (mesmo valor nos dois lugares — mesma armadilha da porta Evolution, ver abaixo).
+- Rodar `alter database postgres set app.settings.service_role_key = '...'` (passo manual, fora
+  de migration versionada — é segredo) para o `campaign-sender-tick` do pg_cron conseguir
+  autenticar contra a Edge Function `campaign-sender` (`verify_jwt=true`).
+- Registrar o webhook no Meta App (`https://<projeto>.supabase.co/functions/v1/whatsapp-cloud-webhook`,
+  campo `messages`) usando o `META_WEBHOOK_VERIFY_TOKEN` configurado.
+- Validar ponta a ponta com o número de teste do Meta (5 destinatários verificados) antes de
+  cadastrar uma WABA real em `whatsapp_cloud_credentials`.
+- `npm install` em `apps/web` para baixar a dependência nova `papaparse`.
 
 ### Pendente / próximos passos
 - **Roadmap de inteligência** (wedge defensável, reordenável) — próximo é alertas semânticos:

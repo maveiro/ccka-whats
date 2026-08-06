@@ -7,6 +7,12 @@ export const env = createEnv({
     EVOLUTION_API_URL: z.string().url(),
     EVOLUTION_API_KEY: z.string().min(1),
     OPENAI_API_KEY: z.string().min(1).optional(),
+    // WhatsApp Cloud API (módulo de campanhas) — só o que é global à
+    // plataforma (App Secret/verify token do Meta App). Credenciais
+    // por-tenant (waba_id, phone_number_id, access_token) vivem em
+    // whatsapp_cloud_credentials, nunca em env var.
+    META_APP_SECRET: z.string().min(1).optional(),
+    META_WEBHOOK_VERIFY_TOKEN: z.string().min(1).optional(),
   },
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
@@ -19,5 +25,7 @@ export const env = createEnv({
     EVOLUTION_API_URL: process.env.EVOLUTION_API_URL,
     EVOLUTION_API_KEY: process.env.EVOLUTION_API_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    META_APP_SECRET: process.env.META_APP_SECRET,
+    META_WEBHOOK_VERIFY_TOKEN: process.env.META_WEBHOOK_VERIFY_TOKEN,
   },
 });

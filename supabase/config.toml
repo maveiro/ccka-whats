@@ -279,6 +279,16 @@ verify_jwt = true
 [functions.delete-session]
 verify_jwt = true
 
+# Módulo de campanhas (WhatsApp Cloud API, oficial) — independente do
+# pipeline Evolution acima.
+[functions.campaign-sender]
+verify_jwt = true
+
+# Chamada pelo Meta (assinatura própria via X-Hub-Signature-256, ver
+# whatsapp-cloud-webhook/index.ts) — sem Authorization Supabase.
+[functions.whatsapp-cloud-webhook]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

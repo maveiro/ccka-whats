@@ -476,19 +476,41 @@ Se imagens/áudios não carregarem e `media-downloader` falhar com timeout,
 verificar essa variável em ambos os lugares. Usar `POST /api/admin/retry-media`
 para re-disparar downloads após corrigir.
 
-### Módulo de campanhas — pendências de deploy (código pronto, não validado em produção)
-- Aplicar migrations `0019_cloud_api_campaigns.sql`/`0020_campaign_sender_cron.sql`
-  (`supabase db push`).
-- Configurar `META_APP_SECRET`/`META_WEBHOOK_VERIFY_TOKEN` no Vercel e nos secrets das
-  Edge Functions (mesmo valor nos dois lugares — mesma armadilha da porta Evolution, ver abaixo).
-- Rodar `alter database postgres set app.settings.service_role_key = '...'` (passo manual, fora
-  de migration versionada — é segredo) para o `campaign-sender-tick` do pg_cron conseguir
-  autenticar contra a Edge Function `campaign-sender` (`verify_jwt=true`).
-- Registrar o webhook no Meta App (`https://<projeto>.supabase.co/functions/v1/whatsapp-cloud-webhook`,
-  campo `messages`) usando o `META_WEBHOOK_VERIFY_TOKEN` configurado.
-- Validar ponta a ponta com o número de teste do Meta (5 destinatários verificados) antes de
-  cadastrar uma WABA real em `whatsapp_cloud_credentials`.
-- `npm install` em `apps/web` para baixar a dependência nova `papaparse`.
+### Módulo de campanhas — em produção (06/08/2026), validado com campanha real (1.889 destinatários)
+
+Migrations `0019`–`0023` aplicadas, `META_APP_SECRET`/`META_WEBHOOK_VERIFY_TOKEN` configurados
+(Vercel + secrets das Edge Functions), webhook registrado no Meta App (campo `messages`), respostas
+de campanha caem na caixa de entrada compartilhada (ver "Módulo de campanhas" mais acima), clique em
+qualquer botão de template é rastreado (`campaign_recipients.button_reply`), opt-out automático por
+texto de botão, relatório CSV por campanha, retomada de campanha pausada por teto de tier.
+
+**Armadilhas reais encontradas validando em produção:**
+
+- **Segredo pro `pg_cron` autenticar numa Edge Function `verify_jwt=true`: nunca usar
+  `alter database postgres set app.settings.xxx`.** Essa é a forma "óbvia" (documentada em vários
+  exemplos da comunidade Supabase), mas exige privilégio que a role de conexão normal (CLI `db
+  query`, dashboard REST) não tem — só funciona rodado manualmente pelo SQL Editor com a role
+  `postgres` plena, um passo manual fácil de esquecer/nunca confirmar. **Achado em produção
+  (06/08/2026): esse passo nunca foi feito, e toda invocação do `campaign-sender-tick` voltava 401
+  `UNAUTHORIZED_NO_AUTH_HEADER` silenciosamente** — `pg_cron` marcava `succeeded` porque
+  `net.http_post` é fire-and-forget (o erro só existe em `net._http_response`, não em
+  `cron.job_run_details`), e toda campanha ficava travada em ~50 destinatários pra sempre (só o
+  primeiro lote, disparado direto pelo botão "Disparar" com a service role key real do env,
+  funcionava — mascarando o bug por completo). Padrão correto, sem privilégio elevado: tabela
+  dedicada RLS deny-all (`internal_secrets`, migration `0023_internal_secrets.sql`, mesmo desenho
+  de `whatsapp_cloud_credentials`), lida via `SELECT` dentro da função `security definer` do cron.
+  **Ao inserir o valor nessa tabela via `psql`/CLI, cuidado com aspas literais em `.env.local`**
+  (`VAR="valor"` — um `cut -d= -f2-` ingênuo captura as aspas junto, corrompendo o JWT; usar
+  `sed -e 's/^"//' -e 's/"$//'` ou equivalente pra tirar).
+- **Upsert em lote com `ON CONFLICT DO UPDATE` falha se o próprio lote tiver chave duplicada**
+  (não é sobre já existir no banco — é a mesma `phone_e164` aparecendo duas vezes no array do
+  INSERT). Erro: `ON CONFLICT DO UPDATE command cannot affect row a second time`. Achado com uma
+  base real de 1.910 linhas com telefone repetido. Sempre dedupear a lista em memória (`Map` por
+  chave de conflito) antes do upsert — `POST /api/campaigns` faz isso agora.
+- Consequência do bug acima: como a campanha (`status='draft'`) é criada **antes** do upsert de
+  destinatários, um upsert que falhava deixava um rascunho órfão sem nenhum destinatário — por
+  isso `campaigns-list.tsx` tem botão "Excluir" (só pra `draft`/`ready`, preserva histórico de
+  campanha que já disparou).
 
 ### Pendente / próximos passos
 - **Roadmap de inteligência** (wedge defensável, reordenável) — próximo é alertas semânticos:

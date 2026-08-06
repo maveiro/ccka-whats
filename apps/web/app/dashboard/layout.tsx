@@ -23,7 +23,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
       <Sidebar operatorName={operator.name ?? user.email ?? ""} role={operator.role} />
-      <main className="flex-1 overflow-hidden">{children}</main>
+      {/* overflow-y-auto (não overflow-hidden): páginas admin comuns (Campanhas,
+          Sessões, etc.) crescem com o conteúdo e precisam rolar. O inbox
+          ((inbox)/layout.tsx) usa h-full internamente e gerencia seu próprio
+          scroll por coluna, então não aciona a barra daqui. */}
+      <main className="flex-1 overflow-y-auto">{children}</main>
       <Toaster position="top-right" theme="dark" richColors />
       <AlertNotifier />
     </div>

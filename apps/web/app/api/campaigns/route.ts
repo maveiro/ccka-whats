@@ -44,9 +44,18 @@ export async function POST(req: NextRequest) {
   };
 
   const recipientsInput = Array.isArray(body.recipients) ? (body.recipients as RecipientInput[]) : [];
-  const validRecipients = recipientsInput.filter(
+  const filteredByFormat = recipientsInput.filter(
     (r) => r && typeof r.phone === "string" && /^\d{10,15}$/.test(r.phone),
   );
+
+  // Dedupe por telefone — obrigatório antes do upsert em lote abaixo:
+  // "ON CONFLICT DO UPDATE" do Postgres não aceita a mesma chave de
+  // conflito duas vezes DENTRO do mesmo INSERT (erro real visto em
+  // produção com uma base de 1910 linhas com números repetidos). Mantém a
+  // última ocorrência — CSV mais recente da mesma pessoa vence.
+  const dedupedByPhone = new Map(filteredByFormat.map((r) => [r.phone, r]));
+  const validRecipients = Array.from(dedupedByPhone.values());
+  const duplicateCount = filteredByFormat.length - validRecipients.length;
 
   if (validRecipients.length === 0) {
     return NextResponse.json({ error: "Nenhum destinatário válido (telefone em E.164 sem '+', ex: 5541999999999)" }, { status: 400 });
@@ -148,7 +157,8 @@ export async function POST(req: NextRequest) {
     campaignId,
     accepted: filteredRecipients.length,
     skippedOptOut: validRecipients.length - filteredRecipients.length,
-    skippedInvalid: recipientsInput.length - validRecipients.length,
+    skippedInvalid: recipientsInput.length - filteredByFormat.length,
+    skippedDuplicate: duplicateCount,
     total: count ?? 0,
   }, { status: 201 });
 }

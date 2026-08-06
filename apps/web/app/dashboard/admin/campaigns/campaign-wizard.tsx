@@ -62,7 +62,7 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
 
   // Disparo
   const [creating, setCreating] = useState(false);
-  const [result, setResult] = useState<{ campaignId: string; accepted: number; skippedOptOut: number; skippedInvalid: number } | null>(null);
+  const [result, setResult] = useState<{ campaignId: string; accepted: number; skippedOptOut: number; skippedInvalid: number; skippedDuplicate: number } | null>(null);
 
   async function loadTemplates() {
     setLoadingTemplates(true);
@@ -341,7 +341,8 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
           <p className="text-xs text-gray-400">
             {result.accepted} destinatário(s) aceitos
             {result.skippedOptOut > 0 && `, ${result.skippedOptOut} removido(s) por opt-out`}
-            {result.skippedInvalid > 0 && `, ${result.skippedInvalid} inválido(s)`}.
+            {result.skippedInvalid > 0 && `, ${result.skippedInvalid} inválido(s)`}
+            {result.skippedDuplicate > 0 && `, ${result.skippedDuplicate} duplicado(s) (telefone repetido no CSV)`}.
             Dispare na lista abaixo quando estiver pronta.
           </p>
           <button onClick={reset} className="text-xs text-green-400 hover:text-green-300">

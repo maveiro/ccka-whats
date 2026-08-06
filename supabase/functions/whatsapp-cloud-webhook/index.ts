@@ -31,7 +31,7 @@ interface CloudInboundMessage {
   from: string; // E.164 puro, sem sufixo (ex: "5541999999999")
   id: string; // wamid
   timestamp: string;
-  type: string; // text|image|audio|video|document|sticker|location|...
+  type: string; // text|image|audio|video|document|sticker|location|button|interactive|...
   text?: { body: string };
   image?: { id: string; mime_type: string; caption?: string };
   audio?: { id: string; mime_type: string };
@@ -39,7 +39,21 @@ interface CloudInboundMessage {
   document?: { id: string; mime_type: string; filename?: string; caption?: string };
   sticker?: { id: string; mime_type: string };
   location?: { latitude: number; longitude: number; name?: string };
+  button?: { text: string; payload?: string }; // clique em quick-reply de template legado
+  interactive?: {
+    type: string; // button_reply|list_reply
+    button_reply?: { id: string; title: string };
+    list_reply?: { id: string; title: string };
+  };
 }
+
+// Texto exato do(s) botão(ões) que o negócio usa como "sair da lista" em
+// templates de campanha — comparado case-insensitive/trim contra o texto
+// do botão clicado. Adicionar novas frases aqui conforme surgirem outros
+// templates com botão de opt-out com texto diferente.
+const OPT_OUT_BUTTON_TEXTS = new Set(
+  ["Parar de receber mensagens"].map((t) => t.trim().toLowerCase()),
+);
 
 interface CloudContact {
   profile?: { name?: string };
@@ -212,7 +226,8 @@ async function handleInboundMessage(
       { onConflict: "session_id,jid", ignoreDuplicates: true },
     );
 
-  const body = message.text?.body ?? extractCaption(message) ?? (MEDIA_TYPES.has(type) ? `[${type}]` : null);
+  const buttonText = extractButtonText(message);
+  const body = message.text?.body ?? extractCaption(message) ?? buttonText ?? (MEDIA_TYPES.has(type) ? `[${type}]` : null);
 
   const { data: chat } = await supabase
     .from("chats")
@@ -271,10 +286,41 @@ async function handleInboundMessage(
     type,
     ...(MEDIA_TYPES.has(type) ? { mediaDownload: "cloud_api_media_not_yet_supported" } : {}),
   });
+
+  if (buttonText && OPT_OUT_BUTTON_TEXTS.has(buttonText.trim().toLowerCase())) {
+    await registerOptOut(tenantId, jid, buttonText);
+  }
 }
 
 function extractCaption(message: CloudInboundMessage): string | null {
   return message.image?.caption ?? message.video?.caption ?? message.document?.caption ?? null;
+}
+
+// Cobre os dois formatos de clique em botão que o Cloud API manda: quick
+// reply de template legado (`message.button.text`) e o formato interactive
+// mais novo (`message.interactive.button_reply.title` — list_reply também,
+// por segurança, embora templates de campanha não usem list).
+function extractButtonText(message: CloudInboundMessage): string | null {
+  return message.button?.text
+    ?? message.interactive?.button_reply?.title
+    ?? message.interactive?.list_reply?.title
+    ?? null;
+}
+
+async function registerOptOut(tenantId: string, phoneE164: string, buttonText: string): Promise<void> {
+  const { error } = await supabase
+    .from("whatsapp_opt_outs")
+    .upsert(
+      { tenant_id: tenantId, phone_e164: phoneE164, reason: `Botão de template: "${buttonText}"` },
+      { onConflict: "tenant_id,phone_e164", ignoreDuplicates: true },
+    );
+
+  if (error) {
+    await logEvent(tenantId, "error", { phoneE164 }, `whatsapp_opt_outs upsert: ${error.message}`);
+    return;
+  }
+
+  await logEvent(tenantId, "opt_out_registered", { phoneE164, buttonText });
 }
 
 async function handleStatus(status: {

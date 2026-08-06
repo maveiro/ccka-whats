@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import CampaignWizard from "./campaign-wizard";
 import CampaignsList from "./campaigns-list";
+import OptOutsList from "./opt-outs-list";
 
 export default async function CampaignsPage() {
   const supabase = await createClient();
@@ -28,7 +29,16 @@ export default async function CampaignsPage() {
   const { data: credentials } = await admin
     .from("whatsapp_cloud_credentials")
     .select("id, waba_id, phone_number_id, display_phone_number, active")
-    .eq("tenant_id", operator.tenant_id);
+    .eq("tenant_id", operator.tenant_id)
+    .eq("active", true);
+
+  // whatsapp_opt_outs tem RLS admin_only normal (não deny-all) — o client
+  // autenticado do próprio operador já resolve, sem precisar do admin client.
+  const { data: optOuts } = await supabase
+    .from("whatsapp_opt_outs")
+    .select("id, phone_e164, reason, created_at")
+    .eq("tenant_id", operator.tenant_id)
+    .order("created_at", { ascending: false });
 
   return (
     <div className="p-6 max-w-3xl space-y-8">
@@ -45,6 +55,11 @@ export default async function CampaignsPage() {
       <div>
         <h2 className="text-sm font-semibold text-white mb-3">Campanhas</h2>
         <CampaignsList initial={campaigns ?? []} />
+      </div>
+
+      <div>
+        <h2 className="text-sm font-semibold text-white mb-3">Opt-outs</h2>
+        <OptOutsList optOuts={optOuts ?? []} />
       </div>
     </div>
   );

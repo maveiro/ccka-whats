@@ -20,10 +20,24 @@ const BATCH_SIZE = 50;
 const CONCURRENCY = 5;
 const MAX_RETRIES = 3;
 const BASE_BACKOFF_MS = 1_000;
+// Margem segura sob o teto real de 150s da Edge Function (regra 11 do
+// CLAUDE.md) — dentro desse orçamento, a invocação processa vários lotes de
+// BATCH_SIZE em sequência em vez de um só, multiplicando a vazão sem exigir
+// que o pg_cron tique mais rápido que 1x/minuto. Invocações que ultrapassam
+// esse orçamento e ainda se sobrepõem com o próximo tick são seguras por
+// causa do claim atômico (FOR UPDATE SKIP LOCKED) — nunca processam a mesma
+// linha duas vezes.
+const TIME_BUDGET_MS = 100_000;
 // Códigos de teto de tier de mensageria / qualidade do número — pausar a
 // campanha inteira, não marcar destinatários restantes como falha definitiva
 // (ver GraphApiError.isMessagingLimitError em apps/web/lib/whatsapp-cloud/graphClient.ts).
 const MESSAGING_LIMIT_CODES = new Set([130472, 131048, 131056]);
+// Throughput por segundo excedido (padrão Cloud API: 80 mps/número, até
+// 1000 mps por upgrade) — erro transitório, não de destinatário nem de tier
+// diário. Não conta tentativa, não pausa a campanha: só devolve pra pending
+// e para de reivindicar lotes novos nesta invocação — o próximo tick do
+// cron (até 60s depois) já é backoff suficiente pra esse tipo de erro.
+const THROUGHPUT_LIMIT_CODE = 130429;
 
 interface SendRequest {
   campaignId: string;
@@ -97,49 +111,51 @@ Deno.serve(async (req: Request) => {
   }
 
   // Reclaim de destinatários presos em 'sending' há >5min (crash em ciclo anterior)
+  // — uma vez por invocação, não por lote.
   await supabase.rpc("reclaim_stuck_campaign_recipients", { p_campaign_id: campaignId, p_stuck_minutes: 5 });
 
-  // Claim atômico do lote — SKIP LOCKED garante que esta invocação nunca
-  // pega uma linha que outra invocação concorrente já reivindicou.
-  const { data: batch, error: claimError } = await supabase.rpc("claim_campaign_recipients", {
-    p_campaign_id: campaignId,
-    p_batch_size: BATCH_SIZE,
-  });
-
-  if (claimError) {
-    await logEvent(campaign.tenant_id, "error", { campaignId }, `claim_campaign_recipients: ${claimError.message}`);
-    return new Response("Claim failed", { status: 500 });
-  }
-
-  const recipients = (batch ?? []) as Recipient[];
-
-  if (recipients.length === 0) {
-    // Nada pendente/preso — verificar se a campanha terminou
-    await maybeCompleteCampaign(campaign);
-    return new Response(JSON.stringify({ processed: 0, done: true }), {
-      headers: { "Content-Type": "application/json" },
-      status: 200,
-    });
-  }
-
+  const startTime = Date.now();
+  let totalProcessed = 0;
   let messagingLimitHit = false;
+  let throughputLimitHit = false;
 
-  for (let i = 0; i < recipients.length; i += CONCURRENCY) {
-    if (messagingLimitHit) break;
-    const slice = recipients.slice(i, i + CONCURRENCY);
-    const results = await Promise.allSettled(slice.map((r) => sendOne(campaign, credential, r)));
+  while (Date.now() - startTime < TIME_BUDGET_MS) {
+    // Claim atômico do lote — SKIP LOCKED garante que esta invocação nunca
+    // pega uma linha que outra invocação concorrente (próximo tick do cron
+    // sobrepondo esta, se ela passar de 1min) já reivindicou.
+    const { data: batch, error: claimError } = await supabase.rpc("claim_campaign_recipients", {
+      p_campaign_id: campaignId,
+      p_batch_size: BATCH_SIZE,
+    });
 
-    for (let j = 0; j < results.length; j++) {
-      const result = results[j];
-      if (result.status === "fulfilled" && result.value.messagingLimitHit) {
-        messagingLimitHit = true;
+    if (claimError) {
+      await logEvent(campaign.tenant_id, "error", { campaignId }, `claim_campaign_recipients: ${claimError.message}`);
+      break;
+    }
+
+    const recipients = (batch ?? []) as Recipient[];
+    if (recipients.length === 0) break; // nada pendente/preso neste momento
+
+    for (let i = 0; i < recipients.length; i += CONCURRENCY) {
+      if (messagingLimitHit || throughputLimitHit) break;
+      const slice = recipients.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(slice.map((r) => sendOne(campaign, credential, r)));
+
+      for (const result of results) {
+        if (result.status !== "fulfilled") continue;
+        if (result.value.messagingLimitHit) messagingLimitHit = true;
+        if (result.value.throughputLimitHit) throughputLimitHit = true;
       }
     }
+
+    totalProcessed += recipients.length;
+    if (messagingLimitHit || throughputLimitHit) break;
   }
 
   if (messagingLimitHit) {
     // Devolve os destinatários ainda não processados deste lote para pending
-    // (não deveria sobrar nenhum 'sending' órfão, mas por segurança) e pausa.
+    // (não deveria sobrar nenhum 'sending' órfão, mas por segurança) e pausa
+    // a campanha inteira — teto de 24h só se resolve manualmente/no dia seguinte.
     await supabase
       .from("campaign_recipients")
       .update({ status: "pending" })
@@ -147,12 +163,17 @@ Deno.serve(async (req: Request) => {
       .eq("status", "sending");
     await supabase.from("campaigns").update({ status: "paused", updated_at: new Date().toISOString() }).eq("id", campaignId);
     await logEvent(campaign.tenant_id, "campaign_paused", { campaignId, reason: "messaging_limit" });
+  } else if (throughputLimitHit) {
+    // Erro transitório de mensagens/segundo — NÃO pausa a campanha, só para
+    // de reivindicar lotes novos nesta invocação. Recipient já voltou pra
+    // pending em sendOne(); o próximo tick do cron (≤60s) já é backoff.
+    await logEvent(campaign.tenant_id, "campaign_throughput_backoff", { campaignId, totalProcessed });
   }
 
   await supabase.rpc("recompute_campaign_counters", { p_campaign_id: campaignId });
   await maybeCompleteCampaign(campaign);
 
-  return new Response(JSON.stringify({ processed: recipients.length, messagingLimitHit }), {
+  return new Response(JSON.stringify({ processed: totalProcessed, messagingLimitHit, throughputLimitHit }), {
     headers: { "Content-Type": "application/json" },
     status: 200,
   });
@@ -162,7 +183,7 @@ async function sendOne(
   campaign: Campaign,
   credential: Credential,
   recipient: Recipient,
-): Promise<{ messagingLimitHit: boolean }> {
+): Promise<{ messagingLimitHit: boolean; throughputLimitHit: boolean }> {
   try {
     const response = await fetchWithRetry(`${GRAPH_API_BASE}/${credential.phone_number_id}/messages`, {
       method: "POST",
@@ -200,7 +221,13 @@ async function sendOne(
 
       if (errorBody?.code && MESSAGING_LIMIT_CODES.has(errorBody.code)) {
         await supabase.from("campaign_recipients").update({ status: "pending" }).eq("id", recipient.id);
-        return { messagingLimitHit: true };
+        return { messagingLimitHit: true, throughputLimitHit: false };
+      }
+
+      if (errorBody?.code === THROUGHPUT_LIMIT_CODE) {
+        // Não conta tentativa — não é um problema com este destinatário.
+        await supabase.from("campaign_recipients").update({ status: "pending" }).eq("id", recipient.id);
+        return { messagingLimitHit: false, throughputLimitHit: true };
       }
 
       // Erro definitivo (template/parâmetro inválido, número inválido, etc.)
@@ -214,7 +241,7 @@ async function sendOne(
         })
         .eq("id", recipient.id);
 
-      return { messagingLimitHit: false };
+      return { messagingLimitHit: false, throughputLimitHit: false };
     }
 
     const wamid = (json as { messages?: { id: string }[] }).messages?.[0]?.id;
@@ -237,7 +264,7 @@ async function sendOne(
       wamid,
     });
 
-    return { messagingLimitHit: false };
+    return { messagingLimitHit: false, throughputLimitHit: false };
   } catch (err) {
     await supabase
       .from("campaign_recipients")
@@ -256,7 +283,7 @@ async function sendOne(
       ok: false,
     }, String(err));
 
-    return { messagingLimitHit: false };
+    return { messagingLimitHit: false, throughputLimitHit: false };
   }
 }
 

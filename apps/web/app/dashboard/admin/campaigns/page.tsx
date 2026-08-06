@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import CampaignWizard from "./campaign-wizard";
 import CampaignsList from "./campaigns-list";
 
@@ -21,7 +21,11 @@ export default async function CampaignsPage() {
     .eq("tenant_id", operator.tenant_id)
     .order("created_at", { ascending: false });
 
-  const { data: credentials } = await supabase
+  // whatsapp_cloud_credentials tem RLS deny-all (só service-role lê, de
+  // propósito — guarda o access_token de disparo) — o client autenticado
+  // normal sempre voltaria vazio aqui, mesmo com credencial salva.
+  const admin = createAdminClient();
+  const { data: credentials } = await admin
     .from("whatsapp_cloud_credentials")
     .select("id, waba_id, phone_number_id, display_phone_number, active")
     .eq("tenant_id", operator.tenant_id);

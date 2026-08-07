@@ -43,7 +43,7 @@ async function handleSend(req: NextRequest): Promise<NextResponse> {
   // Buscar chat + sessão
   const { data: chat } = await supabase
     .from("chats")
-    .select("jid, session_id, tenant_id, wa_sessions ( evolution_instance_name, channel )")
+    .select("jid, session_id, tenant_id, contact_id, wa_sessions ( evolution_instance_name, channel )")
     .eq("id", chatId)
     .single();
 
@@ -58,6 +58,7 @@ async function handleSend(req: NextRequest): Promise<NextResponse> {
       sessionId: chat.session_id,
       chatJid: chat.jid,
       tenantId: chat.tenant_id,
+      contactId: chat.contact_id,
       text,
       mediaBase64,
     });
@@ -124,9 +125,9 @@ async function handleSend(req: NextRequest): Promise<NextResponse> {
 
 async function sendViaCloudApi(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  params: { chatId: string; sessionId: string; chatJid: string; tenantId: string; text?: string; mediaBase64?: string },
+  params: { chatId: string; sessionId: string; chatJid: string; tenantId: string; contactId: string | null; text?: string; mediaBase64?: string },
 ): Promise<NextResponse> {
-  const { chatId, sessionId, chatJid, tenantId, text, mediaBase64 } = params;
+  const { chatId, sessionId, chatJid, tenantId, contactId, text, mediaBase64 } = params;
 
   if (mediaBase64) {
     return NextResponse.json({ error: "Envio de mídia via WhatsApp Cloud API ainda não suportado" }, { status: 400 });
@@ -182,6 +183,7 @@ async function sendViaCloudApi(
     tenant_id: tenantId,
     session_id: sessionId,
     chat_id: chatId,
+    contact_id: contactId,
     message_id: wamid,
     from_me: true,
     type: "text",

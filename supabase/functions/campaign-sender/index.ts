@@ -122,6 +122,12 @@ Deno.serve(async (req: Request) => {
   let totalProcessed = 0;
   let messagingLimitHit = false;
   let throughputLimitHit = false;
+  // IDs reivindicados por ESTA invocação — usado para escopar o reset de
+  // segurança abaixo (messagingLimitHit) só às próprias linhas. Um reset
+  // por campaign_id+status='sending' sem esse filtro colidiria com uma
+  // invocação concorrente (cron tick sobrepondo um "Retomar" manual) que
+  // ainda está processando seu próprio lote.
+  const claimedIds: string[] = [];
 
   for (let batchNum = 0; batchNum < MAX_BATCHES_PER_INVOCATION; batchNum++) {
     // Claim atômico do lote — SKIP LOCKED garante que esta invocação nunca
@@ -139,6 +145,7 @@ Deno.serve(async (req: Request) => {
 
     const recipients = (batch ?? []) as Recipient[];
     if (recipients.length === 0) break; // nada pendente/preso neste momento
+    claimedIds.push(...recipients.map((r) => r.id));
 
     for (let i = 0; i < recipients.length; i += CONCURRENCY) {
       if (messagingLimitHit || throughputLimitHit) break;
@@ -157,14 +164,19 @@ Deno.serve(async (req: Request) => {
   }
 
   if (messagingLimitHit) {
-    // Devolve os destinatários ainda não processados deste lote para pending
-    // (não deveria sobrar nenhum 'sending' órfão, mas por segurança) e pausa
-    // a campanha inteira — teto de 24h só se resolve manualmente/no dia seguinte.
-    await supabase
-      .from("campaign_recipients")
-      .update({ status: "pending" })
-      .eq("campaign_id", campaignId)
-      .eq("status", "sending");
+    // Devolve os destinatários ainda não processados deste LOTE (só os IDs
+    // que esta invocação reivindicou) para pending — não deveria sobrar
+    // nenhum 'sending' órfão, mas por segurança — e pausa a campanha
+    // inteira — teto de 24h só se resolve manualmente/no dia seguinte.
+    // Escopado por ID (não por campaign_id+status) para não mexer em linhas
+    // que uma invocação concorrente ainda está processando.
+    if (claimedIds.length > 0) {
+      await supabase
+        .from("campaign_recipients")
+        .update({ status: "pending" })
+        .in("id", claimedIds)
+        .eq("status", "sending");
+    }
     await supabase.from("campaigns").update({ status: "paused", updated_at: new Date().toISOString() }).eq("id", campaignId);
     await logEvent(campaign.tenant_id, "campaign_paused", { campaignId, reason: "messaging_limit" });
   } else if (throughputLimitHit) {

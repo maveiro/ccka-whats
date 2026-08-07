@@ -9,10 +9,10 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-);
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 const META_APP_SECRET = Deno.env.get("META_APP_SECRET")!;
 const META_WEBHOOK_VERIFY_TOKEN = Deno.env.get("META_WEBHOOK_VERIFY_TOKEN")!;
@@ -291,6 +291,30 @@ async function handleInboundMessage(
     return;
   }
 
+  // Mesmos três side-effects disparados pelo whatsapp-webhook (Evolution) pra
+  // toda mensagem inbound — sem eles, respostas via Cloud API apareciam na
+  // caixa de entrada mas nunca acionavam Alertas, busca semântica ou
+  // integrações externas via webhook, contrariando o objetivo de reaproveitar
+  // "chat-view, busca, alertas" em vez de uma tela separada.
+  if (savedMessage?.id && body && body.trim().length > 0) {
+    if (type === "text") {
+      triggerEmbeddingGeneration({ messageId: savedMessage.id, body, tenantId, messageType: type });
+    }
+    checkAlerts(tenantId, sessionId, savedMessage.id, body);
+  }
+
+  if (savedMessage?.id) {
+    fetch(`${SUPABASE_URL}/functions/v1/webhook-delivery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE_ROLE_KEY}` },
+      body: JSON.stringify({
+        tenantId,
+        event: "message.received",
+        payload: { messageId: savedMessage.id, chatId: chat?.id ?? null, fromMe: false, type, body },
+      }),
+    }).catch(() => {});
+  }
+
   // Mídia inbound do Cloud API: download binário não suportado na v1
   // (fluxo de download é totalmente diferente do Evolution — media_id +
   // GET /{media_id} autenticado). Registra o metadata, preserva
@@ -480,6 +504,62 @@ async function handleStatus(status: {
       });
     }
   }
+}
+
+// ─── Trigger assíncrono do generate-embeddings (mesmo padrão do whatsapp-webhook) ──
+
+interface EmbeddingTriggerPayload {
+  messageId: string;
+  body: string;
+  tenantId: string;
+  messageType: string;
+}
+
+function triggerEmbeddingGeneration(payload: EmbeddingTriggerPayload): void {
+  fetch(`${SUPABASE_URL}/functions/v1/generate-embeddings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE_ROLE_KEY}` },
+    body: JSON.stringify(payload),
+  }).catch((err) => console.error("Failed to trigger generate-embeddings:", err));
+}
+
+// ─── Verificação de alertas (keyword — mesmo padrão do whatsapp-webhook) ───────
+
+interface AlertRow {
+  id: string;
+  keywords: string[];
+  session_id: string | null;
+}
+
+function checkAlerts(tenantId: string, sessionId: string, messageId: string, body: string): void {
+  (async () => {
+    const { data: alerts } = await supabase
+      .from("alerts")
+      .select("id, keywords, session_id")
+      .eq("tenant_id", tenantId)
+      .eq("active", true);
+
+    if (!alerts || alerts.length === 0) return;
+
+    const lowerBody = body.toLowerCase();
+
+    for (const alert of alerts as AlertRow[]) {
+      if (alert.session_id && alert.session_id !== sessionId) continue;
+
+      for (const keyword of alert.keywords) {
+        if (lowerBody.includes(keyword.toLowerCase())) {
+          await supabase.from("alert_events").insert({
+            tenant_id: tenantId,
+            alert_id: alert.id,
+            message_id: messageId,
+            matched_keyword: keyword,
+            seen: false,
+          });
+          break;
+        }
+      }
+    }
+  })().catch((err) => console.error("checkAlerts error:", err));
 }
 
 async function logEvent(

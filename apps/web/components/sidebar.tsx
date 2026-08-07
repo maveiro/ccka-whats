@@ -15,6 +15,7 @@ import {
   History,
   Settings,
   Megaphone,
+  BookOpen,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -37,6 +38,7 @@ const navItems = [
   { label: "Campanhas",     href: "/dashboard/admin/campaigns",      roles: ["admin"],             icon: Megaphone,    section: "admin" },
   { label: "Integrações",   href: "/dashboard/admin/integrations",   roles: ["admin"],             icon: Plug,         section: "admin" },
   { label: "Histórico",     href: "/dashboard/admin/history",        roles: ["admin"],             icon: History,      section: "admin" },
+  { label: "Aprendizados",  href: "/dashboard/admin/aprendizados",   roles: ["admin"],             icon: BookOpen,     section: "admin" },
   { label: "Configurações", href: "/dashboard/settings",             roles: ["admin"],             icon: Settings,     section: "admin" },
 ];
 

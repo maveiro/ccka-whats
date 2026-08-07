@@ -56,6 +56,29 @@ const OPT_OUT_BUTTON_TEXTS = new Set(
   ["Parar de receber mensagens"].map((t) => t.trim().toLowerCase()),
 );
 
+// Sinais de proteção de qualidade/spam da Meta que chegam de forma
+// ASSÍNCRONA (webhook de status, não na resposta síncrona do envio) —
+// diferente de MESSAGING_LIMIT_CODES em campaign-sender, que só cobre
+// rejeição síncrona. Achado em produção (07/08/2026): uma campanha de
+// 5.043 destinatários enviou ~3.790 com sucesso em 8min e então bateu
+// nessa proteção, recebendo 76-92% de falha nos minutos seguintes —
+// sem pausa automática, o envio continuou queimando destinatários contra
+// a parede. Ainda não temos confirmação do código numérico exato (Meta não
+// documenta de forma unívoca), por isso o match é por texto — mais frágil,
+// mas é o que temos evidência real de ter acontecido. O código numérico
+// (quando presente) é sempre logado em campaign_status_event pra refinar
+// isso depois.
+const ASYNC_QUALITY_PROTECTION_PHRASES = [
+  "spam rate limit",
+  "healthy ecosystem engagement",
+];
+
+function isAsyncQualityProtectionError(title: string | undefined): boolean {
+  if (!title) return false;
+  const lower = title.toLowerCase();
+  return ASYNC_QUALITY_PROTECTION_PHRASES.some((p) => lower.includes(p));
+}
+
 interface CloudContact {
   profile?: { name?: string };
   wa_id: string;
@@ -417,12 +440,43 @@ async function handleStatus(status: {
 
   await supabase.rpc("recompute_campaign_counters", { p_campaign_id: recipient.campaign_id });
 
+  const errorTitle = status.errors?.[0]?.title;
+  const errorCode = status.errors?.[0]?.code;
+
   await logEvent(recipient.tenant_id, "campaign_status_event", {
     campaignId: recipient.campaign_id,
     recipientId: recipient.id,
     wamid: status.id,
     status: newStatus,
+    ...(errorCode ? { errorCode } : {}),
+    ...(errorTitle ? { errorTitle } : {}),
   });
+
+  // Pausa automática: proteção de qualidade/spam assíncrona da Meta não é
+  // por-destinatário, é sinal de que a campanha inteira precisa parar —
+  // continuar mandando contra a parede só piora (visto em produção: 76-92%
+  // de falha nos minutos seguintes ao primeiro sinal). Pausa na primeira
+  // ocorrência em vez de esperar acumular várias.
+  if (newStatus === "failed" && isAsyncQualityProtectionError(errorTitle)) {
+    const { data: campaign } = await supabase
+      .from("campaigns")
+      .select("status")
+      .eq("id", recipient.campaign_id)
+      .single();
+
+    if (campaign?.status === "sending") {
+      await supabase
+        .from("campaigns")
+        .update({ status: "paused", updated_at: new Date().toISOString() })
+        .eq("id", recipient.campaign_id);
+      await logEvent(recipient.tenant_id, "campaign_paused", {
+        campaignId: recipient.campaign_id,
+        reason: "async_quality_protection",
+        errorCode,
+        errorTitle,
+      });
+    }
+  }
 }
 
 async function logEvent(

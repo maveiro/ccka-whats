@@ -59,21 +59,24 @@ const OPT_OUT_BUTTON_TEXTS = new Set(
 // Sinais de proteção de qualidade/spam da Meta que chegam de forma
 // ASSÍNCRONA (webhook de status, não na resposta síncrona do envio) —
 // diferente de MESSAGING_LIMIT_CODES em campaign-sender, que só cobre
-// rejeição síncrona. Achado em produção (07/08/2026): uma campanha de
-// 5.043 destinatários enviou ~3.790 com sucesso em 8min e então bateu
-// nessa proteção, recebendo 76-92% de falha nos minutos seguintes —
-// sem pausa automática, o envio continuou queimando destinatários contra
-// a parede. Ainda não temos confirmação do código numérico exato (Meta não
-// documenta de forma unívoca), por isso o match é por texto — mais frágil,
-// mas é o que temos evidência real de ter acontecido. O código numérico
-// (quando presente) é sempre logado em campaign_status_event pra refinar
-// isso depois.
+// rejeição síncrona. Achado em produção (07/08/2026, confirmado com código
+// numérico em 07/08/2026 numa segunda campanha): 131048 = "Spam Rate limit
+// hit", 131049 = "This message was not delivered to maintain healthy
+// ecosystem engagement." — o mesmo 131048 já existe em
+// campaign-sender.MESSAGING_LIMIT_CODES para rejeição síncrona; aqui é o
+// caminho assíncrono, que não tinha nenhuma proteção antes (a campanha
+// continuava queimando destinatários contra a parede: 76-92% de falha nos
+// minutos seguintes ao primeiro sinal, numa campanha real de 5043).
+// Match por código quando presente (mais confiável); texto como fallback
+// pra qualquer variante ainda não catalogada.
+const ASYNC_QUALITY_PROTECTION_CODES = new Set([131048, 131049]);
 const ASYNC_QUALITY_PROTECTION_PHRASES = [
   "spam rate limit",
   "healthy ecosystem engagement",
 ];
 
-function isAsyncQualityProtectionError(title: string | undefined): boolean {
+function isAsyncQualityProtectionError(code: number | undefined, title: string | undefined): boolean {
+  if (code && ASYNC_QUALITY_PROTECTION_CODES.has(code)) return true;
   if (!title) return false;
   const lower = title.toLowerCase();
   return ASYNC_QUALITY_PROTECTION_PHRASES.some((p) => lower.includes(p));
@@ -457,7 +460,7 @@ async function handleStatus(status: {
   // continuar mandando contra a parede só piora (visto em produção: 76-92%
   // de falha nos minutos seguintes ao primeiro sinal). Pausa na primeira
   // ocorrência em vez de esperar acumular várias.
-  if (newStatus === "failed" && isAsyncQualityProtectionError(errorTitle)) {
+  if (newStatus === "failed" && isAsyncQualityProtectionError(errorCode, errorTitle)) {
     const { data: campaign } = await supabase
       .from("campaigns")
       .select("status")

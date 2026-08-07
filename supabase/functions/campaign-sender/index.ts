@@ -20,14 +20,19 @@ const BATCH_SIZE = 50;
 const CONCURRENCY = 5;
 const MAX_RETRIES = 3;
 const BASE_BACKOFF_MS = 1_000;
-// Margem segura sob o teto real de 150s da Edge Function (regra 11 do
-// CLAUDE.md) — dentro desse orçamento, a invocação processa vários lotes de
-// BATCH_SIZE em sequência em vez de um só, multiplicando a vazão sem exigir
-// que o pg_cron tique mais rápido que 1x/minuto. Invocações que ultrapassam
-// esse orçamento e ainda se sobrepõem com o próximo tick são seguras por
-// causa do claim atômico (FOR UPDATE SKIP LOCKED) — nunca processam a mesma
-// linha duas vezes.
-const TIME_BUDGET_MS = 100_000;
+// Teto de LOTES por invocação — NÃO maximizar até o limite técnico da Edge
+// Function (150s). Achado em produção (07/08/2026): uma campanha real de
+// 5.043 destinatários enviada a ~500/min (multi-lote sem teto, dentro do
+// orçamento de tempo antigo) teve 21% de falha por "Spam Rate limit hit" —
+// a Meta tem proteção de "healthy ecosystem engagement" que penaliza rajada
+// de volume, independente do teto técnico de mps documentado (80-1000/s).
+// Uma campanha do dia anterior a ~200-270/min teve só ~5% de falha, sem essa
+// causa específica. Vazão alvo agora: no máximo MAX_BATCHES_PER_INVOCATION
+// lotes de BATCH_SIZE por tick do cron (1x/min) — prioriza taxa de entrega
+// e reputação do número sobre velocidade bruta. Subir isso de novo exige
+// evidência de que não aumenta esse tipo de falha, não só "está dentro do
+// limite técnico".
+const MAX_BATCHES_PER_INVOCATION = 2;
 // Códigos de teto de tier de mensageria / qualidade do número — pausar a
 // campanha inteira, não marcar destinatários restantes como falha definitiva
 // (ver GraphApiError.isMessagingLimitError em apps/web/lib/whatsapp-cloud/graphClient.ts).
@@ -114,12 +119,11 @@ Deno.serve(async (req: Request) => {
   // — uma vez por invocação, não por lote.
   await supabase.rpc("reclaim_stuck_campaign_recipients", { p_campaign_id: campaignId, p_stuck_minutes: 5 });
 
-  const startTime = Date.now();
   let totalProcessed = 0;
   let messagingLimitHit = false;
   let throughputLimitHit = false;
 
-  while (Date.now() - startTime < TIME_BUDGET_MS) {
+  for (let batchNum = 0; batchNum < MAX_BATCHES_PER_INVOCATION; batchNum++) {
     // Claim atômico do lote — SKIP LOCKED garante que esta invocação nunca
     // pega uma linha que outra invocação concorrente (próximo tick do cron
     // sobrepondo esta, se ela passar de 1min) já reivindicou.

@@ -36,6 +36,26 @@ e evolui para busca semântica, alertas e integrações com ferramentas de negó
 > de resposta, sem status/atribuição de conversa — é broadcast admin-only
 > de template pré-aprovado). Não usar este precedente para justificar
 > reabrir o resto do escopo de atendimento sem uma decisão explícita própria.
+>
+> **Segunda reabertura parcial e consciente (04/09/2026):** a **automação de
+> resposta por Flow** (`keyword_automation` + `agenda_shows`, ver PRD em
+> `docs/prd/prd-automacao-flows-whatsapp.md`) responde automaticamente a
+> mensagens recebidas — o que, lido ao pé da letra, se aproxima do rumo
+> atendimento que a decisão acima excluiu. Como no módulo de campanhas, é uma
+> decisão de negócio explícita do fundador (Marcelo), não uma contradição
+> silenciosa: usa exclusivamente a **Cloud API oficial** já em uso pelo módulo
+> de campanhas (nunca Baileys/Evolution — a base de captura de mensagens não
+> muda em nada), é aditiva (nenhuma tabela/rota do pipeline Evolution é
+> alterada; os Flows são escopados a `whatsapp_cloud_credentials`, não a
+> sessões Evolution), e **não é "virar atendimento"**: é resposta automática
+> por regra fixa (keyword → texto/link, e um Flow nativo que lê uma agenda de
+> shows) mais coleta de dados de contato para a base de clientes — sem inbox
+> de atendimento com status/atribuição de conversa, e sem IA gerando texto
+> livre (decisão explícita: nada de Meta Business Agent ou equivalente).
+> Vale aqui o mesmo limite do parágrafo anterior: não usar este precedente
+> para reabrir o resto do escopo de atendimento sem uma decisão explícita
+> própria — e todo ajuste de escopo da automação atualiza esta nota **antes**
+> do PR, não depois.
 
 ---
 

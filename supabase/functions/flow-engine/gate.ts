@@ -22,10 +22,28 @@ export interface ValidacaoResultado {
 }
 
 /**
- * Nome: 2 a 60 caracteres, com letra, e que não pareça frase/pergunta.
- * O corte de 5 palavras e o "?" vêm da rodada 5 do PRD — sem eles, a pergunta
- * real da pessoa entrava na base como se fosse o nome dela, contaminando
- * justamente o dado que o projeto existe pra construir.
+ * Palavras que denunciam pergunta/pedido, não nome. Cobrem o buraco que as
+ * regras do PRD deixavam: "quero ingresso" tem 2 palavras e nenhum "?", então
+ * passava como nome e contaminava a base — que é justamente o dado que o
+ * projeto existe pra construir. Achado ao escrever o teste e2e do gate.
+ *
+ * Comparadas como PALAVRA INTEIRA e sem acento: "Tomás" não pode ser
+ * reprovado por conter "tom", nem "Quéren" por parecer "quer".
+ */
+const PALAVRAS_GATILHO = new Set([
+  "quero", "queria", "gostaria", "preciso", "posso", "poderia",
+  "tem", "tenho", "qual", "quais", "quanto", "quantos",
+  "onde", "quando", "como", "porque", "cade",
+]);
+
+function semAcento(texto: string): string {
+  return texto.normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+/**
+ * Nome: 2 a 60 caracteres, com letra, sem cara de frase/pergunta.
+ * O corte de 5 palavras e o "?" vêm da rodada 5 do PRD; a lista de gatilhos
+ * acima fecha o caso da pergunta curta.
  */
 export function validarNome(texto: string): ValidacaoResultado {
   const valor = texto.trim().replace(/\s+/g, " ");
@@ -35,6 +53,12 @@ export function validarNome(texto: string): ValidacaoResultado {
   if (valor.split(" ").length > 5) return { valido: false };
   if (!/\p{L}/u.test(valor)) return { valido: false }; // só número/símbolo
   if (/^\p{N}+$/u.test(valor)) return { valido: false };
+
+  const palavras = semAcento(valor.toLowerCase())
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (palavras.some((p) => PALAVRAS_GATILHO.has(p))) return { valido: false };
 
   return { valido: true, valor };
 }

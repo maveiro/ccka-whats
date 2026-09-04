@@ -325,10 +325,6 @@ await cenario("gate completo: nome → e-mail → responde a pergunta original",
 
 await cenario("gate: pergunta feita DURANTE o gate não se perde", async () => {
   await chamarEngine(msg({ text: "oi" })); // inicia gate
-  // Precisa ser algo que NÃO passe na validação de nome, senão o motor faz o
-  // certo ao gravar como nome. Limitação conhecida da regra do PRD: uma
-  // pergunta curta ("quero ingresso") é indistinguível de um nome — só frases
-  // longas ou com "?" são rejeitadas.
   await chamarEngine(msg({ text: "vocês têm meia entrada para estudante?" }));
   const c = await cliente();
   checar(c?.nome === null, "pergunta não pode virar nome");
@@ -340,6 +336,25 @@ await cenario("gate: pergunta feita DURANTE o gate não se perde", async () => {
     (c?.mensagem_pendente ?? "").includes("oi"),
     "a mensagem original também deve continuar lá (concatena, não substitui)",
   );
+});
+
+await cenario("gate: pergunta CURTA durante o gate não vira nome (palavras-gatilho)", async () => {
+  await chamarEngine(msg({ text: "oi" }));
+  await chamarEngine(msg({ text: "quero ingresso" }));
+  const c = await cliente();
+  checar(c?.nome === null, `"quero ingresso" não pode virar nome (veio "${c?.nome}")`);
+  checar(
+    (c?.mensagem_pendente ?? "").includes("quero ingresso"),
+    "a pergunta curta precisa ir para mensagem_pendente",
+  );
+});
+
+await cenario("nome legítimo que contém gatilho como parte da palavra é aceito", async () => {
+  await chamarEngine(msg({ text: "oi" }));
+  // "Tomás" contém "tom"; a checagem é por palavra inteira e sem acento, então
+  // não pode reprovar nomes reais.
+  await chamarEngine(msg({ text: "Tomás Quental" }));
+  checar((await cliente())?.nome === "Tomás Quental", "nome legítimo não pode ser reprovado");
 });
 
 await cenario("validação de nome rejeita frase/pergunta, vazio e só número", async () => {

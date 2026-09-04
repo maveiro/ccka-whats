@@ -191,7 +191,10 @@ async function processEvent(body: CloudWebhookPayload): Promise<void> {
       }
 
       for (const message of change.value.messages ?? []) {
-        await handleInboundMessage(message, change.value.metadata?.phone_number_id, change.value.contacts);
+        // entry.id é o WABA ID — usado como fallback de resolução de tenant
+        // quando o phone_number_id não tem credencial cadastrada (ver
+        // resolveInboundTarget).
+        await handleInboundMessage(message, change.value.metadata?.phone_number_id, change.value.contacts, entry.id);
       }
     }
   }
@@ -203,36 +206,17 @@ async function handleInboundMessage(
   message: CloudInboundMessage,
   phoneNumberId: string | undefined,
   contacts: CloudContact[] | undefined,
+  wabaId: string | undefined,
 ): Promise<void> {
   if (!phoneNumberId) {
     await logEvent(null, "error", { messageId: message.id }, "inbound message sem phone_number_id no metadata");
     return;
   }
 
-  const { data: credential, error: credError } = await supabase
-    .from("whatsapp_cloud_credentials")
-    .select("id, tenant_id")
-    .eq("phone_number_id", phoneNumberId)
-    .eq("active", true)
-    .maybeSingle();
+  const target = await resolveInboundTarget(phoneNumberId, wabaId, message.id);
+  if (!target) return; // resolveInboundTarget já logou o motivo
 
-  if (credError || !credential) {
-    await logEvent(null, "error", { phoneNumberId, messageId: message.id }, credError?.message ?? "no active credential for phone_number_id");
-    return;
-  }
-
-  const { data: session, error: sessionError } = await supabase
-    .from("wa_sessions")
-    .select("id, tenant_id")
-    .eq("cloud_credential_id", credential.id)
-    .maybeSingle();
-
-  if (sessionError || !session) {
-    await logEvent(credential.tenant_id, "error", { phoneNumberId, messageId: message.id }, sessionError?.message ?? "no wa_sessions row for cloud_credential_id");
-    return;
-  }
-
-  const { id: sessionId, tenant_id: tenantId } = session;
+  const { sessionId, tenantId } = target;
   const jid = message.from; // E.164 puro — ver fix em apps/web/lib/chat-display.ts
   const pushName = contacts?.[0]?.profile?.name ?? null;
   const type = normalizeCloudMessageType(message.type);
@@ -560,6 +544,137 @@ function checkAlerts(tenantId: string, sessionId: string, messageId: string, bod
       }
     }
   })().catch((err) => console.error("checkAlerts error:", err));
+}
+
+// ─── Resolução do destino de uma mensagem inbound ────────────────────────────
+//
+// Caminho normal: phone_number_id → credencial ativa → wa_sessions.
+//
+// Fallback (04/09/2026): a assinatura de webhook do Meta é por App/WABA, não
+// por número — todo número da WABA entrega no mesmo endpoint, inclusive os que
+// ninguém cadastrou em whatsapp_cloud_credentials. Até aqui essas mensagens
+// eram descartadas com um log de erro e nada mais: 160 mensagens perdidas
+// entre 07/08 e 04/09/2026, em 3 números da WABA 1417914842914678 que estavam
+// CONNECTED no Meta mas ausentes da tabela. Perder o raw_payload contraria a
+// regra 2 do CLAUDE.md, e o produto inteiro existe pra não perder conversa.
+//
+// Agora: sem credencial pro número, resolve o tenant pelo waba_id (entry.id do
+// payload) e salva a mensagem numa sessão de acolhimento (cloud_credential_id
+// null, status 'disconnected' — que é a verdade: o número não está
+// configurado). Nada de auto-provisionar credencial copiando o access_token de
+// um vizinho de WABA: espalharia cópia de token por N linhas e transformaria
+// um erro de configuração em algo invisível. O objetivo é não perder a
+// mensagem, não fingir que está tudo certo.
+//
+// Regra pro flow-engine (Sprint A1): número que caiu neste fallback captura,
+// mas NUNCA responde automaticamente — responder por um número que ninguém
+// configurou é pior que silêncio. É o caso anterior ao "sem Flow ativo" do PRD.
+interface InboundTarget {
+  sessionId: string;
+  tenantId: string;
+}
+
+async function resolveInboundTarget(
+  phoneNumberId: string,
+  wabaId: string | undefined,
+  messageId: string,
+): Promise<InboundTarget | null> {
+  const { data: credential, error: credError } = await supabase
+    .from("whatsapp_cloud_credentials")
+    .select("id, tenant_id")
+    .eq("phone_number_id", phoneNumberId)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (credError) {
+    await logEvent(null, "error", { phoneNumberId, messageId }, credError.message);
+    return null;
+  }
+
+  if (credential) {
+    const { data: session, error: sessionError } = await supabase
+      .from("wa_sessions")
+      .select("id, tenant_id")
+      .eq("cloud_credential_id", credential.id)
+      .maybeSingle();
+
+    if (sessionError || !session) {
+      await logEvent(credential.tenant_id, "error", { phoneNumberId, messageId }, sessionError?.message ?? "no wa_sessions row for cloud_credential_id");
+      return null;
+    }
+    return { sessionId: session.id, tenantId: session.tenant_id };
+  }
+
+  // ── Fallback por WABA ──
+  if (!wabaId) {
+    await logEvent(null, "error", { phoneNumberId, messageId }, "no active credential for phone_number_id (e sem waba_id no payload)");
+    return null;
+  }
+
+  const { data: wabaCredentials, error: wabaError } = await supabase
+    .from("whatsapp_cloud_credentials")
+    .select("tenant_id")
+    .eq("waba_id", wabaId)
+    .eq("active", true);
+
+  if (wabaError) {
+    await logEvent(null, "error", { phoneNumberId, wabaId, messageId }, wabaError.message);
+    return null;
+  }
+
+  const tenantIds = [...new Set((wabaCredentials ?? []).map((c) => c.tenant_id as string))];
+
+  if (tenantIds.length === 0) {
+    await logEvent(null, "error", { phoneNumberId, wabaId, messageId }, "no active credential for phone_number_id nem para o waba_id");
+    return null;
+  }
+
+  // Hoje uma WABA pertence a um único tenant, mas não há constraint garantindo
+  // isso. Ambíguo = não adivinha: salvar no tenant errado é pior que não
+  // salvar (regra de isolamento entre tenants).
+  if (tenantIds.length > 1) {
+    await logEvent(null, "credential_ambiguous_waba", { phoneNumberId, wabaId, messageId, tenantIds }, "waba_id resolve para mais de um tenant — mensagem não salva");
+    return null;
+  }
+
+  const tenantId = tenantIds[0];
+  const sessionId = await ensureUnregisteredNumberSession(tenantId, phoneNumberId, wabaId);
+  if (!sessionId) {
+    await logEvent(tenantId, "error", { phoneNumberId, wabaId, messageId }, "falha ao criar sessão de acolhimento para número sem credencial");
+    return null;
+  }
+
+  await logEvent(tenantId, "credential_missing_but_waba_known", { phoneNumberId, wabaId, messageId, sessionId });
+  return { sessionId, tenantId };
+}
+
+// Sessão de acolhimento por número desconhecido. messages.session_id é NOT NULL,
+// então salvar a mensagem exige uma sessão; wa_sessions.cloud_credential_id é
+// nullable, o que permite representar "número sem credencial" sem inventar uma.
+// Idempotente: conflito em (tenant_id, phone_number).
+async function ensureUnregisteredNumberSession(
+  tenantId: string,
+  phoneNumberId: string,
+  wabaId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("wa_sessions")
+    .upsert({
+      tenant_id: tenantId,
+      phone_number: phoneNumberId,
+      label: `Número não cadastrado (WABA ${wabaId})`,
+      status: "disconnected",
+      channel: "cloud_api",
+      cloud_credential_id: null,
+    }, { onConflict: "tenant_id,phone_number" })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("[cloud-webhook] upsert da sessão de acolhimento falhou:", error.message);
+    return null;
+  }
+  return data?.id ?? null;
 }
 
 async function logEvent(

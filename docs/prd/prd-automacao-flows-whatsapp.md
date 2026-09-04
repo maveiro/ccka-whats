@@ -720,10 +720,17 @@ fase.
 
 ## Execução (Claude Code) — migration 0025_flows_automacao.sql
 
-Nota de posicionamento no CLAUDE.md já aprovada e commitada. Migration em revisão: o
-Claude Code inspecionou o repo real (não assumiu as convenções do PRD) e corrigiu três
-pontos — sem view `_ativos` (não existe no projeto), `tipo` como `text + check` (sem
+Nota de posicionamento no CLAUDE.md já aprovada. Migration em revisão: o Claude Code
+inspecionou o repo real (não assumiu as convenções do PRD) e corrigiu três pontos —
+sem view `_ativos` (não existe no projeto), `tipo` como `text + check` (sem
 `create type` em lugar nenhum do schema), e os detalhes já incorporados acima
 (`has_cloud_credential_access()`, a unique de keyword duplicada, o `deleted_at is null`
 no índice de Flow ativo). Timestamps padronizados pra inglês (decisão fechada acima),
 `clientes` admin-only confirmado, `flow_destino_id` validado por trigger.
+
+**Status:** migration 0025 aplicada em produção (`supabase db push`, projeto
+`byuggqcnvezendgrcysb`) — RLS ligada e policies/triggers conferidos nas cinco tabelas.
+Teste dedicado de `has_cloud_credential_access` escrito
+(`supabase/tests/0025_flows_automacao_rls.sql`), primeiro arquivo de teste do
+projeto — ainda não executado (aguardando rodar contra Supabase local, nunca
+produção) nem commitado junto com a migration e a nota do CLAUDE.md.

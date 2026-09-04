@@ -435,8 +435,19 @@ REDIS_URL=
   em vez do JID bruto (regra 23) — mesmo caminho de sincronização acima
 - Merge automático de chats duplicados `@lid` ↔ `@s.whatsapp.net` (session-health-check)
 - Busca full-text de mensagens (`search_vector` + FTS websearch em português)
-- Busca semântica via embedding (`/api/search?mode=semantic`) — embeddings do histórico
-  já backfilled (~14,7k msgs); threshold de similaridade 0.3
+- Busca semântica via embedding (`/api/search?mode=semantic`) — código funcionando,
+  threshold de similaridade 0.3, mas **a base de embeddings está vazia em produção
+  (verificado 04/09/2026: 6 embeddings em 13.313 mensagens)**. O backfill de ~14,7k
+  msgs registrado aqui antes existiu de fato, mas vivia nas sessões excluídas desde
+  então (incluindo a "Marcelo Pessoal") — o cascade levou as mensagens e, com elas,
+  os embeddings. Some-se a isso que `OPENAI_API_KEY` **não está nos secrets das Edge
+  Functions**: `generate-embeddings` resolve a chave do tenant (BYOK → plataforma),
+  não acha nenhuma (o único BYOK cadastrado é de outro tenant) e devolve
+  `Skipped: no OpenAI key for tenant` com **HTTP 200, sem gravar erro** — por isso
+  nada aparece em `events_log`. Ou seja: mensagem nova também não gera embedding, em
+  nenhum dos dois canais. Consequência de roadmap: **alertas semânticos (próximo item)
+  não têm base pra rodar hoje** — antes deles é preciso configurar a chave e refazer
+  backfill do histórico atual.
 - Envio de mensagens pelo dashboard: texto, mídia (imagem/vídeo/áudio/documento), quote (`MessageComposer`)
   - Optimistic update: mensagem aparece imediatamente; substituída pelo dado real quando webhook chega
 - Mídia: signed URLs e download de transcrição usam `createAdminClient()` (bucket `media` é

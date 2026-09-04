@@ -289,6 +289,11 @@ verify_jwt = true
 [functions.whatsapp-cloud-webhook]
 verify_jwt = false
 
+# Motor de automação por Flow — invocado pelo whatsapp-cloud-webhook com
+# service role (nunca pelo Meta diretamente).
+[functions.flow-engine]
+verify_jwt = true
+
 [analytics]
 enabled = true
 port = 54327

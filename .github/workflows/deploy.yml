@@ -27,6 +27,7 @@ jobs:
           supabase functions deploy delete-session        --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
           supabase functions deploy campaign-sender          --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
           supabase functions deploy whatsapp-cloud-webhook   --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --no-verify-jwt
+          supabase functions deploy flow-engine              --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 

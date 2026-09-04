@@ -216,7 +216,7 @@ async function handleInboundMessage(
   const target = await resolveInboundTarget(phoneNumberId, wabaId, message.id);
   if (!target) return; // resolveInboundTarget já logou o motivo
 
-  const { sessionId, tenantId } = target;
+  const { sessionId, tenantId, viaFallbackWaba: usouFallbackDeWaba } = target;
   const jid = message.from; // E.164 puro — ver fix em apps/web/lib/chat-display.ts
   const pushName = contacts?.[0]?.profile?.name ?? null;
   const type = normalizeCloudMessageType(message.type);
@@ -297,6 +297,29 @@ async function handleInboundMessage(
         payload: { messageId: savedMessage.id, chatId: chat?.id ?? null, fromMe: false, type, body },
       }),
     }).catch(() => {});
+  }
+
+  // Motor de automação por Flow — função separada, invocada só depois de a
+  // mensagem já estar salva (se ela falhar, a captura não se perde).
+  //
+  // NÃO é fire-and-forget (exigência explícita do PRD): grava
+  // flow_engine_disparado ANTES de invocar e volta pra completar a mesma linha
+  // com o erro se a invocação falhar. Sem isso, uma falha depois do 200 pro
+  // Meta não deixaria rastro nenhum.
+  //
+  // Só invoca quando o número tem credencial própria: sessão vinda do fallback
+  // por WABA (cloud_credential_id null) captura, mas nunca responde
+  // automaticamente.
+  if (savedMessage?.id && !usouFallbackDeWaba) {
+    await dispararFlowEngine({
+      tenantId,
+      sessionId,
+      messageId: message.id,
+      phoneNumberId,
+      from: jid,
+      text: message.text?.body ?? null,
+      type,
+    });
   }
 
   // Mídia inbound do Cloud API: download binário não suportado na v1
@@ -546,6 +569,67 @@ function checkAlerts(tenantId: string, sessionId: string, messageId: string, bod
   })().catch((err) => console.error("checkAlerts error:", err));
 }
 
+// ─── Invocação do flow-engine (passo 3 do fluxo técnico do PRD) ──────────────
+//
+// Deliberadamente NÃO é fire-and-forget. Grava flow_engine_disparado antes de
+// chamar e volta pra completar a MESMA linha com o erro se a chamada falhar —
+// o webhook já respondeu 200 pro Meta nesse ponto, então sem esse rastro uma
+// falha de invocação seria invisível (mesmo espírito da regra 6 do CLAUDE.md,
+// aplicado à invocação, não só aos inserts de dentro dela).
+//
+// O await não atrasa a resposta ao Meta: processEvent roda depois do 200.
+async function dispararFlowEngine(params: {
+  tenantId: string;
+  sessionId: string;
+  messageId: string;
+  phoneNumberId: string;
+  from: string;
+  text: string | null;
+  type: string;
+}): Promise<void> {
+  const { tenantId, sessionId, messageId, phoneNumberId, from, text, type } = params;
+
+  const { data: evento } = await supabase
+    .from("events_log")
+    .insert({
+      tenant_id: tenantId,
+      session_id: sessionId,
+      event_type: "flow_engine_disparado",
+      payload: { messageId, phoneNumberId, telefone: from, tipo: type },
+    })
+    .select("id")
+    .maybeSingle();
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/flow-engine`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({ messageId, phoneNumberId, from, text, type, sessionId }),
+      signal: AbortSignal.timeout(60_000),
+    });
+
+    if (!response.ok && evento?.id) {
+      const corpo = await response.text().catch(() => "");
+      await supabase
+        .from("events_log")
+        .update({ error: `flow-engine respondeu ${response.status}: ${corpo.slice(0, 300)}` })
+        .eq("id", evento.id);
+    }
+  } catch (err) {
+    const mensagem = err instanceof Error ? err.message : String(err);
+    if (evento?.id) {
+      await supabase
+        .from("events_log")
+        .update({ error: `invocação do flow-engine falhou: ${mensagem}` })
+        .eq("id", evento.id);
+    }
+    console.error("[cloud-webhook] invocação do flow-engine falhou:", mensagem);
+  }
+}
+
 // ─── Resolução do destino de uma mensagem inbound ────────────────────────────
 //
 // Caminho normal: phone_number_id → credencial ativa → wa_sessions.
@@ -572,6 +656,9 @@ function checkAlerts(tenantId: string, sessionId: string, messageId: string, bod
 interface InboundTarget {
   sessionId: string;
   tenantId: string;
+  // true quando o número não tem credencial própria e o tenant veio pelo
+  // waba_id. Quem consome usa isso para capturar sem responder.
+  viaFallbackWaba: boolean;
 }
 
 async function resolveInboundTarget(
@@ -602,7 +689,7 @@ async function resolveInboundTarget(
       await logEvent(credential.tenant_id, "error", { phoneNumberId, messageId }, sessionError?.message ?? "no wa_sessions row for cloud_credential_id");
       return null;
     }
-    return { sessionId: session.id, tenantId: session.tenant_id };
+    return { sessionId: session.id, tenantId: session.tenant_id, viaFallbackWaba: false };
   }
 
   // ── Fallback por WABA ──
@@ -645,7 +732,7 @@ async function resolveInboundTarget(
   }
 
   await logEvent(tenantId, "credential_missing_but_waba_known", { phoneNumberId, wabaId, messageId, sessionId });
-  return { sessionId, tenantId };
+  return { sessionId, tenantId, viaFallbackWaba: true };
 }
 
 // Sessão de acolhimento por número desconhecido. messages.session_id é NOT NULL,

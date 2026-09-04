@@ -68,23 +68,17 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  // getCloudCredential(tenantId) assume no máximo 1 credencial ATIVA por
-  // tenant (.eq("active", true).maybeSingle()) — se o admin troca de Meta
-  // App (WABA/phone_number_id diferente), a credencial antiga não pode
-  // continuar active=true, senão essa query passa a ter 2 candidatas e
-  // quebra. Desativa (não apaga — campanhas antigas referenciam
-  // credential_id via FK, apagar violaria a constraint e perderia
-  // histórico) qualquer outra credencial deste tenant antes de gravar a nova.
-  const { error: deactivateError } = await admin
-    .from("whatsapp_cloud_credentials")
-    .update({ active: false, updated_at: new Date().toISOString() })
-    .eq("tenant_id", operator.tenant_id)
-    .neq("phone_number_id", phoneNumberId.trim());
-
-  if (deactivateError) {
-    console.error("[campaigns/credentials] falha ao desativar credenciais antigas:", deactivateError.message);
-  }
-
+  // Um tenant tem N números Cloud API (04/09/2026): cadastrar um número NÃO
+  // mexe nos outros. Existia aqui um `.neq("phone_number_id", ...)` que
+  // desativava todas as demais credenciais do tenant — necessário só enquanto
+  // getCloudCredential(tenantId) resolvia com `.maybeSingle()` e quebrava com
+  // duas candidatas. Aquela resolução foi corrigida (ver
+  // lib/whatsapp-cloud/getCloudCredential.ts), e este passo virou o que sempre
+  // foi na prática: desativar o número que o admin acabou de cadastrar.
+  //
+  // O caso legítimo que ele cobria — trocar token/WABA do MESMO número —
+  // continua coberto pelo upsert abaixo (onConflict tenant_id,phone_number_id
+  // atualiza a linha existente em vez de criar uma segunda).
   const { data, error } = await admin
     .from("whatsapp_cloud_credentials")
     .upsert({
@@ -120,22 +114,11 @@ export async function POST(req: NextRequest) {
     console.error("[campaigns/credentials] wa_sessions upsert failed:", sessionError.message);
   }
 
-  // Mesma lógica do passo acima, pro lado da sessão: marca a(s) sessão(ões)
-  // cloud_api antiga(s) deste tenant como desconectada — sem apagar (chats/
-  // messages têm FK cascade em wa_sessions, apagar perderia o histórico de
-  // conversa). Novas mensagens já resolvem pra sessão nova via
-  // phone_number_id no webhook; a antiga só para de receber.
-  const { error: staleSessionError } = await admin
-    .from("wa_sessions")
-    .update({ status: "disconnected" })
-    .eq("tenant_id", operator.tenant_id)
-    .eq("channel", "cloud_api")
-    .neq("cloud_credential_id", data.id);
-
-  if (staleSessionError) {
-    console.error("[campaigns/credentials] falha ao desconectar sessões cloud_api antigas:", staleSessionError.message);
-  }
-
+  // Pelo mesmo motivo do bloco acima, NÃO desconectamos as sessões cloud_api
+  // dos outros números: cada número tem a sua, e todas seguem recebendo. O
+  // webhook resolve a sessão pelo phone_number_id da mensagem, então nunca
+  // houve ambiguidade a resolver aqui — só o efeito colateral de marcar como
+  // "desconectado" um número que estava funcionando perfeitamente.
   await admin.from("events_log").insert({
     tenant_id: operator.tenant_id,
     session_id: null,

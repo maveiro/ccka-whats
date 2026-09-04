@@ -13,8 +13,8 @@
     "type-check": "turbo type-check",
     "db:types": "supabase gen types typescript --local > packages/database/types.ts",
     "test:db": "npm run --silent test:db:sql && npm run --silent test:db:e2e",
-    "test:db:sql": "for f in supabase/tests/*.sql; do echo \"\u2192 $f\"; psql \"${LOCAL_DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}\" -v ON_ERROR_STOP=1 -f \"$f\" || exit 1; done",
-    "test:db:e2e": "for f in supabase/tests/*.e2e.ts; do echo \"\u2192 $f\"; deno run -A \"$f\" || exit 1; done"
+    "test:db:sql": "for f in supabase/tests/*.sql; do echo \"→ $f\"; psql \"${LOCAL_DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}\" -v ON_ERROR_STOP=1 -f \"$f\" || exit 1; done",
+    "test:db:e2e": "for f in supabase/tests/*.e2e.ts; do echo \"→ $f\"; npx --yes deno@2 run -A \"$f\" || exit 1; done"
   },
   "devDependencies": {
     "turbo": "^2.9.18",

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
-import { getCloudCredential } from "@/lib/whatsapp-cloud/getCloudCredential";
+import { getCloudCredentialForSession } from "@/lib/whatsapp-cloud/getCloudCredential";
 import { sendFreeformTextMessage, GraphApiError } from "@/lib/whatsapp-cloud/graphClient";
 
 const CLOUD_API_REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -160,9 +160,15 @@ async function sendViaCloudApi(
     );
   }
 
-  const credential = await getCloudCredential(tenantId);
+  // Resolvida pela SESSÃO do chat, não pelo tenant: um tenant tem N números
+  // Cloud API, e a resposta tem que sair pelo mesmo número em que a conversa
+  // aconteceu (ver nota em lib/whatsapp-cloud/getCloudCredential.ts).
+  const credential = await getCloudCredentialForSession(sessionId);
   if (!credential) {
-    return NextResponse.json({ error: "Nenhuma credencial do WhatsApp Cloud API cadastrada" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Número do WhatsApp Cloud API desta conversa não tem credencial ativa cadastrada" },
+      { status: 404 },
+    );
   }
 
   let wamid: string;

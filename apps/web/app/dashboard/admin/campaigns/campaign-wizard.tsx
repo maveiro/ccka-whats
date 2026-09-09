@@ -197,12 +197,12 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
       {step === "credential" && (
         <div className="space-y-3">
           <p className="text-sm font-medium text-white">
-            {hasCredential ? "Trocar credencial do WhatsApp Cloud API" : "Conectar WhatsApp Cloud API"}
+            {hasCredential ? "Cadastrar outro número do WhatsApp Cloud API" : "Conectar WhatsApp Cloud API"}
           </p>
           <p className="text-xs text-gray-500">
             Dados do WhatsApp Business Account (WABA) no Meta Business Manager. O token de
             acesso nunca é reexibido depois de salvo.
-            {hasCredential && " Salvar aqui desativa a credencial atual (histórico de campanhas é preservado)."}
+            {hasCredential && " Cadastrar aqui NÃO mexe nos outros números do tenant — para administrá-los, use Números."}
           </p>
           <Field label="WABA ID" value={wabaId} onChange={setWabaId} />
           <Field label="Phone Number ID" value={phoneNumberId} onChange={setPhoneNumberId} />
@@ -245,7 +245,7 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
                 onClick={() => { setStep("credential"); setError(null); }}
                 className="text-green-400 hover:text-green-300"
               >
-                Trocar credencial
+                Trocar número
               </button>
             </div>
           )}

@@ -35,7 +35,7 @@ export default async function FlowsPage() {
   const admin = createAdminClient();
   const { data: credenciais } = await admin
     .from("whatsapp_cloud_credentials")
-    .select("id, phone_number_id, display_phone_number")
+    .select("id, phone_number_id, display_phone_number, label, artista")
     .eq("tenant_id", operator.tenant_id)
     .eq("active", true)
     .order("created_at", { ascending: true });

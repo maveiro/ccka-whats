@@ -132,6 +132,32 @@ begin
 end;
 $$;
 
+-- ============================================================
+-- 4. Desativar número com automação ativa é bloqueado pela rota
+--    (aqui provamos só a consulta que a rota faz — a regra em si vive no
+--     handler, ver ressalva no topo)
+-- ============================================================
+do $$
+declare
+  t uuid := (select valor from _ids where chave='tenant');
+  c uuid := (select id from whatsapp_cloud_credentials where tenant_id = t and phone_number_id='PN_1');
+begin
+  insert into whatsapp_flows (tenant_id, cloud_credential_id, nome, tipo, ativo, mensagem_fallback)
+  values (t, c, 'Flow do PN_1', 'keyword_automation', true, 'nao entendi');
+
+  perform pg_temp.assert(
+    (select count(*) from whatsapp_flows
+      where cloud_credential_id = c and ativo and deleted_at is null) = 1,
+    'a consulta que a rota usa para barrar a desativação precisa achar o Flow ativo');
+
+  perform pg_temp.assert(
+    (select count(*) from whatsapp_flows
+      where cloud_credential_id = (select id from whatsapp_cloud_credentials where tenant_id = t and phone_number_id='PN_2')
+        and ativo and deleted_at is null) = 0,
+    'número sem automação não pode ser confundido com número que tem');
+end;
+$$;
+
 do $$ begin raise notice 'OK: todas as asserções de 0027 passaram'; end; $$;
 
 rollback;

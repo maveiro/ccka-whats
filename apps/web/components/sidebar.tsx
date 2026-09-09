@@ -20,6 +20,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Workflow,
+  Hash,
 } from "lucide-react";
 import AlertBadge from "@/components/alert-badge";
 
@@ -37,6 +38,7 @@ const navItems = [
   { label: "Operadores",    href: "/dashboard/admin/operators",      roles: ["admin"],             icon: Users,        section: "admin" },
   { label: "Alertas",       href: "/dashboard/admin/alerts",         roles: ["admin"],             icon: Bell,         section: "admin", showAlertBadge: true },
   { label: "Campanhas",     href: "/dashboard/admin/campaigns",      roles: ["admin"],             icon: Megaphone,    section: "admin" },
+  { label: "Números",       href: "/dashboard/admin/numbers",        roles: ["admin"],             icon: Hash,         section: "admin" },
   { label: "Automações",    href: "/dashboard/admin/flows",          roles: ["admin", "operator"], icon: Workflow,     section: "admin" },
   { label: "Integrações",   href: "/dashboard/admin/integrations",   roles: ["admin"],             icon: Plug,         section: "admin" },
   { label: "Histórico",     href: "/dashboard/admin/history",        roles: ["admin"],             icon: History,      section: "admin" },

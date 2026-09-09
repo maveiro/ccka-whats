@@ -17,8 +17,9 @@ export async function GET() {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("whatsapp_cloud_credentials")
-    .select("id, waba_id, phone_number_id, display_phone_number, active, created_at")
-    .eq("tenant_id", operator.tenant_id);
+    .select("id, waba_id, phone_number_id, display_phone_number, label, artista, active, created_at")
+    .eq("tenant_id", operator.tenant_id)
+    .order("created_at", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data ?? []);
@@ -37,6 +38,8 @@ export async function POST(req: NextRequest) {
     phoneNumberId?: unknown;
     displayPhoneNumber?: unknown;
     accessToken?: unknown;
+    label?: unknown;
+    artista?: unknown;
   };
   const { wabaId, phoneNumberId, displayPhoneNumber, accessToken } = body;
 
@@ -89,10 +92,12 @@ export async function POST(req: NextRequest) {
         ? displayPhoneNumber.trim()
         : (verified.display_phone_number ?? null),
       access_token: accessToken.trim(),
+      label: typeof body.label === "string" && body.label.trim() ? body.label.trim() : null,
+      artista: typeof body.artista === "string" && body.artista.trim() ? body.artista.trim() : null,
       active: true,
       updated_at: new Date().toISOString(),
     }, { onConflict: "tenant_id,phone_number_id" })
-    .select("id, waba_id, phone_number_id, display_phone_number, active, created_at")
+    .select("id, waba_id, phone_number_id, display_phone_number, label, artista, active, created_at")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -104,7 +109,9 @@ export async function POST(req: NextRequest) {
     tenant_id: operator.tenant_id,
     operator_id: user.id,
     phone_number: verified.display_phone_number ?? phoneNumberId.trim(),
-    label: verified.verified_name ?? "WhatsApp Cloud API",
+    label: (typeof body.label === "string" && body.label.trim())
+      ? body.label.trim()
+      : (verified.verified_name ?? "WhatsApp Cloud API"),
     status: "connected",
     channel: "cloud_api",
     cloud_credential_id: data.id,

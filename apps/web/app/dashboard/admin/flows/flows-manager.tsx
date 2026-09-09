@@ -28,6 +28,8 @@ interface Credencial {
   id: string;
   phone_number_id: string;
   display_phone_number: string | null;
+  label: string | null;
+  artista: string | null;
 }
 
 interface Fallback {
@@ -51,13 +53,15 @@ export default function FlowsManager({
   const [criando, setCriando] = useState(false);
   const [novoNome, setNovoNome] = useState("");
   const [novoNumero, setNovoNumero] = useState(credenciais[0]?.id ?? "");
-  const [novoArtista, setNovoArtista] = useState("");
+  // Herda o artista do número escolhido — na prática um número é de um
+  // artista, e redigitar em todo Flow é fonte de divergência.
+  const [novoArtista, setNovoArtista] = useState(credenciais[0]?.artista ?? "");
   const [expandido, setExpandido] = useState<string | null>(null);
   const [salvando, setSalvando] = useState<string | null>(null);
 
   const nomeDoNumero = (credencialId: string) => {
     const c = credenciais.find((x) => x.id === credencialId);
-    return c?.display_phone_number ?? c?.phone_number_id ?? "número desconhecido";
+    return c?.label ?? c?.display_phone_number ?? c?.phone_number_id ?? "número desconhecido";
   };
 
   async function criarFlow(e: React.FormEvent) {
@@ -124,7 +128,7 @@ export default function FlowsManager({
     return (
       <p className="text-sm text-gray-400 border border-gray-800 rounded p-4">
         Nenhum número WhatsApp Cloud API cadastrado neste tenant. Cadastre um em{" "}
-        <a href="/dashboard/admin/campaigns" className="text-blue-400 hover:underline">Campanhas</a>{" "}
+        <a href="/dashboard/admin/numbers" className="text-blue-400 hover:underline">Números</a>{" "}
         antes de criar uma automação.
       </p>
     );
@@ -139,12 +143,16 @@ export default function FlowsManager({
             <span>Número</span>
             <select
               value={novoNumero}
-              onChange={(e) => setNovoNumero(e.target.value)}
+              onChange={(e) => {
+                setNovoNumero(e.target.value);
+                const c = credenciais.find((x) => x.id === e.target.value);
+                if (c?.artista) setNovoArtista(c.artista);
+              }}
               className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
             >
               {credenciais.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.display_phone_number ?? c.phone_number_id}
+                  {c.label ?? c.display_phone_number ?? c.phone_number_id}
                 </option>
               ))}
             </select>

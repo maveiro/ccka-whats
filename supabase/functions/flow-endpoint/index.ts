@@ -29,6 +29,7 @@ import {
   type RequisicaoCriptografada,
 } from "./crypto.ts";
 import { type ShowRow, telaAgenda, telaDetalhe } from "./agenda.ts";
+import { ErroDeAbertura } from "./crypto.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -112,8 +113,13 @@ Deno.serve(async (req: Request) => {
   } catch (err) {
     // 421 é o contrato: diz à Meta que a chave não serve, e o cliente reabre o
     // Flow buscando a chave pública atual em vez de ficar num erro opaco.
-    console.error("[flow-endpoint] decriptação falhou:", err instanceof Error ? err.message : err);
-    await registrar(phoneNumberId, "flow_endpoint_decrypt_falhou", { phoneNumberId });
+    // Sem saber a ETAPA, "falhou ao descriptografar" não diz se o problema é
+    // chave errada (rsa), formato do payload (aes) ou corpo inesperado (json).
+    const detalhe = err instanceof ErroDeAbertura
+      ? { etapa: err.etapa, detalhe: err.detalhe, ...err.medidas }
+      : { etapa: "desconhecida", detalhe: err instanceof Error ? err.message : String(err) };
+    console.error("[flow-endpoint] decriptação falhou:", JSON.stringify(detalhe));
+    await registrar(phoneNumberId, "flow_endpoint_decrypt_falhou", { phoneNumberId, ...detalhe });
     return new Response("Failed to decrypt", { status: 421 });
   }
 

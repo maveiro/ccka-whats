@@ -68,17 +68,38 @@ export async function importarChavePrivada(pem: string): Promise<CryptoKey> {
  * responder HTTP 421 nesse caso (exigência da Meta: 421 significa "não
  * consegui descriptografar", e faz o cliente reabrir o Flow com chave nova).
  */
+export class ErroDeAbertura extends Error {
+  constructor(readonly etapa: "rsa" | "aes" | "json", readonly detalhe: string, readonly medidas: Record<string, number>) {
+    super(`falha na etapa ${etapa}: ${detalhe}`);
+    this.name = "ErroDeAbertura";
+  }
+}
+
 export async function abrirRequisicao(
   requisicao: RequisicaoCriptografada,
   chavePrivada: CryptoKey,
 ): Promise<RequisicaoAberta> {
-  const chaveAesBytes = new Uint8Array(
-    await crypto.subtle.decrypt(
-      { name: "RSA-OAEP" },
-      chavePrivada,
-      base64ParaBytes(requisicao.encrypted_aes_key),
-    ),
-  );
+  // Tamanhos ajudam a distinguir "chave errada" de "formato diferente do
+  // esperado": com RSA-2048 a chave AES cifrada tem exatamente 256 bytes, e o
+  // IV do WhatsApp Flows tem 16.
+  const medidas = {
+    bytes_chave_aes: base64ParaBytes(requisicao.encrypted_aes_key).length,
+    bytes_iv: base64ParaBytes(requisicao.initial_vector).length,
+    bytes_dados: base64ParaBytes(requisicao.encrypted_flow_data).length,
+  };
+
+  let chaveAesBytes: Uint8Array<ArrayBuffer>;
+  try {
+    chaveAesBytes = new Uint8Array(
+      await crypto.subtle.decrypt(
+        { name: "RSA-OAEP" },
+        chavePrivada,
+        base64ParaBytes(requisicao.encrypted_aes_key),
+      ),
+    );
+  } catch (err) {
+    throw new ErroDeAbertura("rsa", err instanceof Error ? err.message : String(err), medidas);
+  }
 
   const chaveAes = await crypto.subtle.importKey(
     "raw",
@@ -90,14 +111,27 @@ export async function abrirRequisicao(
 
   const iv = base64ParaBytes(requisicao.initial_vector);
 
-  const claro = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv, tagLength: TAG_BITS },
-    chaveAes,
-    base64ParaBytes(requisicao.encrypted_flow_data),
-  );
+  let claro: ArrayBuffer;
+  try {
+    claro = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv, tagLength: TAG_BITS },
+      chaveAes,
+      base64ParaBytes(requisicao.encrypted_flow_data),
+    );
+  } catch (err) {
+    throw new ErroDeAbertura(
+      "aes",
+      err instanceof Error ? err.message : String(err),
+      { ...medidas, bytes_chave_aes_aberta: chaveAesBytes.length },
+    );
+  }
 
   const texto = new TextDecoder().decode(claro);
-  return { corpo: JSON.parse(texto) as Record<string, unknown>, chaveAes, iv };
+  try {
+    return { corpo: JSON.parse(texto) as Record<string, unknown>, chaveAes, iv };
+  } catch (err) {
+    throw new ErroDeAbertura("json", err instanceof Error ? err.message : String(err), medidas);
+  }
 }
 
 /**

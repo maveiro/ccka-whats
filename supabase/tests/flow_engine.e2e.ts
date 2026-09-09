@@ -73,7 +73,9 @@ await import(engineModule);
 
 if (!engineHandler) throw new Error("flow-engine não registrou handler");
 
-async function chamarEngine(payload: Record<string, unknown>): Promise<string> {
+async function chamarEngineBruto(
+  payload: Record<string, unknown>,
+): Promise<{ status: number; resultado: string | null }> {
   const res = await engineHandler!(
     new Request(`http://127.0.0.1:${ENGINE_PORT}/`, {
       method: "POST",
@@ -81,9 +83,30 @@ async function chamarEngine(payload: Record<string, unknown>): Promise<string> {
       body: JSON.stringify(payload),
     }),
   );
-  const json = await res.json();
-  if (res.status !== 200) throw new Error(`flow-engine ${res.status}: ${JSON.stringify(json)}`);
-  return json.resultado as string;
+  const json = await res.json().catch(() => ({}));
+  return { status: res.status, resultado: (json as { resultado?: string }).resultado ?? null };
+}
+
+async function chamarEngine(payload: Record<string, unknown>): Promise<string> {
+  const { status, resultado } = await chamarEngineBruto(payload);
+  if (status !== 200) throw new Error(`flow-engine ${status}: resultado=${resultado}`);
+  return resultado as string;
+}
+
+/**
+ * DDL no banco local (criar/derrubar trigger de simulação de falha) — o client
+ * PostgREST não faz DDL, então isso vai por psql mesmo, como os testes .sql.
+ */
+async function psql(sql: string): Promise<void> {
+  const url = Deno.env.get("LOCAL_DATABASE_URL") ??
+    "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+  const cmd = new Deno.Command("psql", {
+    args: [url, "-v", "ON_ERROR_STOP=1", "-q", "-c", sql],
+    stdout: "null",
+    stderr: "piped",
+  });
+  const { code, stderr } = await cmd.output();
+  if (code !== 0) throw new Error(`psql falhou: ${new TextDecoder().decode(stderr)}`);
 }
 
 // ─── Infra de asserção ───────────────────────────────────────────────────────
@@ -459,6 +482,48 @@ await cenario("isolamento de tenant: mesmo telefone em dois tenants não se mist
 
   const { count } = await db.from("flow_contato_estado").select("id", { count: "exact", head: true }).eq("tenant_id", TENANT_B);
   checar((count ?? 0) === 0, "tenant B em opt-out não pode ter estado de conversa criado");
+});
+
+await cenario("desfechos legítimos de 'não responder' continuam sendo 200", async () => {
+  await clienteJaCadastrado();
+  await db.from("whatsapp_flows").update({ ativo: false }).eq("id", FLOW_A);
+  const semFlow = await chamarEngineBruto(msg({ text: "oi" }));
+  await db.from("whatsapp_flows").update({ ativo: true }).eq("id", FLOW_A);
+  checar(semFlow.status === 200, `sem_flow_ativo deveria ser 200, veio ${semFlow.status}`);
+  checar(semFlow.resultado === "sem_flow_ativo", `veio "${semFlow.resultado}"`);
+
+  const m = msg({ text: "quero ingresso" });
+  await chamarEngine(m);
+  const repetida = await chamarEngineBruto(m);
+  checar(repetida.status === 200, `mensagem repetida deveria ser 200, veio ${repetida.status}`);
+  checar(repetida.resultado === "ja_processada", `veio "${repetida.resultado}"`);
+});
+
+await cenario("falha interna responde 5xx, não 200 (senão o webhook não registra)", async () => {
+  await clienteJaCadastrado();
+
+  // Força o claim de idempotência a falhar — é a hipótese para a mensagem que
+  // ficou sem processar em 07/09/2026 (indisponibilidade transitória do banco).
+  // Antes do fix, o motor devolvia 200 com "erro_claim" no corpo e o webhook
+  // registrava a invocação como bem-sucedida: a mensagem sumia sem rastro.
+  await psql(`
+    create or replace function pg_temp_falha_claim() returns trigger language plpgsql as $$
+    begin raise exception 'falha simulada no claim'; end; $$;
+    create trigger t_falha_claim before insert on flow_mensagens_processadas
+      for each row execute function pg_temp_falha_claim();
+  `);
+
+  try {
+    const r = await chamarEngineBruto(msg({ text: "quero ingresso" }));
+    checar(r.resultado === "erro_claim", `deveria falhar no claim, veio "${r.resultado}"`);
+    checar(r.status >= 500, `falha de claim tem que responder 5xx, veio ${r.status}`);
+    checar(enviadas.length === 0, "não pode responder nada quando nem o claim funcionou");
+  } finally {
+    await psql(`
+      drop trigger if exists t_falha_claim on flow_mensagens_processadas;
+      drop function if exists pg_temp_falha_claim();
+    `);
+  }
 });
 
 // ─── Encerramento ────────────────────────────────────────────────────────────

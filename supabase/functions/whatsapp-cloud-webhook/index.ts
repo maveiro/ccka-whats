@@ -596,9 +596,12 @@ async function dispararFlowEngine(params: {
       session_id: sessionId,
       event_type: "flow_engine_disparado",
       payload: { messageId, phoneNumberId, telefone: from, tipo: type },
+      // `resultado` é preenchido logo abaixo, quando a função responde.
     })
     .select("id")
     .maybeSingle();
+
+  const payloadBase = { messageId, phoneNumberId, telefone: from, tipo: type };
 
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/flow-engine`, {
@@ -611,11 +614,36 @@ async function dispararFlowEngine(params: {
       signal: AbortSignal.timeout(60_000),
     });
 
-    if (!response.ok && evento?.id) {
-      const corpo = await response.text().catch(() => "");
+    const corpo = await response.text().catch(() => "");
+
+    if (!response.ok) {
+      if (evento?.id) {
+        await supabase
+          .from("events_log")
+          .update({ error: `flow-engine respondeu ${response.status}: ${corpo.slice(0, 300)}` })
+          .eq("id", evento.id);
+      }
+      return;
+    }
+
+    // Desfecho gravado NA MESMA linha, em vez de um evento novo por invocação:
+    // mantém 1 linha por mensagem e torna trivial achar invocação que não
+    // terminou — é a linha sem `resultado` e sem `error` (a função nunca
+    // voltou: timeout, worker morto, indisponibilidade do banco no meio).
+    // Antes disso, uma invocação que não processava não deixava rastro algum e
+    // só aparecia contando disparos contra conclusões.
+    if (evento?.id) {
+      const resultado = (() => {
+        try {
+          return (JSON.parse(corpo) as { resultado?: string }).resultado ?? null;
+        } catch {
+          return null;
+        }
+      })();
+
       await supabase
         .from("events_log")
-        .update({ error: `flow-engine respondeu ${response.status}: ${corpo.slice(0, 300)}` })
+        .update({ payload: { ...payloadBase, resultado } })
         .eq("id", evento.id);
     }
   } catch (err) {

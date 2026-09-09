@@ -102,8 +102,19 @@ Deno.serve(async (req: Request) => {
 
   try {
     const resultado = await processar(payload);
+
+    // Resultado de FALHA responde 5xx, não 200 (04→09/09/2026). O
+    // whatsapp-cloud-webhook só marca a linha `flow_engine_disparado` com erro
+    // quando a resposta é não-2xx; devolvendo 200 com "erro_claim" no corpo, a
+    // falha passava por sucesso e não sobrava rastro nenhum de que a mensagem
+    // não fora processada. Foi assim que uma mensagem de 07/09/2026 ficou sem
+    // processar sem ninguém saber — só apareceu ao cruzar 127 invocações
+    // contra 126 conclusões. A garantia de "não é fire-and-forget" do PRD
+    // cobria a invocação; agora cobre também o resultado dela.
+    const status = RESULTADOS_DE_FALHA.has(resultado) ? 500 : 200;
+
     return new Response(JSON.stringify({ resultado }), {
-      status: 200,
+      status,
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
@@ -113,6 +124,11 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: mensagem }), { status: 500 });
   }
 });
+
+// Resultados que significam "não processei" — o motor não concluiu a decisão.
+// Não confundir com desfechos legítimos de "processei e a resposta é não
+// responder" (sem_flow_ativo, opt_out, pausado, ja_processada), que são 200.
+const RESULTADOS_DE_FALHA = new Set(["erro_claim", "erro_cliente"]);
 
 async function processar(payload: FlowEngineRequest): Promise<string> {
   const { messageId, phoneNumberId, from, sessionId } = payload;
@@ -145,6 +161,12 @@ async function processar(payload: FlowEngineRequest): Promise<string> {
     .select("id");
 
   if (claimError) {
+    // console.error primeiro: se o banco está indisponível (foi a hipótese
+    // para a mensagem não processada de 07/09/2026), o próprio logEvent
+    // falha, e o log da plataforma é o único rastro que sobra. O 5xx que esta
+    // função devolve é o que garante o rastro persistente, via a linha
+    // flow_engine_disparado do webhook.
+    console.error(`[flow-engine] claim de idempotência falhou (${messageId}):`, claimError.message);
     await logEvent(tenantId, sessionId, "error", { messageId }, `claim de idempotência falhou: ${claimError.message}`);
     return "erro_claim";
   }

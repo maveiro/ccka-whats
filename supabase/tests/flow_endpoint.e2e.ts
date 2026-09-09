@@ -135,6 +135,9 @@ await db.from("whatsapp_cloud_credentials").upsert({
 await db.from("internal_secrets").delete().eq("key", `flow_private_key:${PN}`);
 await db.from("events_log").delete().eq("tenant_id", TENANT);
 await db.from("agenda_shows_sync").delete().eq("tenant_id", TENANT);
+await db.from("faq_itens").delete().eq("tenant_id", TENANT);
+await db.from("flow_sessoes").delete().eq("tenant_id", TENANT);
+await db.from("clientes").delete().eq("tenant_id", TENANT);
 
 // ─── Cenários ────────────────────────────────────────────────────────────────
 
@@ -339,9 +342,131 @@ await cenario("agenda vazia responde texto explicativo, não tela quebrada", asy
   checar(String(corpo.data.vazio_texto).length > 10, "deveria ter texto explicativo para o lead");
 });
 
-// ─── Limpeza ─────────────────────────────────────────────────────────────────
+// ─── Central de Shows (Sprint C1) ────────────────────────────────────────────
+
+const FLOW_CENTRAL = "cccccccc-0000-4000-8000-00000000d003";
+const TEL_CADASTRADO = "5541900000001";
+const TEL_DESCONHECIDO = "5541900000002";
+const TOKEN_OK = "sessao-valida-teste";
+const TOKEN_EXPIRADO = "sessao-expirada-teste";
+
+await db.from("whatsapp_flows").upsert({
+  id: FLOW_CENTRAL, tenant_id: TENANT, cloud_credential_id: CRED,
+  nome: "Central", tipo: "central", ativo: true,
+});
+const { error: erroCliente } = await db.from("clientes").insert({
+  tenant_id: TENANT, telefone: TEL_CADASTRADO, origem: "landing",
+  nome: "Marina", email: "marina@exemplo.invalido", cadastro_completo: true,
+});
+if (erroCliente) throw new Error(`fixture de cliente falhou: ${erroCliente.message}`);
+
+// `expira_em` nas DUAS linhas pelo mesmo motivo do FAQ acima: em insert de
+// lote o PostgREST manda NULL onde a chave falta, e a coluna é not-null com
+// default — o default não entra.
+const { error: erroSessao } = await db.from("flow_sessoes").insert([
+  {
+    tenant_id: TENANT, token: TOKEN_OK, telefone: TEL_CADASTRADO, cloud_credential_id: CRED,
+    expira_em: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+  },
+  {
+    tenant_id: TENANT, token: TOKEN_EXPIRADO, telefone: TEL_CADASTRADO, cloud_credential_id: CRED,
+    expira_em: new Date(Date.now() - 86_400_000).toISOString(),
+  },
+]);
+if (erroSessao) throw new Error(`fixture de sessão falhou: ${erroSessao.message}`);
+// `ativo` explícito em TODAS as linhas: num insert em lote, o PostgREST usa a
+// UNIÃO das chaves e manda NULL onde a chave falta — o default da coluna não
+// entra. Com `ativo` só na terceira linha, as outras violavam o not-null.
+const { error: erroFaq } = await db.from("faq_itens").insert([
+  { tenant_id: TENANT, artista: "Artista A", pergunta: "Tem meia-entrada?", resposta: "Sim, com documento.", ordem: 1, ativo: true },
+  { tenant_id: TENANT, artista: null, pergunta: "Posso trocar o ingresso?", resposta: "Fale com a bilheteria.", ordem: 2, ativo: true },
+  { tenant_id: TENANT, artista: "Artista A", pergunta: "Item inativo", resposta: "não deve aparecer", ordem: 3, ativo: false },
+  { tenant_id: TENANT, artista: "Outro", pergunta: "De outro artista", resposta: "não deve aparecer", ordem: 4, ativo: true },
+]);
+if (erroFaq) throw new Error(`fixture do FAQ falhou: ${erroFaq.message}`);
+
+await cenario("quem tem cadastro cai no MENU, com o nome", async () => {
+  const { res, chaveAes, iv } = await pedir(publicaPem, { version: "7.2", action: "INIT", flow_token: TOKEN_OK });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string; data: Record<string, unknown> };
+  checar(corpo.screen === "MENU", `deveria abrir o MENU, veio "${corpo.screen}"`);
+  checar(String(corpo.data.saudacao).includes("Marina"), `deveria saudar pelo nome, veio "${corpo.data.saudacao}"`);
+  checar(String(corpo.data.titulo).includes("Artista A"), "o título deveria nomear o artista do número");
+});
+
+await cenario("sem sessão reconhecida cai na APRESENTACAO, não em erro", async () => {
+  const semToken = await pedir(publicaPem, { version: "7.2", action: "INIT" });
+  const c1 = await abrirResposta(semToken.res, semToken.chaveAes, semToken.iv) as unknown as { screen: string; data: Record<string, unknown> };
+  checar(c1.screen === "APRESENTACAO", `sem token deveria apresentar, veio "${c1.screen}"`);
+  checar(String(c1.data.aviso_lgpd).length > 20, "a apresentação precisa trazer o aviso de LGPD");
+
+  const expirado = await pedir(publicaPem, { version: "7.2", action: "INIT", flow_token: TOKEN_EXPIRADO });
+  const c2 = await abrirResposta(expirado.res, expirado.chaveAes, expirado.iv) as unknown as { screen: string };
+  checar(c2.screen === "APRESENTACAO", `sessão expirada deveria apresentar, veio "${c2.screen}"`);
+
+  const desconhecido = await pedir(publicaPem, { version: "7.2", action: "INIT", flow_token: "nao-existe" });
+  const c3 = await abrirResposta(desconhecido.res, desconhecido.chaveAes, desconhecido.iv) as unknown as { screen: string };
+  checar(c3.screen === "APRESENTACAO", `token desconhecido deveria apresentar, veio "${c3.screen}"`);
+});
+
+await cenario("FAQ lista só o que é do artista (ou geral), ativo e na ordem", async () => {
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "7.2", action: "data_exchange", screen: "MENU", data: { destino: "faq" },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string; data: Record<string, unknown> };
+  checar(corpo.screen === "FAQ_LISTA", `deveria abrir o FAQ, veio "${corpo.screen}"`);
+
+  const itens = corpo.data.itens as { title: string }[];
+  const titulos = itens.map((i) => i.title).join(" | ");
+  checar(itens.length === 2, `deveria trazer 2 itens (do artista + geral), veio ${itens.length}: ${titulos}`);
+  checar(!titulos.includes("inativo"), "item inativo não pode aparecer");
+  checar(!titulos.includes("De outro artista"), "item de outro artista não pode aparecer");
+  checar(itens[0].title.includes("meia-entrada"), `a ordem deveria ser respeitada, veio "${titulos}"`);
+  checar(corpo.data.tem_itens === true && corpo.data.sem_itens === false, "o par tem/sem precisa vir pronto (o Flow JSON não tem negação)");
+});
+
+await cenario("tocar numa pergunta devolve a resposta", async () => {
+  const { data: item } = await db.from("faq_itens").select("id")
+    .eq("tenant_id", TENANT).eq("pergunta", "Tem meia-entrada?").single();
+
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "7.2", action: "data_exchange", screen: "FAQ_LISTA", data: { faq_id: item!.id },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string; data: Record<string, unknown> };
+  checar(corpo.screen === "FAQ_RESPOSTA", `deveria abrir a resposta, veio "${corpo.screen}"`);
+  checar(String(corpo.data.resposta).includes("documento"), `resposta errada: ${corpo.data.resposta}`);
+});
+
+await cenario("pergunta removida entre a lista e o toque volta para a lista", async () => {
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "7.2", action: "data_exchange", screen: "FAQ_LISTA",
+    data: { faq_id: "00000000-0000-4000-8000-000000000000" },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string };
+  checar(corpo.screen === "FAQ_LISTA", `deveria cair na lista, veio "${corpo.screen}"`);
+});
+
+await cenario("menu → agenda continua funcionando (as duas convivem)", async () => {
+  await db.from("agenda_shows_sync").insert({
+    tenant_id: TENANT, artista: "Artista A", cidade: "Belém", teatro: "Theatro da Paz",
+    data_show: new Date(Date.now() + 86_400_000).toISOString(), status_venda: "à venda",
+  });
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "7.2", action: "data_exchange", screen: "MENU", data: { destino: "agenda" },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string; data: Record<string, unknown> };
+  checar(corpo.screen === "AGENDA", `deveria abrir a agenda, veio "${corpo.screen}"`);
+  const shows = corpo.data.shows as { title: string }[];
+  checar(shows.some((s) => s.title.includes("Belém")), "a agenda do artista deveria aparecer");
+  await db.from("agenda_shows_sync").delete().eq("tenant_id", TENANT);
+});
+
+// ─── Limpeza ─────────────────────────────────────────────────────────────────// ─── Limpeza ─────────────────────────────────────────────────────────────────
 
 await db.from("agenda_shows_sync").delete().eq("tenant_id", TENANT);
+await db.from("faq_itens").delete().eq("tenant_id", TENANT);
+await db.from("flow_sessoes").delete().eq("tenant_id", TENANT);
+await db.from("clientes").delete().eq("tenant_id", TENANT);
+await db.from("whatsapp_flows").delete().eq("id", FLOW_CENTRAL);
 await db.from("internal_secrets").delete().eq("key", `flow_private_key:${PN}`);
 await db.from("events_log").delete().eq("tenant_id", TENANT);
 await db.from("whatsapp_cloud_credentials").delete().eq("id", CRED);

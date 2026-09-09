@@ -610,6 +610,16 @@ GET /rest/v1/events_log?event_type=eq.health_check_ran&order=created_at.desc&lim
 GET /rest/v1/events_log?event_type=eq.names_synced&order=created_at.desc&limit=10
 ```
 
+### Armadilha: insert em LOTE não usa o default da coluna
+Num insert com array de objetos, o PostgREST monta a lista de colunas pela **união das chaves**
+e manda `NULL` onde a chave falta — o `DEFAULT` da coluna **não** entra. Se a coluna for
+`not null default <x>`, o lote inteiro falha com `null value in column "..." violates not-null
+constraint`, mesmo que a linha "certa" tenha o valor. Achado em 09/09/2026 escrevendo fixtures
+de `faq_itens` (`ativo`) e `flow_sessoes` (`expira_em`), duas vezes seguidas. Regra prática:
+em insert de lote, **todas as linhas informam as mesmas chaves** — ou usar inserts separados.
+Mesma família da armadilha de `ON CONFLICT` com chave duplicada no próprio lote (ver "Módulo
+de campanhas").
+
 ### Armadilha: falha silenciosa em upsert
 O Supabase JS client retorna `{ data: null, error }` quando um upsert falha (ex: coluna inexistente).
 Se o código só destructura `{ data }` e ignora `error`, a mensagem é descartada sem nenhum log.

@@ -29,6 +29,13 @@ import {
   type RequisicaoCriptografada,
 } from "./crypto.ts";
 import { type ShowRow, telaAgenda, telaDetalhe } from "./agenda.ts";
+import {
+  type FaqItem,
+  telaApresentacao,
+  telaFaqLista,
+  telaFaqResposta,
+  telaMenu,
+} from "./central.ts";
 import { ErroDeAbertura } from "./crypto.ts";
 
 const supabase = createClient(
@@ -167,9 +174,9 @@ async function decidirResposta(
     return { data: { acknowledged: true } };
   }
 
-  // ── Telas do Flow agenda_shows (Sprint B2) ──
+  // ── Telas (Sprint B2: agenda | Sprint C1: central) ──
   if (acao === "INIT" || acao === "data_exchange") {
-    return await responderAgenda(acao, corpo, phoneNumberId);
+    return await responderTela(acao, corpo, phoneNumberId);
   }
 
   // BACK e qualquer ação futura: reconhece sem inventar tela.
@@ -179,6 +186,192 @@ async function decidirResposta(
     screen: corpo.screen ?? null,
   });
   return { data: { acknowledged: true } };
+}
+
+/**
+ * Roteia entre as telas da central (menu, FAQ) e as da agenda.
+ *
+ * A central e o Flow de agenda compartilham o mesmo endpoint de propósito: são
+ * o mesmo número, a mesma chave e o mesmo tenant. A tela pedida decide o
+ * caminho; `INIT` cai na central quando existe uma sessão identificada, e na
+ * agenda quando o Flow aberto é o de agenda pura (que continua publicado e em
+ * uso).
+ */
+async function responderTela(
+  acao: string,
+  corpo: Record<string, unknown>,
+  phoneNumberId: string,
+): Promise<unknown> {
+  const tela = typeof corpo.screen === "string" ? corpo.screen : "";
+  const dados = (corpo.data ?? {}) as Record<string, unknown>;
+
+  // O destino escolhido no menu decide ANTES da tela de origem: um
+  // data_exchange vindo de MENU com destino=agenda é navegação para a agenda,
+  // não uma tela da central. Com a ordem invertida, "ver agenda" caía na
+  // apresentação.
+  const destino = typeof dados.destino === "string" ? dados.destino : null;
+  if (destino === "agenda") return await responderAgenda(acao, corpo, phoneNumberId);
+  if (destino === "faq") return await responderCentral(acao, corpo, phoneNumberId);
+
+  // Navegação dentro da central.
+  if (tela === "MENU" || tela === "FAQ_LISTA" || tela === "APRESENTACAO") {
+    return await responderCentral(acao, corpo, phoneNumberId);
+  }
+
+  // INIT sem tela: é a abertura do Flow. Central quando o Flow ativo do número
+  // é do tipo `central`; agenda quando é o Flow de agenda.
+  if (acao === "INIT") {
+    const ehCentral = await numeroTemCentral(phoneNumberId);
+    if (ehCentral) return await responderCentral(acao, corpo, phoneNumberId);
+  }
+
+  return await responderAgenda(acao, corpo, phoneNumberId);
+}
+
+async function numeroTemCentral(phoneNumberId: string): Promise<boolean> {
+  const { data: credencial } = await supabase
+    .from("whatsapp_cloud_credentials")
+    .select("id, tenant_id")
+    .eq("phone_number_id", phoneNumberId)
+    .eq("active", true)
+    .maybeSingle<{ id: string; tenant_id: string }>();
+  if (!credencial) return false;
+
+  const { count } = await supabase
+    .from("whatsapp_flows")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", credencial.tenant_id)
+    .eq("cloud_credential_id", credencial.id)
+    .eq("tipo", "central")
+    .eq("ativo", true)
+    .is("deleted_at", null);
+
+  return (count ?? 0) > 0;
+}
+
+/**
+ * Central de shows: identifica quem está do outro lado pela sessão e decide
+ * entre menu (já cadastrado) e apresentação (sem cadastro).
+ */
+async function responderCentral(
+  acao: string,
+  corpo: Record<string, unknown>,
+  phoneNumberId: string,
+): Promise<unknown> {
+  const { data: credencial } = await supabase
+    .from("whatsapp_cloud_credentials")
+    .select("id, tenant_id, artista")
+    .eq("phone_number_id", phoneNumberId)
+    .eq("active", true)
+    .maybeSingle<{ id: string; tenant_id: string; artista: string | null }>();
+
+  if (!credencial) {
+    await registrar(phoneNumberId, "flow_endpoint_sem_credencial", { phoneNumberId, acao });
+    return telaApresentacao(null);
+  }
+
+  const dados = (corpo.data ?? {}) as Record<string, unknown>;
+  const tela = typeof corpo.screen === "string" ? corpo.screen : "";
+
+  // Resposta de uma pergunta do FAQ.
+  const faqId = typeof dados.faq_id === "string" ? dados.faq_id : null;
+  if (faqId) {
+    const { data: item } = await supabase
+      .from("faq_itens")
+      .select("id, pergunta, resposta")
+      .eq("tenant_id", credencial.tenant_id)
+      .eq("id", faqId)
+      .eq("ativo", true)
+      .is("deleted_at", null)
+      .maybeSingle<FaqItem>();
+
+    if (item) {
+      await registrarTela(phoneNumberId, acao, "FAQ_RESPOSTA", { faqId });
+      return telaFaqResposta(item);
+    }
+    // Item removido entre a lista e o toque: volta para a lista, sem erro.
+  }
+
+  // Lista do FAQ.
+  if (tela === "FAQ_LISTA" || dados.destino === "faq") {
+    let query = supabase
+      .from("faq_itens")
+      .select("id, pergunta, resposta")
+      .eq("tenant_id", credencial.tenant_id)
+      .eq("ativo", true)
+      .is("deleted_at", null)
+      .order("ordem", { ascending: true })
+      .limit(15);
+
+    // Artista nulo no item = vale para todos os artistas do tenant.
+    // As aspas no valor NÃO são opcionais: nomes de artista têm espaço
+    // ("Índio Behn - Dra. Rosangêla"), e sem elas o PostgREST não consegue
+    // separar os termos do `or` — a query devolve vazio em silêncio, que é
+    // indistinguível de "não há FAQ cadastrado".
+    if (credencial.artista) {
+      const artistaEscapado = credencial.artista.replaceAll('"', '\\"');
+      query = query.or(`artista.eq."${artistaEscapado}",artista.is.null`);
+    }
+
+    const { data: itens, error } = await query;
+    if (error) {
+      console.error("[flow-endpoint] falha ao ler FAQ:", error.message);
+      await registrar(phoneNumberId, "flow_endpoint_erro_faq", { phoneNumberId, erro: error.message });
+      return telaFaqLista([]);
+    }
+
+    await registrarTela(phoneNumberId, acao, "FAQ_LISTA", { itens: (itens ?? []).length });
+    return telaFaqLista((itens ?? []) as FaqItem[]);
+  }
+
+  // Abertura: identidade pela sessão do flow_token.
+  const cliente = await clienteDaSessao(corpo, credencial.tenant_id);
+
+  if (!cliente || !cliente.cadastro_completo) {
+    // Sem cadastro (ou sessão não reconhecida): apresentação em vez de um menu
+    // que não corresponde a ninguém. O cadastro é a Sprint C3.
+    await registrarTela(phoneNumberId, acao, "APRESENTACAO", { identificado: Boolean(cliente) });
+    return telaApresentacao(credencial.artista);
+  }
+
+  await registrarTela(phoneNumberId, acao, "MENU", { identificado: true });
+  return telaMenu(credencial.artista, cliente.nome);
+}
+
+/**
+ * Quem está do outro lado, a partir do flow_token.
+ *
+ * A Meta não manda o telefone nas requisições do endpoint — só o token opaco
+ * que NÓS definimos ao enviar a mensagem que abriu o Flow. `flow_sessoes`
+ * guarda essa associação. Sessão expirada ou token desconhecido devolve null,
+ * e o chamador trata como visitante sem cadastro.
+ */
+async function clienteDaSessao(
+  corpo: Record<string, unknown>,
+  tenantId: string,
+): Promise<{ nome: string | null; cadastro_completo: boolean } | null> {
+  const token = typeof corpo.flow_token === "string" ? corpo.flow_token : null;
+  if (!token) return null;
+
+  const { data: sessao } = await supabase
+    .from("flow_sessoes")
+    .select("telefone, expira_em")
+    .eq("tenant_id", tenantId)
+    .eq("token", token)
+    .maybeSingle<{ telefone: string; expira_em: string }>();
+
+  if (!sessao) return null;
+  if (new Date(sessao.expira_em).getTime() < Date.now()) return null;
+
+  const { data: cliente } = await supabase
+    .from("clientes")
+    .select("nome, cadastro_completo")
+    .eq("tenant_id", tenantId)
+    .eq("telefone", sessao.telefone)
+    .is("deleted_at", null)
+    .maybeSingle<{ nome: string | null; cadastro_completo: boolean }>();
+
+  return cliente ?? null;
 }
 
 /**

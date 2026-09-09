@@ -54,10 +54,13 @@ insert into internal_secrets (key, value) values (
 === 2. CHAVE PÚBLICA — subir para a Meta ===
 Escrita em ./${arquivoPublica}
 
+# Atenção: a doc da Meta mostra -F com @arquivo, mas a API responde
+# "(#100) Param business_public_key must be a string" nesse formato.
+# O que funciona (confirmado em 09/09/2026) é mandar o PEM como STRING:
 curl -X POST \\
   "https://graph.facebook.com/v23.0/${phoneNumberId}/whatsapp_business_encryption" \\
   -H "Authorization: Bearer <ACCESS_TOKEN_DO_NUMERO>" \\
-  -F "business_public_key=@${arquivoPublica}"
+  --data-urlencode "business_public_key@${arquivoPublica}"
 
 Conferir depois (o status precisa ser VALID):
 

@@ -134,6 +134,7 @@ await db.from("whatsapp_cloud_credentials").upsert({
 });
 await db.from("internal_secrets").delete().eq("key", `flow_private_key:${PN}`);
 await db.from("events_log").delete().eq("tenant_id", TENANT);
+await db.from("agenda_shows_sync").delete().eq("tenant_id", TENANT);
 
 // ─── Cenários ────────────────────────────────────────────────────────────────
 
@@ -243,9 +244,11 @@ await cenario("payload malformado é 400, não 421 (não faz a Meta rotacionar c
   checar(semQuery.status === 400, `sem phone_number_id deveria ser 400, veio ${semQuery.status}`);
 });
 
-await cenario("ação de tela ainda não implementada é reconhecida e registrada (B2)", async () => {
+await cenario("ação sem tratamento é reconhecida e registrada", async () => {
+  // Era INIT até a B2; agora INIT devolve tela de verdade, então o caso de
+  // "ação que não sabemos tratar" precisa de outra ação.
   const { res, chaveAes, iv } = await pedir(publicaPem, {
-    version: "3.0", action: "INIT", screen: "AGENDA", data: {},
+    version: "3.0", action: "BACK", screen: "AGENDA", data: {},
   });
   const corpo = await abrirResposta(res, chaveAes, iv);
   checar(
@@ -257,8 +260,69 @@ await cenario("ação de tela ainda não implementada é reconhecida e registrad
   checar((count ?? 0) >= 1, "ação não implementada deve ficar registrada");
 });
 
+// ─── Telas da agenda (Sprint B2) ─────────────────────────────────────────────
+
+const AMANHA = new Date(Date.now() + 86_400_000).toISOString();
+const ONTEM = new Date(Date.now() - 86_400_000).toISOString();
+
+await db.from("whatsapp_cloud_credentials").update({ artista: "Artista A" }).eq("id", CRED);
+const { data: showsCriados } = await db.from("agenda_shows_sync").insert([
+  { tenant_id: TENANT, artista: "Artista A", cidade: "Curitiba", teatro: "Guaíra", data_show: AMANHA, status_venda: "à venda", link_compra: "https://exemplo.invalido/x" },
+  { tenant_id: TENANT, artista: "Artista A", cidade: "Passado", teatro: "Antigo", data_show: ONTEM, status_venda: "esgotado" },
+  { tenant_id: TENANT, artista: "Outro Artista", cidade: "Recife", teatro: "Santa Isabel", data_show: AMANHA, status_venda: "à venda" },
+]).select("id, cidade");
+
+await cenario("INIT devolve a agenda do artista DAQUELE número", async () => {
+  const { res, chaveAes, iv } = await pedir(publicaPem, { version: "3.0", action: "INIT" });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string; data: Record<string, unknown> };
+
+  checar(corpo.screen === "AGENDA", `tela deveria ser AGENDA, veio "${corpo.screen}"`);
+  const shows = corpo.data.shows as { title: string }[];
+  checar(shows.length === 1, `deveria trazer 1 show (futuro, do artista do número), veio ${shows.length}`);
+  checar(shows[0]?.title.includes("Curitiba") ?? false, `show errado: ${shows[0]?.title}`);
+  checar(corpo.data.tem_shows === true, "tem_shows deveria ser true");
+  checar(String(corpo.data.titulo).includes("Artista A"), `o título deveria nomear o artista, veio "${corpo.data.titulo}"`);
+});
+
+await cenario("show passado e show de outro artista não aparecem", async () => {
+  const { res, chaveAes, iv } = await pedir(publicaPem, { version: "3.0", action: "INIT" });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { data: { shows: { title: string }[] } };
+  const titulos = corpo.data.shows.map((s) => s.title).join(" | ");
+  checar(!titulos.includes("Passado"), `show que já aconteceu não pode aparecer: ${titulos}`);
+  checar(!titulos.includes("Recife"), `show de outro artista não pode aparecer: ${titulos}`);
+});
+
+await cenario("data_exchange com show_id devolve o detalhe daquele show", async () => {
+  const curitiba = (showsCriados ?? []).find((s) => s.cidade === "Curitiba");
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "3.0", action: "data_exchange", screen: "AGENDA", data: { show_id: curitiba!.id },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string; data: Record<string, unknown> };
+  checar(corpo.screen === "DETALHE", `tela deveria ser DETALHE, veio "${corpo.screen}"`);
+  checar(String(corpo.data.titulo).includes("Curitiba"), `titulo errado: ${corpo.data.titulo}`);
+  checar(corpo.data.tem_link === true, "show com link deveria marcar tem_link");
+});
+
+await cenario("show removido entre a lista e o clique volta para a lista, sem erro", async () => {
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "3.0", action: "data_exchange", screen: "AGENDA",
+    data: { show_id: "00000000-0000-4000-8000-000000000000" },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string };
+  checar(corpo.screen === "AGENDA", `deveria cair na lista, veio "${corpo.screen}"`);
+});
+
+await cenario("agenda vazia responde texto explicativo, não tela quebrada", async () => {
+  await db.from("agenda_shows_sync").delete().eq("tenant_id", TENANT);
+  const { res, chaveAes, iv } = await pedir(publicaPem, { version: "3.0", action: "INIT" });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { data: Record<string, unknown> };
+  checar(corpo.data.tem_shows === false, "tem_shows deveria ser false");
+  checar(String(corpo.data.vazio_texto).length > 10, "deveria ter texto explicativo para o lead");
+});
+
 // ─── Limpeza ─────────────────────────────────────────────────────────────────
 
+await db.from("agenda_shows_sync").delete().eq("tenant_id", TENANT);
 await db.from("internal_secrets").delete().eq("key", `flow_private_key:${PN}`);
 await db.from("events_log").delete().eq("tenant_id", TENANT);
 await db.from("whatsapp_cloud_credentials").delete().eq("id", CRED);

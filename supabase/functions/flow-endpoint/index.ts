@@ -1,10 +1,11 @@
-// Endpoint de dados do WhatsApp Flow — Sprint B1 (spike de criptografia).
+// Endpoint de dados do WhatsApp Flow — Trilha B.
 // PRD: docs/prd/prd-automacao-flows-whatsapp.md
 //
-// ESCOPO DESTE SPIKE: provar a troca criptografada com a Meta (health check +
-// erro do cliente), nada além. O Flow `agenda_shows` — ler agenda_shows_sync e
-// montar as telas — é a Sprint B2, e o critério de saída do B1 é validar ESTE
-// endpoint no Playground oficial antes de comprometer prazo com o resto.
+// B1 (concluída, validada no painel da Meta em 09/09/2026): troca
+// criptografada, health check e erro do cliente.
+// B2 (aqui): telas do Flow `agenda_shows`, servidas a partir de
+// agenda_shows_sync — ver ./agenda.ts e o JSON de referência em
+// docs/flows/agenda_shows.flow.json.
 //
 // verify_jwt=false: quem chama é a Meta, sem Authorization do Supabase. Ao
 // contrário do whatsapp-cloud-webhook, aqui NÃO há assinatura HMAC para
@@ -27,6 +28,7 @@ import {
   importarChavePrivada,
   type RequisicaoCriptografada,
 } from "./crypto.ts";
+import { type ShowRow, telaAgenda, telaDetalhe } from "./agenda.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -159,15 +161,86 @@ async function decidirResposta(
     return { data: { acknowledged: true } };
   }
 
-  // INIT / data_exchange / BACK: as telas do Flow `agenda_shows` são a Sprint
-  // B2. Reconhecer sem fingir tela evita um Flow que "funciona" mostrando
-  // conteúdo vazio — e deixa registrado que a ação chegou.
+  // ── Telas do Flow agenda_shows (Sprint B2) ──
+  if (acao === "INIT" || acao === "data_exchange") {
+    return await responderAgenda(acao, corpo, phoneNumberId);
+  }
+
+  // BACK e qualquer ação futura: reconhece sem inventar tela.
   await registrar(phoneNumberId, "flow_endpoint_acao_nao_implementada", {
     phoneNumberId,
     acao,
     screen: corpo.screen ?? null,
   });
   return { data: { acknowledged: true } };
+}
+
+/**
+ * Monta a tela pedida a partir de agenda_shows_sync.
+ *
+ * O artista sai da CREDENCIAL do número (whatsapp_cloud_credentials.artista),
+ * não de campo do corpo: o payload do Flow vem do cliente e não é fonte
+ * confiável para escolher que dados servir. Número sem artista definido serve a
+ * agenda inteira do tenant — comportamento consciente, e o aviso está na tela
+ * de Números.
+ */
+async function responderAgenda(
+  acao: string,
+  corpo: Record<string, unknown>,
+  phoneNumberId: string,
+): Promise<unknown> {
+  const { data: credencial } = await supabase
+    .from("whatsapp_cloud_credentials")
+    .select("tenant_id, artista")
+    .eq("phone_number_id", phoneNumberId)
+    .eq("active", true)
+    .maybeSingle<{ tenant_id: string; artista: string | null }>();
+
+  if (!credencial) {
+    await registrar(phoneNumberId, "flow_endpoint_sem_credencial", { phoneNumberId, acao });
+    return telaAgenda([], null);
+  }
+
+  const dados = (corpo.data ?? {}) as Record<string, unknown>;
+
+  // Detalhe de um show escolhido na lista.
+  const escolhido = typeof dados.show_id === "string" ? dados.show_id : null;
+  if (acao === "data_exchange" && escolhido) {
+    const { data: show } = await supabase
+      .from("agenda_shows_sync")
+      .select("id, artista, cidade, teatro, data_show, status_venda, link_compra")
+      .eq("tenant_id", credencial.tenant_id)
+      .eq("id", escolhido)
+      .maybeSingle<ShowRow>();
+
+    // Show removido entre a listagem e o clique: volta para a lista em vez de
+    // tela de erro.
+    if (show) return telaDetalhe(show);
+  }
+
+  // Lista: só o que ainda não aconteceu, em ordem cronológica. Show sem data
+  // entra no fim (a query ordena com nulls por último).
+  let query = supabase
+    .from("agenda_shows_sync")
+    .select("id, artista, cidade, teatro, data_show, status_venda, link_compra")
+    .eq("tenant_id", credencial.tenant_id)
+    .or(`data_show.gte.${new Date().toISOString()},data_show.is.null`)
+    .order("data_show", { ascending: true, nullsFirst: false })
+    .limit(20);
+
+  if (credencial.artista) query = query.eq("artista", credencial.artista);
+
+  const { data: shows, error } = await query;
+
+  if (error) {
+    console.error("[flow-endpoint] falha ao ler agenda:", error.message);
+    await registrar(phoneNumberId, "flow_endpoint_erro_agenda", { phoneNumberId, erro: error.message });
+    // Tela vazia com texto explicativo é melhor que erro cru para quem está do
+    // outro lado — e o evento acima é o que sinaliza o problema para nós.
+    return telaAgenda([], credencial.artista);
+  }
+
+  return telaAgenda((shows ?? []) as ShowRow[], credencial.artista);
 }
 
 async function registrar(

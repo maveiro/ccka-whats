@@ -1,0 +1,118 @@
+{
+  "_comentario": [
+    "JSON de referência do Flow 'agenda_shows' (Sprint B2).",
+    "Este arquivo NÃO é lido por nenhum código: o Flow real é publicado no",
+    "WhatsApp Manager, e esta cópia existe para o contrato ficar versionado.",
+    "Os nomes de tela (AGENDA, DETALHE) e as chaves de __example__ têm que",
+    "casar com supabase/functions/flow-endpoint/agenda.ts — mudar um lado sem",
+    "o outro produz um Flow que abre e não mostra nada.",
+    "Ao colar no editor da Meta, remova este campo _comentario."
+  ],
+  "version": "3.0",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "AGENDA": ["DETALHE"],
+    "DETALHE": []
+  },
+  "screens": [
+    {
+      "id": "AGENDA",
+      "title": "Próximos shows",
+      "terminal": false,
+      "data": {
+        "titulo": { "type": "string", "__example__": "Próximos shows — Índio Behn" },
+        "tem_shows": { "type": "boolean", "__example__": true },
+        "vazio_texto": {
+          "type": "string",
+          "__example__": "Ainda não há datas confirmadas por aqui."
+        },
+        "shows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          },
+          "__example__": [
+            {
+              "id": "11111111-1111-1111-1111-111111111111",
+              "title": "Curitiba · Teatro Guaíra",
+              "description": "12/10 20:00 · à venda"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextHeading", "text": "${data.titulo}" },
+          {
+            "type": "TextBody",
+            "text": "${data.vazio_texto}",
+            "visible": "${!data.tem_shows}"
+          },
+          {
+            "type": "Form",
+            "name": "form_agenda",
+            "visible": "${data.tem_shows}",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "show_id",
+                "label": "Escolha uma data",
+                "required": true,
+                "data-source": "${data.shows}"
+              },
+              {
+                "type": "Footer",
+                "label": "Ver detalhes",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": { "show_id": "${form_agenda.show_id}" }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DETALHE",
+      "title": "Detalhes do show",
+      "terminal": true,
+      "data": {
+        "titulo": { "type": "string", "__example__": "Curitiba · Teatro Guaíra" },
+        "quando": { "type": "string", "__example__": "12/10 20:00" },
+        "status": { "type": "string", "__example__": "à venda" },
+        "tem_link": { "type": "boolean", "__example__": true },
+        "link_compra": { "type": "string", "__example__": "https://exemplo.com/ingressos" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextHeading", "text": "${data.titulo}" },
+          { "type": "TextSubheading", "text": "${data.quando}" },
+          { "type": "TextBody", "text": "${data.status}" },
+          {
+            "type": "OptIn",
+            "name": "abrir_link",
+            "label": "Abrir página de ingressos",
+            "visible": "${data.tem_link}",
+            "on-click-action": {
+              "name": "open_url",
+              "url": "${data.link_compra}"
+            }
+          },
+          {
+            "type": "Footer",
+            "label": "Fechar",
+            "on-click-action": { "name": "complete", "payload": {} }
+          }
+        ]
+      }
+    }
+  ]
+}

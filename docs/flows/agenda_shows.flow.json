@@ -7,7 +7,8 @@
     "produz um Flow que abre e não mostra nada.",
     "A linguagem do Flow JSON não tem negação: por isso existe `sem_shows`",
     "além de `tem_shows`. E `visible` não é aceito no componente Form.",
-    "RadioButtonsGroup é required: sem isso o clique sem seleção manda payload vazio e a tela recarrega."
+    "RadioButtonsGroup é required: sem isso o clique sem seleção manda payload vazio e a tela recarrega.",
+    "A referência a campo de formulário usa o prefixo LITERAL 'form' (${form.show_id}), NÃO o nome do componente Form. Usar ${form_agenda.show_id} faz o WhatsApp descartar o campo e o payload chega vazio (confirmado em produção, 09/09/2026)."
   ],
   "version": "7.2",
   "data_api_version": "3.0",
@@ -94,7 +95,7 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "show_id": "${form_agenda.show_id}"
+                    "show_id": "${form.show_id}"
                   }
                 },
                 "enabled": "${data.tem_shows}"

@@ -29,11 +29,17 @@ function diasDesde(iso: string, agora: number): number {
   return Math.floor((agora - new Date(iso).getTime()) / 86_400_000);
 }
 
+/** ISO -> valor de <input type="datetime-local"> em horário de Brasília.
+ *  Usar o fuso do navegador aqui faria a data mudar de valor ao editar de
+ *  outro fuso, e o que a API grava é sempre horário de Brasília. */
 function paraInputDatetime(iso: string | null): string {
   if (!iso) return "";
-  const d = new Date(iso);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  const partes = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).format(new Date(iso));
+  return partes.replace(" ", "T");
 }
 
 export default function AgendaManager({
@@ -243,7 +249,7 @@ function ShowLinha({
           <p className="text-xs text-gray-500 mt-0.5">
             {show.artista} ·{" "}
             {show.data_show
-              ? new Date(show.data_show).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+              ? new Date(show.data_show).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })
               : "sem data"}
             {show.status_venda ? ` · ${show.status_venda}` : ""}
             {show.show_id_origem ? " · sincronizado" : ""}

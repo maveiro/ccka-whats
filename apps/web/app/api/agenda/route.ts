@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { dataLocalParaIso } from "@/lib/data-brasil";
 
 // Agenda de shows (agenda_shows_sync) — V1 do PRD: preenchida MANUALMENTE por
 // esta interface. Na V2, a mesma tabela passa a ser preenchida por um job de
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
   const artista = typeof body.artista === "string" ? body.artista.trim() : "";
   if (!artista) return NextResponse.json({ error: "Artista é obrigatório" }, { status: 400 });
 
-  const dataShow = typeof body.dataShow === "string" && body.dataShow ? new Date(body.dataShow) : null;
+  const dataShow = typeof body.dataShow === "string" && body.dataShow ? dataLocalParaIso(body.dataShow) : null;
   if (dataShow && Number.isNaN(dataShow.getTime())) {
     return NextResponse.json({ error: "Data do show inválida" }, { status: 400 });
   }

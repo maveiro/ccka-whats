@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { dataLocalParaIso } from "@/lib/data-brasil";
 
 // Editar/remover um show da agenda. Exclusão é admin-only pela RLS
 // (migration 0025) — e aqui é DELETE de verdade, não soft-delete: a tabela é
@@ -32,7 +33,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (!body.dataShow) {
       patch.data_show = null;
     } else {
-      const d = new Date(body.dataShow);
+      const d = dataLocalParaIso(body.dataShow);
       if (Number.isNaN(d.getTime())) {
         return NextResponse.json({ error: "Data do show inválida" }, { status: 400 });
       }

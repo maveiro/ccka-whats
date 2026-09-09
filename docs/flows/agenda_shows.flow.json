@@ -6,7 +6,8 @@
     "supabase/functions/flow-endpoint/agenda.ts — mudar um lado sem o outro",
     "produz um Flow que abre e não mostra nada.",
     "A linguagem do Flow JSON não tem negação: por isso existe `sem_shows`",
-    "além de `tem_shows`. E `visible` não é aceito no componente Form."
+    "além de `tem_shows`. E `visible` não é aceito no componente Form.",
+    "RadioButtonsGroup é required: sem isso o clique sem seleção manda payload vazio e a tela recarrega."
   ],
   "version": "7.2",
   "data_api_version": "3.0",
@@ -83,7 +84,7 @@
                 "type": "RadioButtonsGroup",
                 "name": "show_id",
                 "label": "Escolha uma data",
-                "required": false,
+                "required": true,
                 "data-source": "${data.shows}",
                 "visible": "${data.tem_shows}"
               },

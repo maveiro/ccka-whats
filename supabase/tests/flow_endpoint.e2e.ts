@@ -204,6 +204,32 @@ await cenario("chave errada: 421, não 500 nem 200", async () => {
   checar(res.status === 421, `deveria ser 421, veio ${res.status}`);
 });
 
+await cenario("número no CAMINHO da URL funciona igual à query string", async () => {
+  // A URI é digitada no painel da Meta; perder o "?phone_number_id=" ao
+  // copiar/colar é fácil, e o resultado seria a verificação de integridade
+  // falhando com 400 sem explicação óbvia.
+  const aesBytes = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(16));
+  const aes = await crypto.subtle.importKey("raw", aesBytes, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+  const chavePublica = await crypto.subtle.importKey("spki", pemParaDer(publicaPem), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
+  const dados = new Uint8Array(await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv, tagLength: 128 }, aes,
+    new TextEncoder().encode(JSON.stringify({ version: "3.0", action: "ping" })),
+  ));
+  const chaveCif = new Uint8Array(await crypto.subtle.encrypt({ name: "RSA-OAEP" }, chavePublica, aesBytes));
+
+  const res = await handler!(new Request(`http://local/flow-endpoint/${PN.replace(/\D/g, "") || "0"}`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      encrypted_flow_data: b64(dados), encrypted_aes_key: b64(chaveCif), initial_vector: b64(iv),
+    }),
+  }));
+  // PN do teste não é numérico, então o caminho não resolve — o que provamos
+  // aqui é que um caminho NUMÉRICO é aceito como identificador (chega a tentar
+  // abrir e falha por não ter chave para aquele número: 421, não 400).
+  checar(res.status === 421, `caminho numérico deveria ser aceito como id (421 por chave ausente), veio ${res.status}`);
+});
+
 await cenario("payload malformado é 400, não 421 (não faz a Meta rotacionar chave à toa)", async () => {
   const res = await handler!(new Request(`http://local/?phone_number_id=${PN}`, {
     method: "POST", headers: { "Content-Type": "application/json" },

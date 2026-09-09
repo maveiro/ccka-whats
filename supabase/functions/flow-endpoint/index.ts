@@ -69,10 +69,17 @@ async function obterChavePrivada(phoneNumberId: string): Promise<CryptoKey | nul
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
+  // O número pode vir de dois jeitos, porque a URI do Flow é digitada no
+  // painel da Meta e é fácil perder a query string ao copiar/colar:
+  //   .../flow-endpoint?phone_number_id=123   (forma preferida)
+  //   .../flow-endpoint/123                   (caminho, à prova de cópia)
   const url = new URL(req.url);
-  const phoneNumberId = url.searchParams.get("phone_number_id");
+  const doCaminho = url.pathname.split("/").filter(Boolean).pop();
+  const phoneNumberId = url.searchParams.get("phone_number_id") ??
+    (doCaminho && doCaminho !== "flow-endpoint" && /^\d+$/.test(doCaminho) ? doCaminho : null);
+
   if (!phoneNumberId) {
-    console.error("[flow-endpoint] requisição sem phone_number_id na URI do Flow");
+    console.error("[flow-endpoint] requisição sem phone_number_id (nem na query, nem no caminho)");
     return new Response("Bad Request", { status: 400 });
   }
 

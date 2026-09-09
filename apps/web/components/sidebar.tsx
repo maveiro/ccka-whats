@@ -21,6 +21,7 @@ import {
   PanelLeftOpen,
   Workflow,
   Hash,
+  CalendarDays,
 } from "lucide-react";
 import AlertBadge from "@/components/alert-badge";
 
@@ -40,6 +41,7 @@ const navItems = [
   { label: "Campanhas",     href: "/dashboard/admin/campaigns",      roles: ["admin"],             icon: Megaphone,    section: "admin" },
   { label: "Números",       href: "/dashboard/admin/numbers",        roles: ["admin"],             icon: Hash,         section: "admin" },
   { label: "Automações",    href: "/dashboard/admin/flows",          roles: ["admin", "operator"], icon: Workflow,     section: "admin" },
+  { label: "Agenda",        href: "/dashboard/admin/agenda",         roles: ["admin", "operator"], icon: CalendarDays, section: "admin" },
   { label: "Integrações",   href: "/dashboard/admin/integrations",   roles: ["admin"],             icon: Plug,         section: "admin" },
   { label: "Histórico",     href: "/dashboard/admin/history",        roles: ["admin"],             icon: History,      section: "admin" },
   { label: "Aprendizados",  href: "/dashboard/admin/aprendizados",   roles: ["admin"],             icon: BookOpen,     section: "admin" },

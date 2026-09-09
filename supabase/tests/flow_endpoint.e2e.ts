@@ -281,6 +281,7 @@ await cenario("INIT devolve a agenda do artista DAQUELE número", async () => {
   checar(shows.length === 1, `deveria trazer 1 show (futuro, do artista do número), veio ${shows.length}`);
   checar(shows[0]?.title.includes("Curitiba") ?? false, `show errado: ${shows[0]?.title}`);
   checar(corpo.data.tem_shows === true, "tem_shows deveria ser true");
+  checar(corpo.data.sem_shows === false, "sem_shows deveria ser false quando há shows");
   checar(String(corpo.data.titulo).includes("Artista A"), `o título deveria nomear o artista, veio "${corpo.data.titulo}"`);
 });
 
@@ -317,6 +318,9 @@ await cenario("agenda vazia responde texto explicativo, não tela quebrada", asy
   const { res, chaveAes, iv } = await pedir(publicaPem, { version: "3.0", action: "INIT" });
   const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { data: Record<string, unknown> };
   checar(corpo.data.tem_shows === false, "tem_shows deveria ser false");
+  // O Flow JSON não tem negação (${!data.x} é recusado pela validação da
+  // Meta), então o endpoint precisa mandar o par pronto.
+  checar(corpo.data.sem_shows === true, "sem_shows deveria ser true");
   checar(String(corpo.data.vazio_texto).length > 10, "deveria ter texto explicativo para o lead");
 });
 

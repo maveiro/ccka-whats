@@ -62,6 +62,9 @@ export function telaAgenda(shows: ShowRow[], artista: string | null) {
     data: {
       titulo: artista ? `Próximos shows — ${artista}` : "Próximos shows",
       tem_shows: itens.length > 0,
+      // `sem_shows` existe porque a linguagem de expressão do Flow JSON não
+      // tem negação: `${!data.tem_shows}` é recusado na validação da Meta.
+      sem_shows: itens.length === 0,
       vazio_texto: "Ainda não há datas confirmadas por aqui. Fique de olho que a gente avisa!",
       shows: itens,
     },

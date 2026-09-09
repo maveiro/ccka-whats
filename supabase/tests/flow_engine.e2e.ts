@@ -543,6 +543,71 @@ await cenario("falha interna responde 5xx, não 200 (senão o webhook não regis
   }
 });
 
+await cenario("retry do campo pulado: volta por inatividade repergunta o que faltou", async () => {
+  // Degrada o campo nome (2 tentativas falhas), como o gate faz.
+  await chamarEngine(msg({ text: "oi" }));
+  await chamarEngine(msg({ text: "???" }));
+  await chamarEngine(msg({ text: "!!!!" }));
+  const c1 = await cliente();
+  checar(c1?.pulou_cadastro === true, "pré-condição: deveria ter pulado o campo");
+
+  // Conclui o cadastro pelo e-mail para sair do gate.
+  await chamarEngine(msg({ text: "fulano@exemplo.com" }));
+  const c2 = await cliente();
+  checar(c2?.cadastro_completo === true, "pré-condição: cadastro deveria estar completo");
+  checar(c2?.nome === null, "pré-condição: o nome deveria ter ficado nulo");
+
+  // Sem inatividade, NÃO repergunta (senão viraria insistência a cada mensagem).
+  enviadas = [];
+  const semReset = await chamarEngine(msg({ text: "quero ingresso" }));
+  checar(semReset !== "gate_reaberto", `dentro dos 14 dias não pode reabrir o gate, veio "${semReset}"`);
+
+  // Envelhece o estado: é a volta por inatividade que o PRD usa como gatilho.
+  await db.from("flow_contato_estado")
+    .update({ updated_at: new Date(Date.now() - 15 * 86_400_000).toISOString() })
+    .eq("flow_id", FLOW_A).eq("contato_telefone", TELEFONE);
+
+  enviadas = [];
+  const comReset = await chamarEngine(msg({ text: "tem meia entrada?" }));
+  checar(comReset === "gate_reaberto", `após 15 dias deveria reperguntar o campo pulado, veio "${comReset}"`);
+  checar(enviadas.some((e) => e.body.includes("como você se chama")), "deveria perguntar o nome de novo");
+
+  const c3 = await cliente();
+  checar(c3?.aguardando_campo === "nome", `deveria voltar a aguardar o nome, está em "${c3?.aguardando_campo}"`);
+  checar(
+    (c3?.mensagem_pendente ?? "").includes("meia entrada"),
+    "a pergunta feita na volta não pode se perder",
+  );
+});
+
+await cenario("dado apagado a pedido do titular nunca é pedido de novo (LGPD)", async () => {
+  await chamarEngine(msg({ text: "oi" }));
+  await chamarEngine(msg({ text: "???" }));
+  await chamarEngine(msg({ text: "!!!!" }));
+  await chamarEngine(msg({ text: "fulano@exemplo.com" }));
+
+  // Simula a ação de admin de /api/clientes/[id]/pii.
+  const c = await cliente();
+  await db.from("clientes").update({
+    nome: null, email: null, mensagem_pendente: null,
+    pii_apagada_em: new Date().toISOString(),
+    cadastro_completo: true, aguardando_campo: null,
+  }).eq("id", c!.id);
+
+  await db.from("flow_contato_estado")
+    .update({ updated_at: new Date(Date.now() - 15 * 86_400_000).toISOString() })
+    .eq("flow_id", FLOW_A).eq("contato_telefone", TELEFONE);
+
+  enviadas = [];
+  const r = await chamarEngine(msg({ text: "quero ingresso" }));
+  checar(r !== "gate_reaberto", `não pode reabrir o gate para quem pediu exclusão, veio "${r}"`);
+  checar(
+    !enviadas.some((e) => e.body.includes("como você se chama")),
+    "não pode voltar a pedir o nome de quem exerceu o direito de exclusão",
+  );
+  checar((await cliente())?.nome === null, "o nome deve continuar apagado");
+});
+
 // ─── Encerramento ────────────────────────────────────────────────────────────
 
 await limparDados();

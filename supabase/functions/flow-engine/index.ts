@@ -231,7 +231,7 @@ async function processar(payload: FlowEngineRequest): Promise<string> {
   }
 
   // ── Passos 6 e 7 ──
-  return await responder(contexto, textoParaAvaliar);
+  return await responder(contexto, textoParaAvaliar, cliente);
 }
 
 // ─── Passo 4: busca/cria o cliente ───────────────────────────────────────────
@@ -481,7 +481,7 @@ async function concluirGate(ctx: Contexto, cliente: Cliente): Promise<ResultadoG
 
 // ─── Passos 6 e 7: boas-vindas, keyword, fallback ────────────────────────────
 
-async function responder(ctx: Contexto, texto: string | null): Promise<string> {
+async function responder(ctx: Contexto, texto: string | null, cliente: Cliente | null): Promise<string> {
   const { tenantId, flow, payload } = ctx;
 
   const { data: estado } = await supabase
@@ -509,6 +509,17 @@ async function responder(ctx: Contexto, texto: string | null): Promise<string> {
       fallbacks_consecutivos: 0,
       pausado_aguardando_humano: false,
     });
+  }
+
+  // Retry do campo pulado (PRD, "Modelo de dados"): quem falhou duas vezes num
+  // campo avançou com ele nulo e ficou marcado com pulou_cadastro. Na volta
+  // por INATIVIDADE — não no primeiro contato, senão o gate reabriria logo
+  // depois de degradar — o campo que faltou é perguntado mais uma vez, em vez
+  // de a lacuna virar permanente.
+  const ehResetPorInatividade = Boolean(estado) && inativoHaMuito;
+  if (ehResetPorInatividade && cliente?.pulou_cadastro) {
+    const reaberto = await reabrirGate(ctx, cliente, texto);
+    if (reaberto) return reaberto;
   }
 
   // Pausa por excesso de fallback. NÃO é um "return" aqui: o PRD diz que "um
@@ -602,6 +613,53 @@ async function responder(ctx: Contexto, texto: string | null): Promise<string> {
   }
 
   return atingiuAlerta ? "fallback_alerta" : "fallback";
+}
+
+/**
+ * Reabre o gate para o campo que ficou nulo depois do degrade. Devolve o
+ * resultado quando reabre, ou null quando não há o que perguntar.
+ *
+ * A pergunta original não se perde: vai para mensagem_pendente e é respondida
+ * quando o cadastro completar, exatamente como no gate normal.
+ */
+async function reabrirGate(ctx: Contexto, cliente: Cliente, texto: string | null): Promise<string | null> {
+  const { tenantId, payload } = ctx;
+
+  // Dado apagado a pedido do titular (LGPD) nunca é pedido de novo — seria
+  // reverter o direito que a pessoa exerceu.
+  const { data: atual } = await supabase
+    .from("clientes")
+    .select("nome, email, pii_apagada_em, mensagem_pendente")
+    .eq("tenant_id", tenantId)
+    .eq("id", cliente.id)
+    .maybeSingle<{ nome: string | null; email: string | null; pii_apagada_em: string | null; mensagem_pendente: string | null }>();
+
+  if (!atual || atual.pii_apagada_em) return null;
+
+  const faltante: CampoGate | null = atual.nome === null ? "nome" : (atual.email === null ? "email" : null);
+  if (!faltante) return null;
+
+  await supabase
+    .from("clientes")
+    .update({
+      cadastro_completo: false,
+      aguardando_campo: faltante,
+      tentativas_campo_atual: 0,
+      mensagem_pendente: texto
+        ? concatenarPendente(atual.mensagem_pendente, texto)
+        : atual.mensagem_pendente,
+    })
+    .eq("tenant_id", tenantId)
+    .eq("id", cliente.id);
+
+  await enviar(ctx, perguntaDoCampo(faltante));
+  await logEvent(tenantId, payload.sessionId, "flow_gate_reaberto", {
+    messageId: payload.messageId,
+    telefone: cliente.telefone,
+    campo: faltante,
+  });
+
+  return "gate_reaberto";
 }
 
 /**

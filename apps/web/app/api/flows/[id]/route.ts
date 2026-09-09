@@ -43,7 +43,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (patch.ativo === true) {
     const { data: atual } = await supabase
       .from("whatsapp_flows")
-      .select("mensagem_fallback, flow_palavras_chave(id, deleted_at)")
+      .select("mensagem_fallback, flow_palavras_chave!flow_palavras_chave_flow_id_fkey(id, deleted_at)")
       .eq("id", id)
       .is("deleted_at", null)
       .maybeSingle<{ mensagem_fallback: string | null; flow_palavras_chave: { id: string; deleted_at: string | null }[] }>();

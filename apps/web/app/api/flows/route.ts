@@ -43,7 +43,7 @@ export async function GET() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("whatsapp_flows")
-    .select("id, cloud_credential_id, artista, nome, tipo, ativo, mensagem_boas_vindas, mensagem_fallback, created_at, flow_palavras_chave(id, palavra_chave, tipo_resposta, resposta, flow_destino_id, deleted_at)")
+    .select("id, cloud_credential_id, artista, nome, tipo, ativo, mensagem_boas_vindas, mensagem_fallback, created_at, flow_palavras_chave!flow_palavras_chave_flow_id_fkey(id, palavra_chave, tipo_resposta, resposta, flow_destino_id, deleted_at)")
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 

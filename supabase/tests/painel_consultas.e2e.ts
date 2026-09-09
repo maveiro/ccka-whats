@@ -140,6 +140,32 @@ await cenario("destinos oferecidos para abrir_flow: publicados e do mesmo númer
   checar(destinos[0]?.id === DESTINO, "o destino deveria ser a central publicada");
 });
 
+await cenario("palavra-chave não pode ser cadastrada em Flow de central/agenda", async () => {
+  const { error } = await db.from("flow_palavras_chave").insert({
+    tenant_id: TENANT, flow_id: DESTINO, palavra_chave: "solta",
+    tipo_resposta: "texto", resposta: "nunca dispararia",
+  });
+  checar(Boolean(error), "o banco precisa recusar keyword em Flow que não é de palavra-chave");
+  checar(
+    (error?.message ?? "").includes("palavra-chave só pode pertencer"),
+    `mensagem inesperada: ${error?.message}`,
+  );
+});
+
+await cenario("a tela separa automações de Flows publicados", async () => {
+  const { data } = await db
+    .from("whatsapp_flows")
+    .select("id, nome, tipo, ativo, meta_flow_id")
+    .eq("tenant_id", TENANT)
+    .is("deleted_at", null);
+
+  const automacoes = (data ?? []).filter((f) => f.tipo === "keyword_automation");
+  const publicados = (data ?? []).filter((f) => f.tipo !== "keyword_automation");
+  checar(automacoes.length === 1, `1 automação esperada, veio ${automacoes.length}`);
+  checar(publicados.length === 1, `1 Flow publicado esperado, veio ${publicados.length}`);
+  checar(publicados[0]?.tipo === "central", "o Flow publicado é a central");
+});
+
 // ─── Limpeza ─────────────────────────────────────────────────────────────────
 
 await db.from("flow_palavras_chave").delete().eq("tenant_id", TENANT);

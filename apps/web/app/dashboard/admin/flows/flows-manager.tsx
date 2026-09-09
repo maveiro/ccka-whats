@@ -69,6 +69,13 @@ export default function FlowsManager({
   const [expandido, setExpandido] = useState<string | null>(null);
   const [salvando, setSalvando] = useState<string | null>(null);
 
+  // A tela edita palavra-chave, boas-vindas e fallback — conceitos que só
+  // existem em keyword_automation. Central e agenda são abertos como tela pelo
+  // WhatsApp e não têm nada disso; mostrá-los com o mesmo editor levou a
+  // cadastrar keyword na central, que nunca dispararia.
+  const automacoes = flows.filter((f) => f.tipo === "keyword_automation");
+  const publicados = flows.filter((f) => f.tipo !== "keyword_automation");
+
   const nomeDoNumero = (credencialId: string) => {
     const c = credenciais.find((x) => x.id === credencialId);
     return c?.label ?? c?.display_phone_number ?? c?.phone_number_id ?? "número desconhecido";
@@ -201,11 +208,11 @@ export default function FlowsManager({
       </form>
 
       <div className="space-y-4">
-        {flows.length === 0 && (
+        {automacoes.length === 0 && (
           <p className="text-sm text-gray-500">Nenhuma automação criada ainda.</p>
         )}
 
-        {flows.map((flow) => (
+        {automacoes.map((flow) => (
           <FlowCard
             key={flow.id}
             flow={flow}
@@ -223,6 +230,51 @@ export default function FlowsManager({
           />
         ))}
       </div>
+
+      {publicados.length > 0 && (
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold text-white">Flows publicados na Meta</h2>
+            <p className="text-xs text-gray-500 mt-1">
+              Estes abrem no WhatsApp como tela (central, agenda) e não respondem a
+              palavras-chave: o conteúdo vem da Agenda e do FAQ. Para que alguém os
+              abra digitando algo, cadastre a palavra-chave num Flow de palavra-chave
+              acima e escolha &quot;Abrir Flow&quot;.
+            </p>
+          </div>
+          {publicados.map((flow) => (
+            <div key={flow.id} className="border border-gray-800 rounded px-4 py-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-white">{flow.nome}</span>
+                  <span className={`text-[11px] px-1.5 py-0.5 rounded border ${
+                    flow.ativo ? "text-green-400 border-green-800" : "text-gray-400 border-gray-700"
+                  }`}>
+                    {flow.ativo ? "Ativo" : "Inativo"}
+                  </span>
+                  <span className="text-[11px] px-1.5 py-0.5 rounded border text-gray-400 border-gray-700">
+                    {flow.tipo}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {nomeDoNumero(flow.cloud_credential_id)}
+                  {flow.meta_flow_id
+                    ? ` · publicado na Meta (${flow.meta_flow_id})`
+                    : " · ainda não publicado na Meta — não pode ser aberto"}
+                </p>
+              </div>
+              {isAdmin && (
+                <button
+                  onClick={() => excluirFlow(flow.id)}
+                  className="text-xs text-red-400 border border-red-900 rounded px-2 py-1 hover:bg-red-950 shrink-0"
+                >
+                  Excluir
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

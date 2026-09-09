@@ -74,11 +74,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // abaixo também barraria, mas com erro de policy em vez de mensagem útil).
   const { data: flow } = await supabase
     .from("whatsapp_flows")
-    .select("id")
+    .select("id, tipo")
     .eq("id", flowId)
     .is("deleted_at", null)
-    .maybeSingle();
+    .maybeSingle<{ id: string; tipo: string }>();
   if (!flow) return NextResponse.json({ error: "Flow não encontrado" }, { status: 404 });
+
+  // Palavra-chave em Flow de central/agenda é configuração morta: o motor lê as
+  // keywords do Flow ATIVO de tipo keyword_automation do número, e ignora o
+  // resto. O trigger da 0032 também barra, mas aqui a mensagem é útil.
+  if (flow.tipo !== "keyword_automation") {
+    return NextResponse.json(
+      { error: "Este Flow é aberto pelo WhatsApp (central/agenda) e não responde a palavras-chave. Cadastre a palavra-chave num Flow de palavra-chave, apontando para ele." },
+      { status: 400 },
+    );
+  }
 
   const { data, error } = await supabase
     .from("flow_palavras_chave")

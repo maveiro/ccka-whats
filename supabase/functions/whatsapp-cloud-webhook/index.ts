@@ -184,7 +184,30 @@ async function verifySignature(rawBody: string, signatureHeader: string): Promis
 async function processEvent(body: CloudWebhookPayload): Promise<void> {
   for (const entry of body.entry ?? []) {
     for (const change of entry.changes ?? []) {
-      if (change.field !== "messages") continue;
+      // A WABA passou a assinar mais campos além de `messages` (09/09/2026:
+      // account_alerts, flows, history, message_handovers, tracking_events,
+      // user_preferences). Antes, tudo que não fosse `messages` era descartado
+      // em silêncio — inclusive erro de Flow no aparelho, que foi exatamente o
+      // que faltou durante a validação da Trilha B.
+      if (change.field === "flows") {
+        await handleFlowsEvent(change.value as unknown as Record<string, unknown>, entry.id);
+        continue;
+      }
+
+      if (change.field === "user_preferences") {
+        await handleUserPreferences(
+          change.value as unknown as { metadata?: { phone_number_id?: string }; user_preferences?: unknown[] },
+          entry.id,
+        );
+        continue;
+      }
+
+      if (change.field !== "messages") {
+        // Não tratado ainda, mas registrado: campo novo chegando sem ninguém
+        // saber é como o erro de Flow passou despercebido.
+        await logEvent(null, "webhook_campo_nao_tratado", { campo: change.field, wabaId: entry.id });
+        continue;
+      }
 
       for (const status of change.value.statuses ?? []) {
         await handleStatus(status);
@@ -567,6 +590,81 @@ function checkAlerts(tenantId: string, sessionId: string, messageId: string, bod
       }
     }
   })().catch((err) => console.error("checkAlerts error:", err));
+}
+
+// ─── Campo `flows`: erros e status do Flow relatados pelo cliente ────────────
+//
+// É o canal que faltava durante a validação da Trilha B: quando o Flow falha no
+// aparelho, nada disso chega ao nosso endpoint (a Meta nem o chama), e o motivo
+// só existia na tela de quem estava testando.
+async function handleFlowsEvent(valor: Record<string, unknown>, wabaId: string): Promise<void> {
+  const tenantId = await tenantDaWaba(wabaId);
+  await logEvent(tenantId, "flow_client_report", { wabaId, ...valor });
+}
+
+// ─── Campo `user_preferences`: opt-out feito pelo próprio usuário ────────────
+//
+// O WhatsApp deixa a pessoa parar de receber marketing pelo próprio app. Isso
+// não passa por mensagem nem por clique em botão de template — chega só por
+// aqui. Sem tratar, a pessoa pediria para parar e continuaria recebendo
+// campanha e automação, que é falha de compliance, não de UX.
+async function handleUserPreferences(
+  valor: { metadata?: { phone_number_id?: string }; user_preferences?: unknown[] },
+  wabaId: string,
+): Promise<void> {
+  const phoneNumberId = valor.metadata?.phone_number_id;
+  const tenantId = phoneNumberId ? await tenantDoNumero(phoneNumberId) : await tenantDaWaba(wabaId);
+
+  if (!tenantId) {
+    await logEvent(null, "error", { wabaId, phoneNumberId }, "user_preferences sem tenant resolvível");
+    return;
+  }
+
+  for (const bruta of valor.user_preferences ?? []) {
+    const pref = bruta as { wa_id?: string; detail?: string; category?: string; value?: string };
+    const telefone = pref.wa_id;
+    if (!telefone) continue;
+
+    // value: "stop" | "resume" (categoria marketing_messages)
+    if (pref.value === "stop") {
+      const { error } = await supabase.from("whatsapp_opt_outs").upsert({
+        tenant_id: tenantId,
+        phone_e164: telefone,
+        reason: `user_preferences: ${pref.category ?? "marketing"} — ${pref.detail ?? "sem detalhe"}`,
+      }, { onConflict: "tenant_id,phone_e164" });
+      if (error) console.error("[cloud-webhook] upsert de opt-out falhou:", error.message);
+      await logEvent(tenantId, "opt_out_pelo_usuario", { telefone, categoria: pref.category ?? null });
+    } else if (pref.value === "resume") {
+      // A pessoa voltou atrás pelo próprio app: manter o opt-out seria ignorar
+      // um consentimento explícito.
+      const { error } = await supabase.from("whatsapp_opt_outs")
+        .delete().eq("tenant_id", tenantId).eq("phone_e164", telefone);
+      if (error) console.error("[cloud-webhook] remoção de opt-out falhou:", error.message);
+      await logEvent(tenantId, "opt_in_pelo_usuario", { telefone, categoria: pref.category ?? null });
+    } else {
+      await logEvent(tenantId, "user_preference_desconhecida", { telefone, valor: pref.value ?? null });
+    }
+  }
+}
+
+async function tenantDaWaba(wabaId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("whatsapp_cloud_credentials")
+    .select("tenant_id")
+    .eq("waba_id", wabaId)
+    .eq("active", true)
+    .limit(1);
+  return (data?.[0]?.tenant_id as string | undefined) ?? null;
+}
+
+async function tenantDoNumero(phoneNumberId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("whatsapp_cloud_credentials")
+    .select("tenant_id")
+    .eq("phone_number_id", phoneNumberId)
+    .eq("active", true)
+    .maybeSingle<{ tenant_id: string }>();
+  return data?.tenant_id ?? null;
 }
 
 // ─── Invocação do flow-engine (passo 3 do fluxo técnico do PRD) ──────────────

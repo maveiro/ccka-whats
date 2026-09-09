@@ -30,6 +30,14 @@ interface Credencial {
   display_phone_number: string | null;
 }
 
+interface Fallback {
+  id: string;
+  createdAt: string;
+  texto: string;
+  telefone: string | null;
+  chatId: string | null;
+}
+
 export default function FlowsManager({
   initial,
   credenciais,
@@ -227,8 +235,24 @@ function FlowCard({
   const [novaResposta, setNovaResposta] = useState("");
   const [novoTipo, setNovoTipo] = useState("texto");
   const [addLoading, setAddLoading] = useState(false);
+  const [fallbacks, setFallbacks] = useState<Fallback[] | null>(null);
+  const [fallbacksLoading, setFallbacksLoading] = useState(false);
 
   const keywords = flow.flow_palavras_chave;
+
+  async function carregarFallbacks() {
+    setFallbacksLoading(true);
+    try {
+      const res = await fetch(`/api/flows/${flow.id}/fallbacks?limit=20`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Falha ao carregar");
+      setFallbacks(json);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao carregar fallbacks");
+    } finally {
+      setFallbacksLoading(false);
+    }
+  }
 
   async function adicionarKeyword(e: React.FormEvent) {
     e.preventDefault();
@@ -415,6 +439,58 @@ function FlowCard({
               O match ignora acento, maiúscula e plural, e casa palavra inteira. Quando
               duas keywords batem, vence a mais específica (mais palavras).
             </p>
+          </div>
+
+          <div className="space-y-2 border-t border-gray-800 pt-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold text-gray-300">
+                Caiu em fallback recentemente
+              </h3>
+              <button
+                onClick={carregarFallbacks}
+                disabled={fallbacksLoading}
+                className="text-xs text-blue-400 hover:underline disabled:opacity-40"
+              >
+                {fallbacksLoading ? "Carregando…" : fallbacks ? "Atualizar" : "Ver"}
+              </button>
+            </div>
+            <p className="text-[11px] text-gray-500">
+              Cada linha é alguém que perguntou algo que nenhuma palavra-chave cobre.
+              Clique em &quot;usar&quot; para começar uma keyword com esse texto.
+            </p>
+
+            {fallbacks && fallbacks.length === 0 && (
+              <p className="text-xs text-gray-500">Nada em fallback por enquanto.</p>
+            )}
+
+            {fallbacks && fallbacks.length > 0 && (
+              <ul className="space-y-1">
+                {fallbacks.map((f) => (
+                  <li key={f.id} className="flex items-start justify-between gap-3 text-sm bg-gray-900/50 rounded px-2 py-1.5">
+                    <div className="min-w-0">
+                      <p className="text-gray-200 break-words">{f.texto || "(sem texto)"}</p>
+                      <p className="text-[11px] text-gray-500">
+                        {new Date(f.createdAt).toLocaleString("pt-BR")}
+                        {f.chatId && (
+                          <>
+                            {" · "}
+                            <a href={`/dashboard/chat/${f.chatId}`} className="text-blue-400 hover:underline">
+                              abrir conversa
+                            </a>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setNovaPalavra(f.texto.split(/\s+/).slice(0, 3).join(" "))}
+                      className="text-xs text-gray-500 hover:text-blue-400 shrink-0"
+                    >
+                      usar
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       )}

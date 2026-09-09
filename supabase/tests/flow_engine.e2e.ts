@@ -268,6 +268,23 @@ await cenario("nenhuma keyword bate → fallback", async () => {
   checar(enviadas.some((e) => e.body === "FALLBACK"), "deveria enviar o texto de fallback");
 });
 
+await cenario("todo fallback vira evento com o texto (alimenta a tela de Flows)", async () => {
+  await clienteJaCadastrado();
+  await chamarEngine(msg({ text: "vocês aceitam pix?" }));
+  checar(await eventos("flow_fallback") === 1, "o 1º fallback já deve gerar evento, não só o 3º");
+
+  const { data } = await db.from("events_log").select("payload")
+    .eq("tenant_id", TENANT_A).eq("event_type", "flow_fallback").limit(1).single();
+  const p = (data?.payload ?? {}) as Record<string, unknown>;
+  checar(p.texto === "vocês aceitam pix?", `o texto perguntado deve ir no evento, veio "${p.texto}"`);
+  checar(p.flowId === FLOW_A, "o evento deve identificar o Flow");
+  checar(p.consecutivos === 1, `deve registrar o contador, veio "${p.consecutivos}"`);
+
+  // Keyword que bate não pode gerar evento de fallback.
+  await chamarEngine(msg({ text: "quero ingresso" }));
+  checar(await eventos("flow_fallback") === 1, "keyword que bate não pode virar fallback");
+});
+
 await cenario("3 fallbacks seguidos → alerta + pausa; keyword depois destrava", async () => {
   await clienteJaCadastrado();
   await chamarEngine(msg({ text: "aaa" }));

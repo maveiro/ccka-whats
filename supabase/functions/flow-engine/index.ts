@@ -575,6 +575,20 @@ async function responder(ctx: Contexto, texto: string | null): Promise<string> {
   const consecutivos = (estado?.fallbacks_consecutivos ?? 0) + 1;
   if (flow.mensagem_fallback) await enviar(ctx, flow.mensagem_fallback);
 
+  // Um evento por fallback (não só no 3º, que dispara o alerta): é a matéria-
+  // prima do "o que caiu em fallback recentemente" na tela de Flows — o sinal
+  // de que falta uma palavra-chave. O texto vai junto, truncado, porque a
+  // revisão semanal precisa ler o que a pessoa perguntou sem abrir conversa
+  // por conversa; `chatId` dá o link para a conversa quando faz falta.
+  await logEvent(tenantId, payload.sessionId, "flow_fallback", {
+    messageId: payload.messageId,
+    flowId: flow.id,
+    telefone: payload.from,
+    texto: texto.slice(0, 300),
+    chatId: await buscarChatId(payload.sessionId, payload.from),
+    consecutivos,
+  });
+
   const atingiuAlerta = consecutivos >= FALLBACKS_ATE_ALERTA;
   await salvarEstado(ctx, estado, {
     recebeu_boas_vindas: true,
@@ -665,17 +679,12 @@ async function enviar(ctx: Contexto, texto: string): Promise<void> {
   }
 
   // Passo 9: a resposta automática também é histórico.
-  const { data: chat } = await supabase
-    .from("chats")
-    .select("id")
-    .eq("session_id", payload.sessionId)
-    .eq("jid", payload.from)
-    .maybeSingle<{ id: string }>();
+  const chatId = await buscarChatId(payload.sessionId, payload.from);
 
   const { error: msgError } = await supabase.from("messages").insert({
     tenant_id: tenantId,
     session_id: payload.sessionId,
-    chat_id: chat?.id ?? null,
+    chat_id: chatId,
     message_id: resultado.wamid,
     from_me: true,
     type: "text",
@@ -697,6 +706,17 @@ async function enviar(ctx: Contexto, texto: string): Promise<void> {
 }
 
 // ─── Utilitários ─────────────────────────────────────────────────────────────
+
+/** Chat da conversa (mesma sessão + telefone). Null se ainda não existir. */
+async function buscarChatId(sessionId: string, jid: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("chats")
+    .select("id")
+    .eq("session_id", sessionId)
+    .eq("jid", jid)
+    .maybeSingle<{ id: string }>();
+  return data?.id ?? null;
+}
 
 interface Contexto {
   credencial: Credencial;

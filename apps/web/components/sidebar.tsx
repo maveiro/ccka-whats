@@ -23,6 +23,7 @@ import {
   Hash,
   CalendarDays,
   ShieldCheck,
+  HelpCircle,
 } from "lucide-react";
 import AlertBadge from "@/components/alert-badge";
 
@@ -43,6 +44,7 @@ const navItems = [
   { label: "Números",       href: "/dashboard/admin/numbers",        roles: ["admin"],             icon: Hash,         section: "admin" },
   { label: "Automações",    href: "/dashboard/admin/flows",          roles: ["admin", "operator"], icon: Workflow,     section: "admin" },
   { label: "Agenda",        href: "/dashboard/admin/agenda",         roles: ["admin", "operator"], icon: CalendarDays, section: "admin" },
+  { label: "FAQ",           href: "/dashboard/admin/faq",            roles: ["admin", "operator"], icon: HelpCircle,   section: "admin" },
   { label: "Clientes (LGPD)", href: "/dashboard/admin/clientes",     roles: ["admin"],             icon: ShieldCheck,  section: "admin" },
   { label: "Integrações",   href: "/dashboard/admin/integrations",   roles: ["admin"],             icon: Plug,         section: "admin" },
   { label: "Histórico",     href: "/dashboard/admin/history",        roles: ["admin"],             icon: History,      section: "admin" },

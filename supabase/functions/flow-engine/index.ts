@@ -128,7 +128,13 @@ Deno.serve(async (req: Request) => {
 // Resultados que significam "não processei" — o motor não concluiu a decisão.
 // Não confundir com desfechos legítimos de "processei e a resposta é não
 // responder" (sem_flow_ativo, opt_out, pausado, ja_processada), que são 200.
-const RESULTADOS_DE_FALHA = new Set(["erro_claim", "erro_cliente"]);
+const RESULTADOS_DE_FALHA = new Set([
+  "erro_claim",
+  "erro_cliente",
+  // Sem sessão gravada, o Flow abriria sem identidade — falha nossa, tem que
+  // aparecer na linha flow_engine_disparado do webhook.
+  "abrir_flow_sem_sessao",
+]);
 
 async function processar(payload: FlowEngineRequest): Promise<string> {
   const { messageId, phoneNumberId, from, sessionId } = payload;
@@ -697,10 +703,31 @@ async function abrirFlowNaConversa(ctx: Contexto, flowDestinoId: string | null):
     return "abrir_flow_sem_meta_id";
   }
 
-  // flow_token identifica ESTA abertura: vai e volta em toda requisição do
-  // endpoint, e é o que liga a interação à conversa quando for preciso
-  // depurar.
-  const flowToken = `${destino.id}:${payload.messageId}`.slice(0, 100);
+  // O flow_token é o ÚNICO elo entre a conversa e as requisições que a Meta faz
+  // ao endpoint (ela não manda o telefone). Token aleatório + sessão gravada:
+  // embutir o telefone aqui faria PII trafegar pelo aparelho num campo que não
+  // controlamos.
+  const flowToken = crypto.randomUUID();
+
+  const { error: erroSessao } = await supabase.from("flow_sessoes").insert({
+    tenant_id: tenantId,
+    token: flowToken,
+    telefone: payload.from,
+    flow_id: destino.id,
+    cloud_credential_id: credencial.id,
+    origem: "keyword",
+    expira_em: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+  });
+
+  if (erroSessao) {
+    // Sem sessão o Flow abre, mas o endpoint não sabe quem é a pessoa e todo
+    // mundo cai na apresentação. Melhor não abrir do que abrir errado.
+    await logEvent(tenantId, payload.sessionId, "error", {
+      messageId: payload.messageId,
+      flowDestinoId,
+    }, `criação de flow_sessoes falhou: ${erroSessao.message}`);
+    return "abrir_flow_sem_sessao";
+  }
 
   const resultado = await enviarFlow({
     phoneNumberId: credencial.phone_number_id,

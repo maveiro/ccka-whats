@@ -151,6 +151,7 @@ const TELEFONE = "5541988887777";
 
 async function limparDados(): Promise<void> {
   for (const tenant of [TENANT_A, TENANT_B]) {
+    await db.from("flow_sessoes").delete().eq("tenant_id", tenant);
     await db.from("flow_mensagens_processadas").delete().eq("tenant_id", tenant);
     await db.from("flow_contato_estado").delete().eq("tenant_id", tenant);
     await db.from("clientes").delete().eq("tenant_id", tenant);
@@ -606,6 +607,40 @@ await cenario("dado apagado a pedido do titular nunca é pedido de novo (LGPD)",
     "não pode voltar a pedir o nome de quem exerceu o direito de exclusão",
   );
   checar((await cliente())?.nome === null, "o nome deve continuar apagado");
+});
+
+await cenario("abrir_flow grava a sessão que identifica a pessoa no endpoint", async () => {
+  await clienteJaCadastrado();
+  const FLOW_AGENDA = "aaaaaaaa-0000-4000-8000-00000000f009";
+  await db.from("whatsapp_flows").upsert({
+    id: FLOW_AGENDA, tenant_id: TENANT_A, cloud_credential_id: CRED_A,
+    nome: "Agenda", tipo: "agenda_shows", ativo: true,
+    meta_flow_id: "META_FLOW_TESTE", meta_flow_cta: "Ver agenda",
+  });
+  await db.from("flow_sessoes").delete().eq("tenant_id", TENANT_A);
+  await db.from("flow_palavras_chave").insert({
+    tenant_id: TENANT_A, flow_id: FLOW_A, palavra_chave: "agenda",
+    tipo_resposta: "abrir_flow", flow_destino_id: FLOW_AGENDA,
+  });
+
+  const r = await chamarEngine(msg({ text: "quero ver a agenda" }));
+  checar(r === "abrir_flow", `deveria abrir o Flow, veio "${r}"`);
+
+  const { data: sessoes } = await db.from("flow_sessoes").select("token, telefone, origem")
+    .eq("tenant_id", TENANT_A);
+  checar((sessoes ?? []).length === 1, `deveria gravar 1 sessão, gravou ${(sessoes ?? []).length}`);
+  checar(sessoes?.[0]?.telefone === TELEFONE, "a sessão precisa guardar o telefone de quem abriu");
+  checar(
+    /^[0-9a-f-]{36}$/.test(sessoes?.[0]?.token ?? ""),
+    `o token deve ser aleatório (uuid), veio "${sessoes?.[0]?.token}"`,
+  );
+  checar(
+    !(sessoes?.[0]?.token ?? "").includes(TELEFONE),
+    "o telefone NUNCA pode estar dentro do token — ele trafega pelo aparelho",
+  );
+
+  await db.from("flow_sessoes").delete().eq("tenant_id", TENANT_A);
+  await db.from("whatsapp_flows").delete().eq("id", FLOW_AGENDA);
 });
 
 // ─── Encerramento ────────────────────────────────────────────────────────────

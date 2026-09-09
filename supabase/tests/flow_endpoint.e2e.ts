@@ -304,6 +304,21 @@ await cenario("data_exchange com show_id devolve o detalhe daquele show", async 
   checar(corpo.data.tem_link === true, "show com link deveria marcar tem_link");
 });
 
+await cenario("cada tela servida fica registrada (é como saber se o clique chegou)", async () => {
+  await db.from("events_log").delete().eq("tenant_id", TENANT).eq("event_type", "flow_endpoint_tela");
+  await pedir(publicaPem, { version: "7.2", action: "INIT" });
+  const curitiba2 = (showsCriados ?? []).find((s) => s.cidade === "Curitiba");
+  await pedir(publicaPem, {
+    version: "7.2", action: "data_exchange", screen: "AGENDA", data: { show_id: curitiba2!.id },
+  });
+
+  const { data } = await db.from("events_log").select("payload")
+    .eq("tenant_id", TENANT).eq("event_type", "flow_endpoint_tela").order("created_at");
+  const telas = (data ?? []).map((e) => (e.payload as Record<string, unknown>).tela);
+  checar(telas.includes("AGENDA"), `INIT deveria registrar a tela AGENDA, veio ${JSON.stringify(telas)}`);
+  checar(telas.includes("DETALHE"), `o clique deveria registrar a tela DETALHE, veio ${JSON.stringify(telas)}`);
+});
+
 await cenario("show removido entre a lista e o clique volta para a lista, sem erro", async () => {
   const { res, chaveAes, iv } = await pedir(publicaPem, {
     version: "3.0", action: "data_exchange", screen: "AGENDA",

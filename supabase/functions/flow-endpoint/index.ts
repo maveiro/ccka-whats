@@ -215,7 +215,10 @@ async function responderAgenda(
 
     // Show removido entre a listagem e o clique: volta para a lista em vez de
     // tela de erro.
-    if (show) return telaDetalhe(show);
+    if (show) {
+      await registrarTela(phoneNumberId, acao, "DETALHE", { showId: show.id });
+      return telaDetalhe(show);
+    }
   }
 
   // Lista: só o que ainda não aconteceu, em ordem cronológica. Show sem data
@@ -240,7 +243,28 @@ async function responderAgenda(
     return telaAgenda([], credencial.artista);
   }
 
-  return telaAgenda((shows ?? []) as ShowRow[], credencial.artista);
+  const resposta = telaAgenda((shows ?? []) as ShowRow[], credencial.artista);
+  await registrarTela(phoneNumberId, acao, "AGENDA", { shows: (shows ?? []).length });
+  return resposta;
+}
+
+/**
+ * Registra cada tela servida. Sem isto, uma interação bem-sucedida não deixava
+ * rastro nenhum — e na primeira vez que foi preciso responder "o clique chegou
+ * até nós?", a resposta honesta foi "não dá para saber" (09/09/2026).
+ *
+ * É um insert por interação, e isso custa latência num endpoint com teto: fica
+ * dentro do orçamento (~1,3s de pior caso contra ~10s da Meta) e é aguardado
+ * de propósito — promessa solta pode ser morta quando a resposta retorna, que
+ * é o mesmo que não logar.
+ */
+async function registrarTela(
+  phoneNumberId: string,
+  acao: string,
+  tela: string,
+  extra: Record<string, unknown>,
+): Promise<void> {
+  await registrar(phoneNumberId, "flow_endpoint_tela", { phoneNumberId, acao, tela, ...extra });
 }
 
 async function registrar(

@@ -472,6 +472,24 @@ await cenario("pergunta removida entre a lista e o toque volta para a lista", as
   checar(corpo.screen === "FAQ_LISTA", `deveria cair na lista, veio "${corpo.screen}"`);
 });
 
+await cenario("ir do menu para a agenda não gera falso 'clique sem escolher'", async () => {
+  await db.from("events_log").delete().eq("tenant_id", TENANT).eq("event_type", "flow_endpoint_sem_show_id");
+  await pedir(publicaPem, {
+    version: "7.2", action: "data_exchange", screen: "MENU", data: { destino: "agenda" },
+  });
+  const { count } = await db.from("events_log").select("id", { count: "exact", head: true })
+    .eq("tenant_id", TENANT).eq("event_type", "flow_endpoint_sem_show_id");
+  checar((count ?? 0) === 0, "chegar do MENU não é clique sem seleção — não pode virar evento");
+
+  // Vindo DA agenda sem escolher, aí sim é o caso que o diagnóstico existe para pegar.
+  await pedir(publicaPem, {
+    version: "7.2", action: "data_exchange", screen: "AGENDA", data: {},
+  });
+  const { count: depois } = await db.from("events_log").select("id", { count: "exact", head: true })
+    .eq("tenant_id", TENANT).eq("event_type", "flow_endpoint_sem_show_id");
+  checar((depois ?? 0) === 1, "clique sem escolher NA agenda ainda precisa ser registrado");
+});
+
 await cenario("menu → agenda continua funcionando (as duas convivem)", async () => {
   await db.from("agenda_shows_sync").insert({
     tenant_id: TENANT, artista: "Artista A", cidade: "Belém", teatro: "Theatro da Paz",

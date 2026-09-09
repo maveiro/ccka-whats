@@ -25,7 +25,7 @@ export default async function FlowsPage() {
   // (regra 15 do CLAUDE.md).
   const { data: flows } = await supabase
     .from("whatsapp_flows")
-    .select("id, cloud_credential_id, artista, nome, tipo, ativo, mensagem_boas_vindas, mensagem_fallback, created_at, flow_palavras_chave(id, palavra_chave, tipo_resposta, resposta, flow_destino_id, deleted_at)")
+    .select("id, cloud_credential_id, artista, nome, tipo, ativo, meta_flow_id, mensagem_boas_vindas, mensagem_fallback, created_at, flow_palavras_chave(id, palavra_chave, tipo_resposta, resposta, flow_destino_id, deleted_at)")
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
@@ -60,6 +60,9 @@ export default async function FlowsPage() {
 
       <FlowsManager
         initial={flowsLimpos}
+        destinos={flowsLimpos
+          .filter((f) => f.meta_flow_id && f.ativo)
+          .map((f) => ({ id: f.id, nome: f.nome, tipo: f.tipo, cloud_credential_id: f.cloud_credential_id }))}
         credenciais={credenciais ?? []}
         isAdmin={operator.role === "admin"}
       />

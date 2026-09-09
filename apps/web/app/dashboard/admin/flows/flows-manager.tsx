@@ -11,6 +11,13 @@ interface Keyword {
   flow_destino_id: string | null;
 }
 
+interface Destino {
+  id: string;
+  nome: string;
+  tipo: string;
+  cloud_credential_id: string;
+}
+
 interface Flow {
   id: string;
   cloud_credential_id: string;
@@ -18,6 +25,7 @@ interface Flow {
   nome: string;
   tipo: string;
   ativo: boolean;
+  meta_flow_id: string | null;
   mensagem_boas_vindas: string | null;
   mensagem_fallback: string | null;
   created_at: string;
@@ -44,10 +52,12 @@ export default function FlowsManager({
   initial,
   credenciais,
   isAdmin,
+  destinos,
 }: {
   initial: Flow[];
   credenciais: Credencial[];
   isAdmin: boolean;
+  destinos: Destino[];
 }) {
   const [flows, setFlows] = useState<Flow[]>(initial);
   const [criando, setCriando] = useState(false);
@@ -204,6 +214,7 @@ export default function FlowsManager({
             expandido={expandido === flow.id}
             onToggleExpandir={() => setExpandido(expandido === flow.id ? null : flow.id)}
             salvando={salvando === flow.id}
+            destinos={destinos.filter((d) => d.cloud_credential_id === flow.cloud_credential_id && d.id !== flow.id)}
             onAtualizar={(patch) => atualizarFlow(flow.id, patch)}
             onExcluir={() => excluirFlow(flow.id)}
             onKeywordsMudaram={(keywords) =>
@@ -220,6 +231,7 @@ function FlowCard({
   flow,
   numero,
   isAdmin,
+  destinos,
   expandido,
   onToggleExpandir,
   salvando,
@@ -230,6 +242,7 @@ function FlowCard({
   flow: Flow;
   numero: string;
   isAdmin: boolean;
+  destinos: Destino[];
   expandido: boolean;
   onToggleExpandir: () => void;
   salvando: boolean;
@@ -242,6 +255,7 @@ function FlowCard({
   const [novaPalavra, setNovaPalavra] = useState("");
   const [novaResposta, setNovaResposta] = useState("");
   const [novoTipo, setNovoTipo] = useState("texto");
+  const [novoDestino, setNovoDestino] = useState(destinos[0]?.id ?? "");
   const [addLoading, setAddLoading] = useState(false);
   const [fallbacks, setFallbacks] = useState<Fallback[] | null>(null);
   const [fallbacksLoading, setFallbacksLoading] = useState(false);
@@ -264,7 +278,8 @@ function FlowCard({
 
   async function adicionarKeyword(e: React.FormEvent) {
     e.preventDefault();
-    if (!novaPalavra.trim() || !novaResposta.trim()) return;
+    if (!novaPalavra.trim()) return;
+    if (novoTipo === "abrir_flow" ? !novoDestino : !novaResposta.trim()) return;
     setAddLoading(true);
     try {
       const res = await fetch(`/api/flows/${flow.id}/keywords`, {
@@ -273,7 +288,8 @@ function FlowCard({
         body: JSON.stringify({
           palavraChave: novaPalavra,
           tipoResposta: novoTipo,
-          resposta: novaResposta,
+          resposta: novoTipo === "abrir_flow" ? "" : novaResposta,
+          flowDestinoId: novoTipo === "abrir_flow" ? novoDestino : null,
         }),
       });
       const json = await res.json();
@@ -399,7 +415,11 @@ function FlowCard({
                   <div className="min-w-0">
                     <span className="text-white">{k.palavra_chave}</span>
                     <span className="text-gray-500 text-xs"> → </span>
-                    <span className="text-gray-300 text-xs break-words">{k.resposta}</span>
+                    <span className="text-gray-300 text-xs break-words">
+                      {k.tipo_resposta === "abrir_flow"
+                        ? `abre: ${destinos.find((d) => d.id === k.flow_destino_id)?.nome ?? "Flow"}`
+                        : k.resposta}
+                    </span>
                   </div>
                   {isAdmin && (
                     <button
@@ -427,14 +447,28 @@ function FlowCard({
               >
                 <option value="texto">Texto</option>
                 <option value="link">Link</option>
-                <option value="abrir_flow" disabled>Abrir agenda (Trilha B)</option>
+                <option value="abrir_flow" disabled={destinos.length === 0}>
+                  {destinos.length === 0 ? "Abrir Flow (nenhum publicado)" : "Abrir Flow"}
+                </option>
               </select>
-              <input
-                value={novaResposta}
-                onChange={(e) => setNovaResposta(e.target.value)}
-                placeholder="resposta"
-                className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white flex-1 min-w-[12rem]"
-              />
+              {novoTipo === "abrir_flow" ? (
+                <select
+                  value={novoDestino}
+                  onChange={(e) => setNovoDestino(e.target.value)}
+                  className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white flex-1 min-w-[12rem]"
+                >
+                  {destinos.map((d) => (
+                    <option key={d.id} value={d.id}>{d.nome} ({d.tipo})</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={novaResposta}
+                  onChange={(e) => setNovaResposta(e.target.value)}
+                  placeholder="resposta"
+                  className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white flex-1 min-w-[12rem]"
+                />
+              )}
               <button
                 type="submit"
                 disabled={addLoading}

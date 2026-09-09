@@ -440,11 +440,15 @@ async function responderAgenda(
   // registrar as CHAVES recebidas (nunca os valores, que são dado do
   // usuário), essas duas causas são indistinguíveis — foi o que aconteceu no
   // primeiro teste com aparelho real em 09/09/2026.
-  if (acao === "data_exchange" && !escolhido) {
+  // Só é "clicou sem escolher" quando veio DA agenda. Chegando do MENU, a
+  // ausência de show_id é o normal — e registrar isso poluía justamente o
+  // sinal criado para depurar o clique vazio.
+  const telaOrigem = typeof corpo.screen === "string" ? corpo.screen : null;
+  if (acao === "data_exchange" && !escolhido && telaOrigem === "AGENDA") {
     await registrar(phoneNumberId, "flow_endpoint_sem_show_id", {
       phoneNumberId,
       chaves_recebidas: Object.keys(dados),
-      tela_de_origem: corpo.screen ?? null,
+      tela_de_origem: telaOrigem,
     });
   }
 

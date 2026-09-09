@@ -29,6 +29,59 @@ export const MESSAGING_LIMIT_CODES = new Set([130472, 131048, 131056]);
 // responder minutos depois — então é caso logado, não exceção não tratada.
 export const FORA_DA_JANELA_CODE = 131047;
 
+/**
+ * POST /{phone_number_id}/messages, type "interactive" / flow — abre um Flow
+ * publicado dentro da conversa.
+ *
+ * É a capacidade que o PRD marca como "não reaproveita nada existente": o
+ * envio de texto e de template não sabe montar esta mensagem. Sem ela, a
+ * palavra-chave com tipo_resposta='abrir_flow' fica bloqueada.
+ *
+ * `flow_action: "data_exchange"` (e não "navigate") é o que faz o app pedir a
+ * primeira tela AO ENDPOINT — é o equivalente ao "Solicitar dados" da prévia
+ * do WhatsApp Manager. Com "navigate", o Flow abriria com dados estáticos e
+ * nunca chamaria o endpoint, que é justamente o modo que faz parecer que
+ * "nada acontece".
+ */
+export async function enviarFlow(params: {
+  phoneNumberId: string;
+  accessToken: string;
+  to: string;
+  flowId: string;
+  flowToken: string;
+  cta: string;
+  corpo: string;
+  cabecalho?: string;
+  rodape?: string;
+}): Promise<EnvioResultado> {
+  const { phoneNumberId, accessToken, to, flowId, flowToken, cta, corpo, cabecalho, rodape } = params;
+
+  const mensagem = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "flow",
+      ...(cabecalho ? { header: { type: "text", text: cabecalho } } : {}),
+      body: { text: corpo },
+      ...(rodape ? { footer: { text: rodape } } : {}),
+      action: {
+        name: "flow",
+        parameters: {
+          flow_message_version: "3",
+          flow_token: flowToken,
+          flow_id: flowId,
+          flow_cta: cta,
+          flow_action: "data_exchange",
+        },
+      },
+    },
+  };
+
+  return await postMensagem(phoneNumberId, accessToken, mensagem);
+}
+
 export interface EnvioResultado {
   ok: boolean;
   wamid?: string;
@@ -57,6 +110,20 @@ export async function enviarTexto(params: {
 }): Promise<EnvioResultado> {
   const { phoneNumberId, accessToken, to, body } = params;
 
+  return await postMensagem(phoneNumberId, accessToken, {
+    messaging_product: "whatsapp",
+    to,
+    type: "text",
+    text: { body },
+  });
+}
+
+/** POST /{phone_number_id}/messages com retry só em 429/5xx. */
+async function postMensagem(
+  phoneNumberId: string,
+  accessToken: string,
+  mensagem: unknown,
+): Promise<EnvioResultado> {
   for (let tentativa = 0; tentativa <= MAX_RETRIES; tentativa++) {
     let response: Response;
     try {
@@ -66,12 +133,7 @@ export async function enviarTexto(params: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to,
-          type: "text",
-          text: { body },
-        }),
+        body: JSON.stringify(mensagem),
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
     } catch (err) {

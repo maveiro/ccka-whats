@@ -227,6 +227,19 @@ async function responderAgenda(
     }
   }
 
+  // Caiu na lista mesmo tendo vindo de um clique: ou o rádio não foi marcado,
+  // ou a ligação do payload no Flow JSON não está entregando o valor. Sem
+  // registrar as CHAVES recebidas (nunca os valores, que são dado do
+  // usuário), essas duas causas são indistinguíveis — foi o que aconteceu no
+  // primeiro teste com aparelho real em 09/09/2026.
+  if (acao === "data_exchange" && !escolhido) {
+    await registrar(phoneNumberId, "flow_endpoint_sem_show_id", {
+      phoneNumberId,
+      chaves_recebidas: Object.keys(dados),
+      tela_de_origem: corpo.screen ?? null,
+    });
+  }
+
   // Lista: só o que ainda não aconteceu, em ordem cronológica. Show sem data
   // entra no fim (a query ordena com nulls por último).
   let query = supabase

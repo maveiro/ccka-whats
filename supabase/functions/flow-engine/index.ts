@@ -32,7 +32,7 @@ import {
   TEXTOS,
   validarCampo,
 } from "./gate.ts";
-import { enviarTexto, FORA_DA_JANELA_CODE, MESSAGING_LIMIT_CODES } from "./graph.ts";
+import { enviarFlow, enviarTexto, FORA_DA_JANELA_CODE, MESSAGING_LIMIT_CODES } from "./graph.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -544,15 +544,9 @@ async function responder(ctx: Contexto, texto: string | null): Promise<string> {
 
   if (encontrada) {
     if (encontrada.tipo_resposta === "abrir_flow") {
-      // Bloqueado até a Trilha B entregar a mensagem interativa com token de
-      // Flow (o graphClient de hoje nunca precisou gerar esse formato).
-      await logEvent(tenantId, payload.sessionId, "flow_reply_bloqueado_trilha_b", {
-        messageId: payload.messageId,
-        palavraChaveId: encontrada.id,
-        flowDestinoId: encontrada.flow_destino_id,
-      });
+      const resultado = await abrirFlowNaConversa(ctx, encontrada.flow_destino_id);
       await zerarFallbacks(ctx, payload.from);
-      return "abrir_flow_bloqueado";
+      return resultado;
     }
 
     if (encontrada.resposta) await enviar(ctx, encontrada.resposta);
@@ -608,6 +602,83 @@ async function responder(ctx: Contexto, texto: string | null): Promise<string> {
   }
 
   return atingiuAlerta ? "fallback_alerta" : "fallback";
+}
+
+/**
+ * Abre um Flow publicado dentro da conversa (tipo_resposta='abrir_flow').
+ *
+ * Depende de o Flow de destino ter `meta_flow_id` — o ID do Flow publicado na
+ * Meta (migration 0028). Sem ele não há o que abrir: cadastro incompleto, não
+ * falha de envio, e por isso o evento é específico.
+ */
+async function abrirFlowNaConversa(ctx: Contexto, flowDestinoId: string | null): Promise<string> {
+  const { tenantId, credencial, payload, flow } = ctx;
+
+  if (!flowDestinoId) {
+    await logEvent(tenantId, payload.sessionId, "flow_abrir_sem_destino", {
+      messageId: payload.messageId,
+      flowId: flow.id,
+    });
+    return "abrir_flow_sem_destino";
+  }
+
+  const { data: destino } = await supabase
+    .from("whatsapp_flows")
+    .select("id, nome, meta_flow_id, meta_flow_cta")
+    .eq("tenant_id", tenantId)
+    .eq("id", flowDestinoId)
+    .eq("ativo", true)
+    .is("deleted_at", null)
+    .maybeSingle<{ id: string; nome: string; meta_flow_id: string | null; meta_flow_cta: string | null }>();
+
+  if (!destino?.meta_flow_id) {
+    await logEvent(tenantId, payload.sessionId, "flow_abrir_sem_meta_flow_id", {
+      messageId: payload.messageId,
+      flowDestinoId,
+    });
+    return "abrir_flow_sem_meta_id";
+  }
+
+  // flow_token identifica ESTA abertura: vai e volta em toda requisição do
+  // endpoint, e é o que liga a interação à conversa quando for preciso
+  // depurar.
+  const flowToken = `${destino.id}:${payload.messageId}`.slice(0, 100);
+
+  const resultado = await enviarFlow({
+    phoneNumberId: credencial.phone_number_id,
+    accessToken: credencial.access_token,
+    to: payload.from,
+    flowId: destino.meta_flow_id,
+    flowToken,
+    cta: destino.meta_flow_cta ?? "Ver agenda",
+    corpo: destino.nome,
+  });
+
+  if (!resultado.ok) {
+    const codigo = resultado.errorCode ?? -1;
+    const evento = MESSAGING_LIMIT_CODES.has(codigo)
+      ? "flow_reply_tier_limit"
+      : codigo === FORA_DA_JANELA_CODE
+      ? "flow_reply_fora_da_janela"
+      : "flow_reply_erro";
+    await logEvent(tenantId, payload.sessionId, evento, {
+      messageId: payload.messageId,
+      telefone: payload.from,
+      flowDestinoId,
+      errorCode: resultado.errorCode,
+      status: resultado.status,
+    }, resultado.errorMessage);
+    return "abrir_flow_falhou";
+  }
+
+  await logEvent(tenantId, payload.sessionId, "flow_aberto_na_conversa", {
+    messageId: payload.messageId,
+    wamid: resultado.wamid,
+    metaFlowId: destino.meta_flow_id,
+    flowToken,
+  });
+
+  return "abrir_flow";
 }
 
 async function zerarFallbacks(ctx: Contexto, telefone: string): Promise<void> {

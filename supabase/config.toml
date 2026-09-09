@@ -294,6 +294,12 @@ verify_jwt = false
 [functions.flow-engine]
 verify_jwt = true
 
+# Endpoint de dados do WhatsApp Flow — chamado pela Meta, sem Authorization do
+# Supabase. A autenticidade vem da criptografia (só quem tem a chave AES
+# cifrada com a nossa pública produz um corpo que abre), não de JWT.
+[functions.flow-endpoint]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

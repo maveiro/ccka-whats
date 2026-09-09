@@ -12,38 +12,71 @@
     "   (tem_itens/sem_itens), nunca ${!data.tem_itens};",
     "3. referência a campo de formulário usa o prefixo LITERAL 'form'",
     "   (${form.campo}), não o nome dado ao componente Form — usar o nome faz",
-    "   o payload chegar vazio, sem erro nenhum."
+    "   o payload chegar vazio, sem erro nenhum.",
+    "routing_model conecta APRESENTACAO -> MENU: a Meta valida o grafo estático mesmo quando a navegação real vem do endpoint."
   ],
   "version": "7.2",
   "data_api_version": "3.0",
   "routing_model": {
-    "APRESENTACAO": [],
-    "MENU": ["FAQ_LISTA", "AGENDA"],
-    "FAQ_LISTA": ["FAQ_RESPOSTA"],
+    "APRESENTACAO": [
+      "MENU"
+    ],
+    "MENU": [
+      "FAQ_LISTA",
+      "AGENDA"
+    ],
+    "FAQ_LISTA": [
+      "FAQ_RESPOSTA"
+    ],
     "FAQ_RESPOSTA": [],
-    "AGENDA": ["DETALHE"],
+    "AGENDA": [
+      "DETALHE"
+    ],
     "DETALHE": []
   },
   "screens": [
     {
       "id": "APRESENTACAO",
       "title": "Central de shows",
-      "terminal": true,
+      "terminal": false,
       "data": {
-        "titulo": { "type": "string", "__example__": "Central de shows — Índio Behn" },
-        "texto": { "type": "string", "__example__": "Aqui você vê as próximas datas e tira dúvidas." },
-        "aviso_lgpd": { "type": "string", "__example__": "Vamos pedir seu nome e e-mail." }
+        "titulo": {
+          "type": "string",
+          "__example__": "Central de shows — Índio Behn"
+        },
+        "texto": {
+          "type": "string",
+          "__example__": "Aqui você vê as próximas datas e tira dúvidas."
+        },
+        "aviso_lgpd": {
+          "type": "string",
+          "__example__": "Vamos pedir seu nome e e-mail."
+        }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading", "text": "${data.titulo}" },
-          { "type": "TextBody", "text": "${data.texto}" },
-          { "type": "TextCaption", "text": "${data.aviso_lgpd}" },
+          {
+            "type": "TextHeading",
+            "text": "${data.titulo}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.texto}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.aviso_lgpd}"
+          },
           {
             "type": "Footer",
-            "label": "Fechar",
-            "on-click-action": { "name": "complete", "payload": {} }
+            "label": "Continuar",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "destino": "menu"
+              }
+            }
           }
         ]
       }
@@ -53,16 +86,34 @@
       "title": "Central de shows",
       "terminal": false,
       "data": {
-        "titulo": { "type": "string", "__example__": "Central de shows — Índio Behn" },
-        "saudacao": { "type": "string", "__example__": "Olá, Marina!" },
-        "subtitulo": { "type": "string", "__example__": "O que você quer ver agora?" }
+        "titulo": {
+          "type": "string",
+          "__example__": "Central de shows — Índio Behn"
+        },
+        "saudacao": {
+          "type": "string",
+          "__example__": "Olá, Marina!"
+        },
+        "subtitulo": {
+          "type": "string",
+          "__example__": "O que você quer ver agora?"
+        }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading", "text": "${data.saudacao}" },
-          { "type": "TextSubheading", "text": "${data.titulo}" },
-          { "type": "TextBody", "text": "${data.subtitulo}" },
+          {
+            "type": "TextHeading",
+            "text": "${data.saudacao}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.titulo}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.subtitulo}"
+          },
           {
             "type": "Form",
             "name": "form_menu",
@@ -73,8 +124,14 @@
                 "label": "Escolha uma opção",
                 "required": true,
                 "data-source": [
-                  { "id": "agenda", "title": "Próximos shows" },
-                  { "id": "faq", "title": "Perguntas frequentes" }
+                  {
+                    "id": "agenda",
+                    "title": "Próximos shows"
+                  },
+                  {
+                    "id": "faq",
+                    "title": "Perguntas frequentes"
+                  }
                 ]
               },
               {
@@ -82,7 +139,9 @@
                 "label": "Continuar",
                 "on-click-action": {
                   "name": "data_exchange",
-                  "payload": { "destino": "${form.destino}" }
+                  "payload": {
+                    "destino": "${form.destino}"
+                  }
                 }
               }
             ]
@@ -95,24 +154,55 @@
       "title": "Perguntas frequentes",
       "terminal": false,
       "data": {
-        "titulo": { "type": "string", "__example__": "Perguntas frequentes" },
-        "tem_itens": { "type": "boolean", "__example__": true },
-        "sem_itens": { "type": "boolean", "__example__": false },
-        "vazio_texto": { "type": "string", "__example__": "Ainda não temos perguntas cadastradas." },
+        "titulo": {
+          "type": "string",
+          "__example__": "Perguntas frequentes"
+        },
+        "tem_itens": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "sem_itens": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "vazio_texto": {
+          "type": "string",
+          "__example__": "Ainda não temos perguntas cadastradas."
+        },
         "itens": {
           "type": "array",
           "items": {
             "type": "object",
-            "properties": { "id": { "type": "string" }, "title": { "type": "string" } }
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
           },
-          "__example__": [{ "id": "1", "title": "Tem meia-entrada?" }]
+          "__example__": [
+            {
+              "id": "1",
+              "title": "Tem meia-entrada?"
+            }
+          ]
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading", "text": "${data.titulo}" },
-          { "type": "TextBody", "text": "${data.vazio_texto}", "visible": "${data.sem_itens}" },
+          {
+            "type": "TextHeading",
+            "text": "${data.titulo}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.vazio_texto}",
+            "visible": "${data.sem_itens}"
+          },
           {
             "type": "Form",
             "name": "form_faq",
@@ -131,7 +221,9 @@
                 "enabled": "${data.tem_itens}",
                 "on-click-action": {
                   "name": "data_exchange",
-                  "payload": { "faq_id": "${form.faq_id}" }
+                  "payload": {
+                    "faq_id": "${form.faq_id}"
+                  }
                 }
               }
             ]
@@ -144,18 +236,33 @@
       "title": "Resposta",
       "terminal": true,
       "data": {
-        "pergunta": { "type": "string", "__example__": "Tem meia-entrada?" },
-        "resposta": { "type": "string", "__example__": "Sim, com documento." }
+        "pergunta": {
+          "type": "string",
+          "__example__": "Tem meia-entrada?"
+        },
+        "resposta": {
+          "type": "string",
+          "__example__": "Sim, com documento."
+        }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading", "text": "${data.pergunta}" },
-          { "type": "TextBody", "text": "${data.resposta}" },
+          {
+            "type": "TextHeading",
+            "text": "${data.pergunta}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.resposta}"
+          },
           {
             "type": "Footer",
             "label": "Fechar",
-            "on-click-action": { "name": "complete", "payload": {} }
+            "on-click-action": {
+              "name": "complete",
+              "payload": {}
+            }
           }
         ]
       }
@@ -165,30 +272,59 @@
       "title": "Próximos shows",
       "terminal": false,
       "data": {
-        "titulo": { "type": "string", "__example__": "Próximos shows — Índio Behn" },
-        "tem_shows": { "type": "boolean", "__example__": true },
-        "sem_shows": { "type": "boolean", "__example__": false },
-        "vazio_texto": { "type": "string", "__example__": "Ainda não há datas confirmadas." },
+        "titulo": {
+          "type": "string",
+          "__example__": "Próximos shows — Índio Behn"
+        },
+        "tem_shows": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "sem_shows": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "vazio_texto": {
+          "type": "string",
+          "__example__": "Ainda não há datas confirmadas."
+        },
         "shows": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "id": { "type": "string" },
-              "title": { "type": "string" },
-              "description": { "type": "string" }
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
             }
           },
           "__example__": [
-            { "id": "1", "title": "Curitiba · Teatro Positivo", "description": "24/12 20:59 · à venda" }
+            {
+              "id": "1",
+              "title": "Curitiba · Teatro Positivo",
+              "description": "24/12 20:59 · à venda"
+            }
           ]
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading", "text": "${data.titulo}" },
-          { "type": "TextBody", "text": "${data.vazio_texto}", "visible": "${data.sem_shows}" },
+          {
+            "type": "TextHeading",
+            "text": "${data.titulo}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.vazio_texto}",
+            "visible": "${data.sem_shows}"
+          },
           {
             "type": "Form",
             "name": "form_agenda",
@@ -207,7 +343,9 @@
                 "enabled": "${data.tem_shows}",
                 "on-click-action": {
                   "name": "data_exchange",
-                  "payload": { "show_id": "${form.show_id}" }
+                  "payload": {
+                    "show_id": "${form.show_id}"
+                  }
                 }
               }
             ]
@@ -220,28 +358,58 @@
       "title": "Detalhes do show",
       "terminal": true,
       "data": {
-        "titulo": { "type": "string", "__example__": "Curitiba · Teatro Positivo" },
-        "quando": { "type": "string", "__example__": "24/12, 20:59" },
-        "status": { "type": "string", "__example__": "à venda" },
-        "tem_link": { "type": "boolean", "__example__": true },
-        "link_compra": { "type": "string", "__example__": "https://exemplo.com/ingressos" }
+        "titulo": {
+          "type": "string",
+          "__example__": "Curitiba · Teatro Positivo"
+        },
+        "quando": {
+          "type": "string",
+          "__example__": "24/12, 20:59"
+        },
+        "status": {
+          "type": "string",
+          "__example__": "à venda"
+        },
+        "tem_link": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "link_compra": {
+          "type": "string",
+          "__example__": "https://exemplo.com/ingressos"
+        }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextHeading", "text": "${data.titulo}" },
-          { "type": "TextSubheading", "text": "${data.quando}" },
-          { "type": "TextBody", "text": "${data.status}" },
+          {
+            "type": "TextHeading",
+            "text": "${data.titulo}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.quando}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.status}"
+          },
           {
             "type": "EmbeddedLink",
             "text": "Abrir página de ingressos",
             "visible": "${data.tem_link}",
-            "on-click-action": { "name": "open_url", "url": "${data.link_compra}" }
+            "on-click-action": {
+              "name": "open_url",
+              "url": "${data.link_compra}"
+            }
           },
           {
             "type": "Footer",
             "label": "Fechar",
-            "on-click-action": { "name": "complete", "payload": {} }
+            "on-click-action": {
+              "name": "complete",
+              "payload": {}
+            }
           }
         ]
       }

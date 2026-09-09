@@ -267,7 +267,7 @@ async function responderCentral(
 
   if (!credencial) {
     await registrar(phoneNumberId, "flow_endpoint_sem_credencial", { phoneNumberId, acao });
-    return telaApresentacao(null);
+    return telaApresentacao(null, null);
   }
 
   const dados = (corpo.data ?? {}) as Record<string, unknown>;
@@ -324,14 +324,29 @@ async function responderCentral(
     return telaFaqLista((itens ?? []) as FaqItem[]);
   }
 
-  // Abertura: identidade pela sessão do flow_token.
+  // Identidade pela sessão do flow_token.
   const cliente = await clienteDaSessao(corpo, credencial.tenant_id);
 
-  if (!cliente || !cliente.cadastro_completo) {
-    // Sem cadastro (ou sessão não reconhecida): apresentação em vez de um menu
-    // que não corresponde a ninguém. O cadastro é a Sprint C3.
+  // RESTRIÇÃO DA META (achada em produção em 09/09/2026, via o webhook `flows`):
+  // o INIT só pode devolver a tela de ENTRADA do grafo — uma tela sem arestas
+  // chegando nela. Devolver MENU direto para quem já tem cadastro é recusado
+  // com `invalid-screen-transition`, porque MENU tem entrada vinda de
+  // APRESENTACAO.
+  //
+  // Por isso a abertura é sempre APRESENTACAO, e o menu vem no toque seguinte.
+  // Custa um toque a mais; a alternativa seria publicar dois Flows (um para
+  // cadastrado, outro para novo) e escolher no envio, já que ali sabemos quem
+  // é a pessoa — vale reconsiderar se o toque extra incomodar.
+  if (acao === "INIT") {
     await registrarTela(phoneNumberId, acao, "APRESENTACAO", { identificado: Boolean(cliente) });
-    return telaApresentacao(credencial.artista);
+    return telaApresentacao(credencial.artista, cliente?.nome ?? null);
+  }
+
+  if (!cliente || !cliente.cadastro_completo) {
+    // Sem cadastro (ou sessão não reconhecida): segue na apresentação em vez de
+    // um menu que não corresponde a ninguém. O cadastro é a Sprint C3.
+    await registrarTela(phoneNumberId, acao, "APRESENTACAO", { identificado: Boolean(cliente) });
+    return telaApresentacao(credencial.artista, null);
   }
 
   await registrarTela(phoneNumberId, acao, "MENU", { identificado: true });

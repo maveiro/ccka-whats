@@ -70,13 +70,20 @@ export function telaFaqResposta(item: FaqItem) {
  * central se apresenta e explica por que vai pedir os dados, em vez de mostrar
  * um menu que não corresponde a ninguém.
  */
-export function telaApresentacao(artista: string | null) {
+export function telaApresentacao(artista: string | null, nomeCliente: string | null) {
+  const conhecido = Boolean(nomeCliente);
   return {
     screen: TELA_APRESENTACAO,
     data: {
       titulo: artista ? `Central de shows — ${artista}` : "Central de shows",
-      texto: "Aqui você vê as próximas datas, tira dúvidas e fica sabendo das novidades em primeira mão.",
-      aviso_lgpd: "Para continuar, vamos pedir seu nome e e-mail. Usamos esses dados só para te atender e avisar sobre shows — você pode pedir a remoção quando quiser.",
+      texto: conhecido
+        ? `Olá, ${nomeCliente}! Aqui você vê as próximas datas e tira suas dúvidas.`
+        : "Aqui você vê as próximas datas, tira dúvidas e fica sabendo das novidades em primeira mão.",
+      // Para quem já é cadastrado, repetir o aviso de coleta a cada abertura
+      // seria ruído: o dado já foi dado e o consentimento já está registrado.
+      aviso_lgpd: conhecido
+        ? "Seus dados ficam guardados só para te atender — você pode pedir a remoção quando quiser."
+        : "Para continuar, vamos pedir seu nome e e-mail. Usamos esses dados só para te atender e avisar sobre shows — você pode pedir a remoção quando quiser.",
     },
   };
 }

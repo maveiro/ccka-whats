@@ -385,19 +385,46 @@ const { error: erroFaq } = await db.from("faq_itens").insert([
 ]);
 if (erroFaq) throw new Error(`fixture do FAQ falhou: ${erroFaq.message}`);
 
-await cenario("quem tem cadastro cai no MENU, com o nome", async () => {
+await cenario("INIT devolve a tela de ENTRADA (restrição da Meta), já personalizada", async () => {
+  // A Meta recusa com `invalid-screen-transition` qualquer tela que tenha
+  // arestas chegando nela como resposta do INIT (achado em produção,
+  // 09/09/2026). Só APRESENTACAO é entrada — o menu vem no toque seguinte.
   const { res, chaveAes, iv } = await pedir(publicaPem, { version: "7.2", action: "INIT", flow_token: TOKEN_OK });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string; data: Record<string, unknown> };
+  checar(corpo.screen === "APRESENTACAO", `INIT deveria abrir a entrada, veio "${corpo.screen}"`);
+  checar(String(corpo.data.texto).includes("Marina"), `quem é conhecido deveria ser saudado, veio "${corpo.data.texto}"`);
+  checar(
+    !String(corpo.data.aviso_lgpd).includes("vamos pedir"),
+    "quem já é cadastrado não deve receber o aviso de coleta de novo",
+  );
+});
+
+await cenario("depois da entrada, quem tem cadastro chega ao MENU com o nome", async () => {
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "7.2", action: "data_exchange", screen: "APRESENTACAO",
+    flow_token: TOKEN_OK, data: { destino: "menu" },
+  });
   const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string; data: Record<string, unknown> };
   checar(corpo.screen === "MENU", `deveria abrir o MENU, veio "${corpo.screen}"`);
   checar(String(corpo.data.saudacao).includes("Marina"), `deveria saudar pelo nome, veio "${corpo.data.saudacao}"`);
   checar(String(corpo.data.titulo).includes("Artista A"), "o título deveria nomear o artista do número");
 });
 
+await cenario("sem cadastro, o 'continuar' não leva ao menu", async () => {
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "7.2", action: "data_exchange", screen: "APRESENTACAO",
+    flow_token: "nao-existe", data: { destino: "menu" },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string; data: Record<string, unknown> };
+  checar(corpo.screen === "APRESENTACAO", `sem cadastro deveria seguir na entrada, veio "${corpo.screen}"`);
+  checar(String(corpo.data.aviso_lgpd).includes("vamos pedir"), "quem não tem cadastro precisa ver o aviso de coleta");
+});
+
 await cenario("sem sessão reconhecida cai na APRESENTACAO, não em erro", async () => {
   const semToken = await pedir(publicaPem, { version: "7.2", action: "INIT" });
   const c1 = await abrirResposta(semToken.res, semToken.chaveAes, semToken.iv) as unknown as { screen: string; data: Record<string, unknown> };
   checar(c1.screen === "APRESENTACAO", `sem token deveria apresentar, veio "${c1.screen}"`);
-  checar(String(c1.data.aviso_lgpd).length > 20, "a apresentação precisa trazer o aviso de LGPD");
+  checar(String(c1.data.aviso_lgpd).includes("vamos pedir"), "a apresentação precisa trazer o aviso de coleta");
 
   const expirado = await pedir(publicaPem, { version: "7.2", action: "INIT", flow_token: TOKEN_EXPIRADO });
   const c2 = await abrirResposta(expirado.res, expirado.chaveAes, expirado.iv) as unknown as { screen: string };

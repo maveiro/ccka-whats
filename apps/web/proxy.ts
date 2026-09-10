@@ -33,7 +33,9 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Rotas sempre públicas — sem proteção de auth
-  const publicPaths = ["/register", "/forgot-password", "/reset-password", "/auth/", "/api/"];
+  // "/f/" é a página pública de formulário de cadastro: é embutida por iframe
+  // em sites de terceiros e, por definição, não tem sessão de usuário.
+  const publicPaths = ["/register", "/forgot-password", "/reset-password", "/auth/", "/api/", "/f/"];
   if (publicPaths.some((p) => pathname.startsWith(p))) {
     return supabaseResponse;
   }

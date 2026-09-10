@@ -14,6 +14,11 @@
 
 export const MAX_TENTATIVAS_POR_CAMPO = 2;
 
+// Identifica o texto de LGPD que a pessoa aceitou ao passar pelo gate. Trocar
+// o texto de TEXTOS.pedirNome sem trocar esta versão torna o consentimento
+// registrado uma informação falsa — é o par que dá sentido ao carimbo.
+export const VERSAO_CONSENTIMENTO_GATE = "gate-v1-2026-09";
+
 export type CampoGate = "nome" | "email";
 
 export interface ValidacaoResultado {

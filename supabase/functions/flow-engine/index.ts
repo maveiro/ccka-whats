@@ -31,6 +31,7 @@ import {
   reperguntaDoCampo,
   TEXTOS,
   validarCampo,
+  VERSAO_CONSENTIMENTO_GATE,
 } from "./gate.ts";
 import { enviarFlow, enviarTexto, FORA_DA_JANELA_CODE, MESSAGING_LIMIT_CODES } from "./graph.ts";
 
@@ -294,22 +295,36 @@ async function obterOuCriarCliente(ctx: Contexto): Promise<Cliente | null> {
       gate_iniciado_por_flow_id: flow.id,
     };
 
-  // Upsert com conflito em (tenant_id, telefone): duas mensagens quase
-  // simultâneas do mesmo telefone não criam dois cadastros (rodada 2 do PRD).
-  const { data: criado, error } = await supabase
-    .from("clientes")
-    .upsert(novo, { onConflict: "tenant_id,telefone", ignoreDuplicates: true })
-    .select("id, nome, email, telefone, cadastro_completo, aguardando_campo, tentativas_campo_atual, pulou_cadastro, mensagem_pendente")
-    .maybeSingle<Cliente>();
+  // Porta única de cadastro (migration 0033): normaliza o telefone, deduplica
+  // por (tenant, telefone) — duas mensagens quase simultâneas não criam dois
+  // cadastros — e respeita quem pediu exclusão de dados. O gate escrevia
+  // direto aqui e por isso gravou cliente real sem registrar consentimento.
+  const { error } = await supabase.rpc("registrar_cliente", {
+    p_tenant_id: tenantId,
+    p_telefone: payload.from,
+    p_origem: veioDeCampanha ? "campanha" : "organico",
+  });
 
   if (error) {
     await logEvent(tenantId, payload.sessionId, "error", { messageId: payload.messageId }, `criação de cliente falhou: ${error.message}`);
     return null;
   }
 
-  if (criado) return criado;
+  // Campos que só o gate conhece (a pergunta pendente e qual Flow abriu o
+  // gate) não pertencem à porta comum de cadastro.
+  if (!veioDeCampanha) {
+    await supabase
+      .from("clientes")
+      .update({
+        aguardando_campo: "nome",
+        mensagem_pendente: payload.text,
+        gate_iniciado_por_flow_id: flow.id,
+      })
+      .eq("tenant_id", tenantId)
+      .eq("telefone", payload.from)
+      .is("nome", null);
+  }
 
-  // Perdeu a corrida do upsert: a linha existe, criada pela invocação vizinha.
   const { data: relido } = await supabase
     .from("clientes")
     .select("id, nome, email, telefone, cadastro_completo, aguardando_campo, tentativas_campo_atual, pulou_cadastro, mensagem_pendente")
@@ -382,16 +397,30 @@ async function conduzirGate(ctx: Contexto, cliente: Cliente): Promise<ResultadoG
       return await registrarTentativaFalha(ctx, cliente, campo, payload.text);
     }
 
-    // Campo válido: grava e avança.
+    // Campo válido: grava pela porta única (que carrega o consentimento) e
+    // avança o estado do gate, que é específico daqui.
     const seguinte = proximoCampo(campo);
-    const atualizacao: Record<string, unknown> = {
-      [campo]: validacao.valor,
-      tentativas_campo_atual: 0,
-      aguardando_campo: seguinte,
-      cadastro_completo: seguinte === null,
-    };
 
-    await supabase.from("clientes").update(atualizacao).eq("tenant_id", tenantId).eq("id", cliente.id);
+    const { error: erroRegistro } = await supabase.rpc("registrar_cliente", {
+      p_tenant_id: tenantId,
+      p_telefone: cliente.telefone,
+      [campo === "nome" ? "p_nome" : "p_email"]: validacao.valor,
+      p_origem: "organico",
+      // O aceite acontece ao responder o primeiro campo, depois do texto que
+      // explica por que os dados são pedidos.
+      p_consentimento_versao: VERSAO_CONSENTIMENTO_GATE,
+      p_consentimento_origem: "gate",
+    } as Record<string, unknown>);
+
+    if (erroRegistro) {
+      await logEvent(tenantId, payload.sessionId, "error", { messageId: payload.messageId }, `registro de ${campo} falhou: ${erroRegistro.message}`);
+    }
+
+    await supabase
+      .from("clientes")
+      .update({ tentativas_campo_atual: 0, aguardando_campo: seguinte })
+      .eq("tenant_id", tenantId)
+      .eq("id", cliente.id);
 
     if (seguinte) {
       await enviar(ctx, perguntaDoCampo(seguinte));

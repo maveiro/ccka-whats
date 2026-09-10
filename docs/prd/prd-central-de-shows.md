@@ -180,7 +180,7 @@ fica preservado em `raw_payload` mas **não é extraído**. Guardar a origem no
 cliente permitiria saber por qual anúncio cada cadastro entrou — atribuição
 real, não estimativa. Não é obrigatório para a central; é barato se feito junto.
 
-## Decisão pendente: o gate conversacional vira legado?
+## Decisão fechada (10/09/2026): o gate conversacional continua sendo a porta
 
 Hoje quem escreve pela primeira vez cai no **gate do `flow-engine`**: a
 automação pergunta nome, depois e-mail, por mensagem de texto, com degrade após
@@ -195,8 +195,20 @@ a mesma pessoa**, com regras diferentes. Três saídas:
 2. Manter os dois — duplica regra e cria divergência de dado.
 3. Gate como fallback, se a pessoa ignorar o Flow e continuar escrevendo.
 
-A recomendação é a 1, marcando o gate como caminho legado no motor (sem apagar:
-números sem central continuam usando).
+A recomendação escrita aqui era a 1. **O fundador decidiu pela 2, em
+10/09/2026, vendo o fluxo real rodar:** o gate por texto segue sendo a porta de
+cadastro de quem escreve para o número, e a tela `CADASTRO` do Flow fica como
+caminho de quem chega à central por fora do chat (campanha com botão de Flow,
+link direto) — sem cadastro prévio, ela continua sendo necessária.
+
+Isso aceita conscientemente o custo apontado acima: **as duas portas existem ao
+mesmo tempo**. O que impede a divergência de dado é as duas gravarem pela mesma
+função `registrar_cliente` (migration 0033) — nenhuma das duas escreve em
+`clientes` por conta própria. A divergência que sobra é de *texto e versão de
+consentimento*: o gate usa a constante `VERSAO_CONSENTIMENTO_GATE` em
+`gate.ts`, o Flow usa `whatsapp_flows.texto_consentimento`/`versao_consentimento`
+do banco. Mudar o texto legal exige mexer nos dois — anotar aqui é o que evita
+esquecer um deles.
 
 ## Riscos e pontos de atenção
 
@@ -239,7 +251,7 @@ números sem central continuam usando).
 **C3 — Cadastro dentro do Flow**
 - Telas `APRESENTACAO` e `CADASTRO` com texto legal
 - Gravação em `clientes` a partir do endpoint
-- Decisão sobre o gate conversacional aplicada
+- Decisão sobre o gate conversacional aplicada (10/09/2026: mantidos os dois caminhos, ver seção acima)
 
 **C4 — Campanha que abre a central**
 - `campaign-sender` preenchendo botão de Flow com `flow_token`

@@ -8,12 +8,16 @@ export default function FormularioPublico({
   mensagemSucesso,
   exigeNome,
   exigeEmail,
+  whatsappNumero,
+  whatsappMensagem,
 }: {
   slug: string;
   textoConsentimento: string;
   mensagemSucesso: string;
   exigeNome: boolean;
   exigeEmail: boolean;
+  whatsappNumero: string | null;
+  whatsappMensagem: string | null;
 }) {
   const [telefone, setTelefone] = useState("");
   const [nome, setNome] = useState("");
@@ -45,9 +49,29 @@ export default function FormularioPublico({
   }
 
   if (pronto) {
+    // wa.me exige só dígitos; o número é guardado no formato que o admin
+    // digitou ("+55 41 8440-8675") para ele se reconhecer no painel.
+    const digitos = (whatsappNumero ?? "").replace(/\D/g, "");
+    const link = digitos
+      ? `https://wa.me/${digitos}${whatsappMensagem ? `?text=${encodeURIComponent(whatsappMensagem)}` : ""}`
+      : null;
+
     return (
-      <div className="mt-6 border border-green-900 bg-green-950/40 rounded p-4">
+      <div className="mt-6 border border-green-900 bg-green-950/40 rounded p-4 space-y-3">
         <p className="text-sm text-green-300">{mensagemSucesso}</p>
+        {link && (
+          <>
+            {/* target="_blank" porque a página costuma estar dentro de um
+                iframe na landing — sem isso a conversa abriria lá dentro. */}
+            <a href={link} target="_blank" rel="noopener noreferrer"
+              className="block text-center bg-green-600 hover:bg-green-500 text-white text-sm rounded px-3 py-2">
+              Abrir conversa no WhatsApp
+            </a>
+            <p className="text-[11px] text-gray-400 text-center">
+              É lá que ficam as datas, os ingressos e as dúvidas.
+            </p>
+          </>
+        )}
       </div>
     );
   }

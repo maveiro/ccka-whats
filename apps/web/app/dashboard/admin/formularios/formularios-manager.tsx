@@ -13,6 +13,8 @@ interface Formulario {
   texto_consentimento: string;
   versao_consentimento: string;
   mensagem_sucesso: string;
+  whatsapp_numero: string | null;
+  whatsapp_mensagem: string | null;
   exige_nome: boolean;
   exige_email: boolean;
   dominios_permitidos: string[];
@@ -143,6 +145,8 @@ function Cartao({
   onRemover: () => void;
 }) {
   const [dominios, setDominios] = useState(form.dominios_permitidos.join(", "));
+  const [waNumero, setWaNumero] = useState(form.whatsapp_numero ?? "");
+  const [waMensagem, setWaMensagem] = useState(form.whatsapp_mensagem ?? "");
   const url = `${origem}/f/${form.slug}`;
   const embed = `<iframe src="${url}" style="width:100%;max-width:480px;height:520px;border:0" title="${form.titulo}"></iframe>`;
 
@@ -195,6 +199,29 @@ function Cartao({
         <p className="text-[11px] text-gray-500">
           O endpoint aceita <code>{"{ nome, email, telefone, consentiu: true }"}</code> — use se preferir
           montar o formulário no seu próprio site.
+        </p>
+      </div>
+
+      <div className="space-y-2 border-t border-gray-800 pt-3">
+        <p className="text-xs text-gray-400">Depois de cadastrar, abrir conversa em:</p>
+        <div className="flex flex-wrap gap-2">
+          <input value={waNumero} onChange={(e) => setWaNumero(e.target.value)}
+            onBlur={() => {
+              if (waNumero !== (form.whatsapp_numero ?? "")) onAtualizar({ whatsappNumero: waNumero });
+            }}
+            placeholder="+55 41 8440-8675"
+            className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white w-44" />
+          <input value={waMensagem} onChange={(e) => setWaMensagem(e.target.value)}
+            onBlur={() => {
+              if (waMensagem !== (form.whatsapp_mensagem ?? "")) onAtualizar({ whatsappMensagem: waMensagem });
+            }}
+            placeholder="menu"
+            className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white flex-1 min-w-[10rem]" />
+        </div>
+        <p className="text-[11px] text-gray-500">
+          Sem número, a tela de sucesso não mostra botão nenhum. O texto vai preenchido na
+          conversa e precisa bater com uma palavra-chave da automação desse número — hoje
+          &quot;menu&quot; abre a central.
         </p>
       </div>
 

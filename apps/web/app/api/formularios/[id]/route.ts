@@ -15,6 +15,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     ["descricao", "descricao"],
     ["mensagemSucesso", "mensagem_sucesso"],
     ["artista", "artista"],
+    ["whatsappNumero", "whatsapp_numero"],
+    ["whatsappMensagem", "whatsapp_mensagem"],
   ] as const) {
     if (typeof body[api] === "string") patch[coluna] = (body[api] as string).trim() || null;
   }
@@ -49,7 +51,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const { data, error } = await supabase
     .from("formularios_cadastro")
     .update(patch).eq("id", id).is("deleted_at", null)
-    .select("id, slug, nome, artista, titulo, descricao, texto_consentimento, versao_consentimento, mensagem_sucesso, exige_nome, exige_email, dominios_permitidos, ativo, created_at")
+    .select("id, slug, nome, artista, titulo, descricao, texto_consentimento, versao_consentimento, mensagem_sucesso, whatsapp_numero, whatsapp_mensagem, exige_nome, exige_email, dominios_permitidos, ativo, created_at")
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

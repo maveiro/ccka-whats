@@ -17,7 +17,7 @@ export default async function FormulariosPage() {
 
   const { data: formularios } = await supabase
     .from("formularios_cadastro")
-    .select("id, slug, nome, artista, titulo, descricao, texto_consentimento, versao_consentimento, mensagem_sucesso, exige_nome, exige_email, dominios_permitidos, ativo, created_at")
+    .select("id, slug, nome, artista, titulo, descricao, texto_consentimento, versao_consentimento, mensagem_sucesso, whatsapp_numero, whatsapp_mensagem, exige_nome, exige_email, dominios_permitidos, ativo, created_at")
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 

@@ -12,7 +12,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("formularios_cadastro")
-    .select("id, slug, nome, artista, titulo, descricao, texto_consentimento, versao_consentimento, mensagem_sucesso, exige_nome, exige_email, dominios_permitidos, ativo, created_at")
+    .select("id, slug, nome, artista, titulo, descricao, texto_consentimento, versao_consentimento, mensagem_sucesso, whatsapp_numero, whatsapp_mensagem, exige_nome, exige_email, dominios_permitidos, ativo, created_at")
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
         : [],
       ativo: true,
     })
-    .select("id, slug, nome, artista, titulo, descricao, texto_consentimento, versao_consentimento, mensagem_sucesso, exige_nome, exige_email, dominios_permitidos, ativo, created_at")
+    .select("id, slug, nome, artista, titulo, descricao, texto_consentimento, versao_consentimento, mensagem_sucesso, whatsapp_numero, whatsapp_mensagem, exige_nome, exige_email, dominios_permitidos, ativo, created_at")
     .single();
 
   if (error) {

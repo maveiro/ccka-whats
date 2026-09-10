@@ -16,7 +16,7 @@ export default async function FormularioPage({ params }: { params: Promise<{ slu
   const admin = createAdminClient();
   const { data: form } = await admin
     .from("formularios_cadastro")
-    .select("slug, titulo, descricao, texto_consentimento, mensagem_sucesso, exige_nome, exige_email, ativo")
+    .select("slug, titulo, descricao, texto_consentimento, mensagem_sucesso, exige_nome, exige_email, ativo, whatsapp_numero, whatsapp_mensagem")
     .eq("slug", slug)
     .is("deleted_at", null)
     .maybeSingle();
@@ -34,6 +34,8 @@ export default async function FormularioPage({ params }: { params: Promise<{ slu
           mensagemSucesso={form.mensagem_sucesso}
           exigeNome={form.exige_nome}
           exigeEmail={form.exige_email}
+          whatsappNumero={form.whatsapp_numero}
+          whatsappMensagem={form.whatsapp_mensagem}
         />
       </div>
     </main>

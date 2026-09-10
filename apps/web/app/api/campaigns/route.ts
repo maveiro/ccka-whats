@@ -16,7 +16,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("campaigns")
-    .select("id, name, template_name, template_category, status, total_recipients, sent_count, delivered_count, read_count, failed_count, created_at")
+    .select("id, name, template_name, template_category, status, total_recipients, sent_count, delivered_count, read_count, failed_count, clicked_count, created_at")
     .eq("tenant_id", operator.tenant_id)
     .order("created_at", { ascending: false });
 
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
     templateLanguage?: unknown;
     templateCategory?: unknown;
     templateComponents?: unknown;
+    clickTargetUrl?: unknown;
     recipients?: unknown;
   };
 
@@ -93,6 +94,12 @@ export async function POST(req: NextRequest) {
         template_language: body.templateLanguage,
         template_category: typeof body.templateCategory === "string" ? body.templateCategory : null,
         template_components: body.templateComponents ?? null,
+        // Destino real do botão rastreado (migration campanhas_clique_rastreado).
+        // O template aponta para /c/{{1}} e é daqui que o redirect descobre
+        // para onde mandar.
+        click_target_url: typeof body.clickTargetUrl === "string" && body.clickTargetUrl.trim()
+          ? body.clickTargetUrl.trim()
+          : null,
         status: "draft",
       })
       .select("id")

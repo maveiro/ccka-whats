@@ -18,7 +18,7 @@ export default async function CampaignsPage() {
 
   const { data: campaigns } = await supabase
     .from("campaigns")
-    .select("id, name, template_name, template_category, status, total_recipients, sent_count, delivered_count, read_count, failed_count, created_at")
+    .select("id, name, template_name, template_category, status, total_recipients, sent_count, delivered_count, read_count, failed_count, clicked_count, created_at")
     .eq("tenant_id", operator.tenant_id)
     .order("created_at", { ascending: false });
 

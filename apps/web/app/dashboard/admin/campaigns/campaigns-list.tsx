@@ -18,6 +18,7 @@ interface Campaign {
   created_at: string;
   /** Ledger de custo (migration custos_cloud_api). 0 para campanha anterior ao registro. */
   cost?: number;
+  clicked_count: number;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -176,6 +177,7 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
                 <span>{c.sent_count + c.failed_count}/{c.total_recipients} processados</span>
                 <span>
                   {c.delivered_count} entregues · {c.read_count} lidos · {c.failed_count} falhas
+                  {c.clicked_count > 0 && ` · ${c.clicked_count} clicaram`}
                   {(c.cost ?? 0) > 0 && (
                     <span className="text-gray-400"> · {formatCurrency(c.cost!)}</span>
                   )}

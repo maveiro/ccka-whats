@@ -22,6 +22,31 @@ Isso deixa o produto cego exatamente no botão que mais importa comercialmente �
 o de compra. E, como consequência, não há como fazer a pergunta seguinte:
 *"quem clicou em comprar e não comprou, me manda um lembrete daqui a 2h"*.
 
+## O que o "link tracking" nativo da Meta resolve (e o que não resolve)
+
+O editor de template da Meta tem uma caixa "usar o rastreamento de link para
+relatar cliques no site". Ela **não substitui** esta frente, mas também não é
+enfeite — convém deixar marcada.
+
+O que ela entrega, via Template Analytics (WhatsApp Manager ou Business
+Management API): `url_button` (cliques totais) e `unique_url_button` (contas
+distintas que clicaram). Agregado por template, por dia. **Nunca identifica o
+destinatário** — não vem telefone, não vem nada que permita derivar um público.
+Por isso não alimenta a Frente 2.
+
+Limitações da via nativa que o redirect próprio não tem:
+
+- **Dados de clique expiram em 7 dias** — a contagem *zera*, não é arquivada.
+- **É por template, não por campanha.** Reusar o mesmo template em dois
+  disparos mistura os números; separar só é possível com granularidade diária.
+- **Indisponível na UE e no Japão** (irrelevante para o Brasil hoje, mas é uma
+  dependência externa que o nosso caminho não carrega).
+
+**Uso recomendado:** manter marcada como **número de conferência independente**
+na subida da Frente 1 — serve para validar o nosso contador e, em especial,
+para calibrar o filtro de crawler (armadilha 1 abaixo). Divergência grande
+entre os dois números aponta bug nosso.
+
 ## Objetivo
 
 Duas capacidades, independentes entre si mas que só entregam o caso de uso
@@ -29,17 +54,16 @@ completo juntas:
 
 1. **Rastrear o clique no botão de URL** — trocando o link do template por um
    redirect nosso com token por destinatário.
-2. **Disparar uma campanha de follow-up agendada para um público derivado de
-   outra campanha** — "quem clicou no link", "quem respondeu 'Já Comprei!'",
-   "quem recebeu e não interagiu".
+2. **Responder X minutos após o clique**, com uma mensagem pré-configurada,
+   por pessoa — e não como um segundo disparo em bloco.
 
 ## Fora de escopo
 
 - **Atribuição de venda** (clicou → comprou). Exige integração com o checkout
   (Sympla/etc.), que é outro projeto. O redirect da Frente 1 deixa o caminho
   pronto — carrega UTM — mas fechar o laço não entra aqui.
-- **Agendamento relativo por destinatário** ("2h após *esta pessoa* receber").
-  Ver "Decisão: agendamento absoluto" abaixo.
+- **Régua com ramificação condicional** (se clicou A então B, senão C). A v1
+  tem uma regra por gatilho, sem árvore.
 - **Régua de automação multi-etapa** (fluxo com N passos condicionais). Isso é
   ferramenta de marketing automation e recairia no rumo que o CLAUDE.md fechou.
   Aqui é: uma campanha manual gera uma segunda campanha manual, com público
@@ -90,12 +114,29 @@ campaign_recipients
 + click_count       int default 0 -- cliques totais (a pessoa pode voltar)
 ```
 
-`click_token`: 10 chars base62 gerados na aplicação (não sequencial, não
-derivado do telefone), `unique` no banco. Não precisa ser segredo
-criptográfico — não dá acesso a nada, só identifica uma linha — mas precisa ser
-não-enumerável para que ninguém varra tokens e infle contadores alheios.
+`click_token`: **gerado pelo banco, via `default`** — não pela aplicação:
 
-Índice: `create unique index on campaign_recipients(click_token) where click_token is not null`.
+```sql
+click_token text not null default encode(gen_random_bytes(8), 'hex')  -- 16 chars, 64 bits
+```
+
+O default no banco não é preciosismo. Há **dois caminhos** de criação de
+destinatário: o upsert do `POST /api/campaigns` (CSV) e o `insert ... select` da
+materialização de segmento (Frente 2, em SQL puro). Gerar na aplicação obrigaria
+a duplicar a lógica nos dois, e a esquecer num deles é justamente o tipo de
+falha silenciosa que o CLAUDE.md já documenta. Com `default`, os dois caminhos
+ganham token de graça.
+
+Não precisa ser segredo criptográfico — o token não dá acesso a nada, só
+identifica uma linha — mas precisa ser não-enumerável, para que ninguém varra
+tokens e infle contadores alheios. 64 bits resolve isso com folga.
+
+Índice: `create unique index on campaign_recipients(click_token);`
+
+**O token não entra em `variables`.** Aquele jsonb mapeia 1:1 os placeholders do
+BODY por chave numérica ("1", "2", ...) e é consumido por `buildComponents()`.
+Injetar o token ali viraria um parâmetro de corpo a mais e quebraria o
+alinhamento de todas as variáveis do texto.
 
 `recompute_campaign_counters()` (0019) ganha `clicked_count` — mantendo a regra
 já fixada de **recalcular, nunca incrementar por evento**.
@@ -133,10 +174,27 @@ registro de clique é aceitável; deixar um comprador na tela de erro, não.
    só monta o componente BODY.** Botão de URL dinâmico exige um componente
    adicional que hoje não existe:
    ```json
-   {"type":"button","sub_type":"url","index":"0",
+   {"type":"button","sub_type":"url","index":"<posição do botão>",
     "parameters":[{"type":"text","text":"<click_token>"}]}
    ```
    Sem isso o envio é rejeitado pela Graph API com erro de parâmetro faltando.
+
+   **`index` não pode ser hardcoded como `"0"`.** É a posição do botão entre
+   *todos* os botões do template. No template atual a ordem é `Comprar Meu
+   Ingresso` (URL, 0) · `Já Comprei!` (1) · `Não Vou Poder Ir!` (2) — dá 0 por
+   coincidência de layout. Trocar a ordem dos botões no editor da Meta passaria
+   a enviar o token no botão errado, sem erro nenhum: a Graph API aceita, e o
+   link sai quebrado para a base inteira. Derivar o índice de
+   `campaigns.template_components` (já salvo em jsonb na criação da campanha),
+   procurando o botão de sub-tipo URL.
+
+   Regra da Meta, confirmada na doc: **uma só variável por URL, e só no final** —
+   o valor enviado é *anexado* como sufixo, não substituído no meio. O desenho
+   `https://dominio/c/{{1}}` + token é compatível; qualquer coisa que exigisse a
+   variável no meio da URL não seria.
+
+   Detalhe menor a corrigir de passagem: `buildComponents()` é chamado **duas
+   vezes** na mesma expressão em [sendOne](supabase/functions/campaign-sender/index.ts#L217).
 5. **`countPlaceholders()` no [campaign-wizard](apps/web/app/dashboard/admin/campaigns/campaign-wizard.tsx#L30)
    só conta placeholders do BODY.** A variável do botão **não** vem do CSV (é
    gerada por nós) — a UI precisa deixar isso explícito, senão o admin cria uma
@@ -152,149 +210,194 @@ registro de clique é aceitável; deixar um comprador na tela de erro, não.
 
 ---
 
-# Frente 2 — Follow-up agendado e segmentado
+# Frente 2 — Follow-up por gatilho, X minutos após o clique
 
-## Decisão: agendamento absoluto, não relativo
+## A decisão que define o custo
 
-"2h depois" é ambíguo quando o disparo original leva ~38 min (1.889
-destinatários ÷ 50 por minuto). Duas leituras possíveis:
+O follow-up é uma mensagem por pessoa, disparada X minutos depois do gatilho.
+**Quanto ela custa depende inteiramente de qual botão a pessoa tocou** — e isso
+é decisão de desenho do template, não de código:
 
-- **Relativo por destinatário** — cada pessoa recebe 2h após *o seu* envio.
-  Exige agendamento por linha, um scheduler por destinatário e reconciliação
-  de horário. Muito mais complexo.
-- **Absoluto na campanha** — o admin marca uma hora e a campanha inteira sai
-  ali.
+| Gatilho | Abre a janela de 24h? | Mensagem possível | Custo |
+|---|---|---|---|
+| Quick-reply ("Quero Comprar!") | **Sim** — o toque é uma mensagem inbound | texto livre | **grátis** |
+| Botão de URL (rastreado via `/c/`) | **Não** — abrir link não é mensagem | só template de marketing | **pago, por pessoa** |
 
-**Recomendação: absoluto.** A UI calcula a sugestão ("2h após o fim do disparo
-original") e preenche o campo, mas o que vai para o banco é um `timestamptz`. A
-diferença prática entre as duas leituras é de ~38 min na cauda da base, e não
-justifica o custo. Se um dia justificar, o relativo se constrói por cima disso
-sem refazer nada.
+Fonte: [doc de pricing da Meta](https://developers.facebook.com/docs/whatsapp/pricing) —
+mensagens não-template dentro de uma janela de atendimento aberta são gratuitas.
 
-Como bônus, o absoluto resolve de graça um problema que o relativo teria:
-**mandar mensagem às 3h da manhã**. Com hora marcada, o admin vê o horário.
+O mecanismo de agendamento é **o mesmo nos dois casos**. O tipo de botão só
+decide se cada mensagem sai de graça ou é cobrada.
+
+### O caminho alternativo: trocar o CTA por quick-reply
+
+Substituir `Comprar Meu Ingresso` (URL) por `Quero Comprar!` (quick-reply):
+
+```
+disparo (template pago, 1x)
+   ↓ pessoa toca "Quero Comprar!"     → abre a janela de 24h
+resposta imediata com o link          → grátis   (regra com delay = 0)
+   ↓ X minutos depois
+lembrete "seu ingresso ainda te espera"  → grátis
+```
+
+Custo do follow-up cai a zero. Rastreamento fica **melhor**, não pior: o toque
+no quick-reply já é capturado hoje em `campaign_recipients.button_reply`
+(migration 0022), e o link enviado na resposta pode ser o `/c/` da Frente 1 —
+então dá para separar *"pediu o link"* de *"abriu o checkout de fato"*, coisa
+que o botão de URL puro nunca deu.
+
+**O preço disso é um toque a mais antes do checkout.** É fricção real e vai
+custar alguma conversão no topo. Contra: a base já está acostumada a tocar
+botão nesse template ("Já Comprei!", "Não Vou Poder Ir!").
+
+**Decisão do fundador, não técnica.** As duas opções estão implementadas pelo
+mesmo código; o que muda é o template e o custo. Dá para medir: rodar um
+disparo com cada desenho e comparar cliques no checkout contra custo total.
+
+## O que já existe (e não precisa ser construído)
+
+Levantamento do código atual — a Frente 2 é bem menor do que parece:
+
+| Peça | Situação |
+|---|---|
+| Envio de texto livre | **Pronto** — `sendFreeformTextMessage` ([graphClient.ts](apps/web/lib/whatsapp-cloud/graphClient.ts#L192)) e `enviarTexto` no flow-engine |
+| Detecção de janela fechada | **Pronto** — `FORA_DA_JANELA_CODE` (131047), já tratado como evento próprio no [flow-engine](supabase/functions/flow-engine/index.ts#L911) |
+| Resposta automática a inbound do Cloud API | **Pronto** — flow-engine, em produção desde 04/09/2026 |
+| Captura do toque em quick-reply | **Pronto** — `linkButtonReplyToRecipient` no [whatsapp-cloud-webhook](supabase/functions/whatsapp-cloud-webhook/index.ts#L400) |
+| Envio de template em lote, com claim atômico e teto de tier | **Pronto** — `campaign-sender` |
+| Captura do clique em link | Frente 1 (Sprint 1) |
+| **Fila com atraso por pessoa** | **É isto que falta** |
+
+**Não é preciso checar a janela de 24h antes de enviar.** A Graph API é a
+autoridade: tenta o texto livre e, se voltar 131047, a janela estava fechada.
+Manter um `last_inbound_at` nosso seria uma segunda fonte de verdade capaz de
+divergir — e o código já sabe reconhecer esse código de erro.
 
 ## Modelo de dados
 
-Migration `0041_campanhas_agendamento.sql`:
+Migration `0041_follow_up_por_gatilho.sql`. Nomes em inglês para manter a
+coerência do módulo de campanhas (`campaigns`, `campaign_recipients`) — o
+vocabulário em português dos Flows é de outro módulo.
 
 ```
-campaigns
-+ scheduled_at        timestamptz  -- null = disparo manual (comportamento atual)
-+ source_campaign_id  uuid references campaigns(id) on delete set null
-+ source_filter       text         -- só documental: qual segmento originou
+campaign_follow_ups            -- a REGRA, pré-configurada pelo admin
+  id, tenant_id, campaign_id, active
+  trigger         text   -- 'button_reply' | 'link_click'
+  trigger_value   text   -- texto do botão, quando trigger='button_reply'
+  delay_minutes   int    -- 0 = responder na hora
+  mode            text   -- 'freeform' | 'template'
+  body            text   -- quando freeform
+  template_name / template_language / template_category   -- quando template
+  cancel_on_button_reply  text[]   -- ex: {'Já Comprei!'}
+  quiet_hours_start / quiet_hours_end   -- ver armadilha 3
 
-status ganha 'scheduled'  -- draft|scheduled|validating|ready|sending|paused|completed|failed
+scheduled_messages             -- a FILA
+  id, tenant_id, follow_up_id, campaign_recipient_id, credential_id,
+  phone_e164, send_after timestamptz,
+  status  text  -- pending|sending|sent|cancelled|window_closed|failed
+  claimed_at, attempts, wamid, sent_at, error
+  unique (follow_up_id, campaign_recipient_id)
 ```
 
-`source_campaign_id` + `source_filter` não são funcionais — servem para a tela
-mostrar "follow-up de: Alunos em Modo Avião · quem clicou no link" e para
-auditoria. Sem isso, em três meses ninguém lembra de onde veio aquela base.
+`delay_minutes = 0` faz a mesma regra cobrir a resposta imediata com o link e o
+lembrete de X minutos — são duas linhas em `campaign_follow_ups`, não dois
+mecanismos.
 
-## Promoção de agendada → enviando
+## Fluxo
 
-A função `invoke_campaign_sender_for_active()` (0020, corrigida em 0023) já roda
-por `pg_cron` a cada minuto. Ganha um passo **antes** do loop existente:
+**Enfileiramento** — dois pontos, ambos em código que já existe:
 
-```sql
-update campaigns
-set status = 'sending', updated_at = now()
-where status = 'scheduled' and scheduled_at <= now();
-```
+- `whatsapp-cloud-webhook`, logo após `linkButtonReplyToRecipient()`:
+  gatilho `button_reply`.
+- `/c/[token]`, logo após registrar o clique: gatilho `link_click`.
 
-Não precisa de cron novo, nem de Edge Function nova, nem de mudança no
-`campaign-sender`. É a mudança de menor superfície possível: a campanha entra no
-pipeline de disparo que já existe e funciona.
+Ambos fazem `insert ... on conflict do nothing`. É o `unique (follow_up_id,
+campaign_recipient_id)` que garante que **cinco cliques da mesma pessoa geram um
+follow-up, não cinco**.
 
-**Reaproveita de graça** todas as proteções já validadas em produção: claim
-atômico (`FOR UPDATE SKIP LOCKED`), pausa automática por teto de tier de
-mensageria, reclaim de destinatário preso, recálculo de contadores.
-
-## Público derivado de outra campanha
-
-`POST /api/campaigns/from-segment`:
+**Envio** — Edge Function `follow-up-sender`, invocada por `pg_cron` a cada
+minuto, no mesmo desenho já validado do `campaign-sender`:
 
 ```
-{ sourceCampaignId, filter, name, credentialId, templateName,
-  templateLanguage, templateCategory, scheduledAt }
+1. claim de lote com FOR UPDATE SKIP LOCKED  (send_after <= now(), status='pending')
+2. cancelar quem: entrou em whatsapp_opt_outs, ou respondeu algum
+   cancel_on_button_reply depois do enfileiramento  → status 'cancelled'
+3. fora da faixa de horário permitida → empurra send_after, não envia
+4. mode='freeform' → sendFreeformTextMessage
+   mode='template' → mesmo caminho do campaign-sender
+5. erro 131047 → status 'window_closed' (NÃO é falha — ver armadilha 2)
+6. events_log em toda tentativa (follow_up_send_attempt)
 ```
 
-Filtros da v1 — todos consultas diretas em `campaign_recipients`, sem tabela
-nova:
+## Ainda cabe a campanha derivada agendada?
 
-| filtro | condição |
-|---|---|
-| `clicked` | `clicked_at is not null` (requer Frente 1) |
-| `button_reply` | `button_reply = <texto>` (ex: "Já Comprei!") |
-| `delivered_no_engagement` | `status in ('delivered','read') and button_reply is null and clicked_at is null` |
-| `failed` | `status = 'failed'` — para retentar com outro template |
+Sim, para um caso que o gatilho não cobre: **quem não fez nada**. Não houve
+clique nem resposta, logo não há gatilho por pessoa nem janela aberta — só resta
+um disparo em bloco, com template, para o segmento `delivered_no_engagement`.
 
-O endpoint copia `phone_e164` **e** `variables` do destinatário original — é o
-que faz `{{1}}` continuar sendo o primeiro nome no follow-up sem novo CSV.
-
-Reaproveita integralmente o caminho de criação já existente em
-[POST /api/campaigns](apps/web/app/api/campaigns/route.ts): dedupe por telefone
-(obrigatório — ver a armadilha de `ON CONFLICT` no CLAUDE.md), filtro de
-opt-out, `events_log`. **Não duplicar essa lógica**: extrair a parte de "inserir
-destinatários numa campanha" para uma função compartilhada e chamar dos dois
-endpoints.
+Isso é a Sprint 4, não a v1: é o público de menor intenção e o mais caro de
+alcançar. Fazer por último é a ordem certa.
 
 ## Armadilhas conhecidas
 
-1. **Opt-out precisa ser reavaliado no momento do disparo, não da criação.**
-   Uma campanha criada agora e agendada para daqui a 2h pode incluir alguém que
-   clicou em "Parar de receber mensagens" nesse intervalo. O filtro atual roda
-   só na criação. **O `campaign-sender` precisa checar `whatsapp_opt_outs` no
-   claim do lote também** — hoje ele não checa, porque com disparo imediato os
-   dois momentos eram o mesmo. Este é o item de compliance da frente, e não é
-   opcional.
-2. **`created_at` do destinatário ordena o envio** (`claim_campaign_recipients`
-   usa `order by created_at`). Campanha derivada herda a ordem da origem — o que
-   é bom e não precisa mudar, só não surpreender.
-3. **Cancelar uma campanha agendada** precisa existir na UI desde a v1. Marcar
-   hora para dali a 2h e não ter botão de desistir é um jeito caro de errar.
-   `campaigns-list.tsx` já tem "Excluir" para `draft`/`ready` — estender para
-   `scheduled`.
+1. **Cancelamento é a regra mais importante deste desenho, e ela é de produto,
+   não técnica.** Mandar "não esqueça de comprar" para quem já comprou é pior
+   do que não mandar nada — queima a lista e gera bloqueio, que é o insumo do
+   score de qualidade da Meta. Sem integração com o checkout, o único sinal
+   disponível é a pessoa ter tocado "Já Comprei!" — daí `cancel_on_button_reply`
+   existir desde a v1, e não como refinamento futuro.
+2. **131047 (fora da janela) não é falha, é estado.** Tratado como erro comum,
+   entraria no retry de 3 tentativas e queimaria as três à toa — a janela não
+   reabre sozinha. Precisa de status próprio (`window_closed`), que também vira
+   métrica: quanta gente demorou demais.
+3. **X minutos após o clique pode cair às 3h da manhã.** O agendamento absoluto
+   descartado antes resolvia isso de graça, porque o admin via a hora; o
+   relativo, não. Faixa de horário permitida é **obrigatória** na v1 — fora
+   dela, empurra `send_after` para o próximo horário válido em vez de enviar.
+4. **`delay_minutes` maior que 24h torna `freeform` impossível** — a janela já
+   terá fechado. A UI deve limitar o campo, não deixar o admin descobrir isso
+   pelo relatório de `window_closed`.
+5. **A regra pertence à campanha, mas o gatilho chega pelo webhook**, que é
+   público e sem sessão de usuário. O enfileiramento roda com service role,
+   como o resto do webhook — vale a mesma disciplina de checar e logar `error`
+   em todo insert (armadilha da falha silenciosa, no CLAUDE.md).
 
 ---
 
 # Sprints
 
 ### Sprint 1 — Link rastreável (Frente 1)
-Migration 0040, endpoint `/c/[token]`, geração de token no cadastro de
-destinatário, componente `button` no `campaign-sender`, campo de destino +
-aviso de variável no wizard, `clicked_count` no relatório e no CSV.
+Migration 0040 (colunas + `default` do token + `clicked_count` no
+`recompute_campaign_counters`), endpoint `/c/[token]`, componente `button` com
+índice derivado no `campaign-sender`, campo de URL de destino + aviso de
+variável no wizard, `clicked_count` no relatório e no CSV.
 
 **Entrega isolada de valor:** mesmo sem a Frente 2, você passa a saber quantas e
 quais pessoas clicaram em comprar. Hoje esse número não existe.
 
-### Sprint 2 — Follow-up agendado (Frente 2)
-Migration 0041, promoção `scheduled → sending` no cron, checagem de opt-out no
-claim do lote, `POST /api/campaigns/from-segment`, UI de "criar follow-up a
-partir desta campanha" + cancelamento de agendada.
+### Sprint 2 — Follow-up por gatilho (Frente 2)
+Migration 0041, Edge Function `follow-up-sender` + cron, enfileiramento nos dois
+gatilhos, tela de regra de follow-up dentro da campanha, faixa de horário
+permitida, relatório com `sent` / `cancelled` / `window_closed`.
 
-**Depende da Sprint 1** só para o filtro `clicked`. Os outros três filtros
-(`button_reply`, `delivered_no_engagement`, `failed`) funcionam com o que já
-existe hoje — a Sprint 2 é entregável sozinha se houver motivo para inverter a
-ordem.
+**Só depende da Sprint 1 para o gatilho `link_click`.** O gatilho
+`button_reply` funciona com o que já está em produção hoje — então, se o
+caminho escolhido for o do quick-reply, **a Sprint 2 pode vir primeiro e a
+Frente 1 vira complemento de medição**, não pré-requisito.
 
-### Sprint 3 — Texto livre na janela de 24h (opcional, avaliar depois)
-Quem clicou num **quick-reply** mandou uma mensagem inbound e portanto tem
-janela de 24h aberta: em +2h dá para mandar texto livre, sem custo de template
-de marketing. Quem clicou só no **botão de URL** não tem janela (abrir link não
-é mensagem) e continua exigindo template.
+### Sprint 3 — Campanha derivada agendada
+Público `delivered_no_engagement` (quem recebeu e não fez nada): não há gatilho
+por pessoa nem janela aberta, então é disparo em bloco com template pago, com
+`scheduled_at` e público materializado no momento do disparo.
 
-Fica fora da v1 por três motivos: exige rastrear a última inbound por telefone,
-exige um caminho de envio diferente na Graph API (`type=text`), e a janela pode
-ter fechado quando o cron rodar — o que obriga um fallback para template de
-qualquer jeito. É otimização de custo sobre uma capacidade que ainda não existe.
-
-**Avaliar com número na mão:** só vale se a fatia de quick-reply for grande o
-bastante para a economia pagar a complexidade. Depois da Sprint 1 esse número
-existe.
+Por último de propósito: é o público de menor intenção e o de alcance mais caro.
 
 ## Métrica de sucesso
 
 Antes: taxa de clique no botão de compra é **desconhecida**.
-Depois: taxa de clique por campanha, e taxa de conversão do follow-up medida
-contra o público que o originou.
+
+Depois, por campanha: cliques (totais e únicos), follow-ups enviados,
+cancelados por "Já Comprei!", perdidos por janela fechada — e o **custo por
+follow-up entregue**, que é o número que decide se o caminho do quick-reply
+vale a fricção do toque a mais.

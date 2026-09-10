@@ -190,7 +190,14 @@ wa-intelligence/
 
 ## Regras inegociáveis de arquitetura
 
-1. **`tenant_id` em toda tabela** — sem exceção. RLS filtra por tenant em tudo.
+1. **`tenant_id` em toda tabela** — RLS filtra por tenant em tudo. A única
+   exceção admitida é **tabela de referência global**, cujo conteúdo é igual
+   para todos os tenants e não é dado de ninguém: hoje só `whatsapp_rates`
+   (rate card publicado pela Meta, migration `custos_cloud_api`), com RLS de
+   leitura para qualquer autenticado. Um `tenant_id` ali seria fachada —
+   duplicaria a mesma tarifa por tenant e criaria a chance de divergirem.
+   Qualquer nova tabela sem `tenant_id` precisa se justificar **aqui**, nesta
+   lista, antes de existir.
 2. **`raw_payload jsonb`** em `messages` — nunca descartar o payload original do Evolution.
 3. **Mídia não é opcional** — a Edge Function `media-downloader` deve ser acionada
    imediatamente após salvar a mensagem. Links do WhatsApp expiram em minutos.

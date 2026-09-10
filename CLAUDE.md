@@ -543,15 +543,19 @@ clique e custos de disparo.
 
    ```bash
    # antes de qualquer db reset --local ou npm run test:db
-   cat .db-local-lock 2>/dev/null && echo "OCUPADO — esperar" && exit 1
-   echo "$(git branch --show-current) $(date +%H:%M)" > .db-local-lock
+   LOCK="$(git rev-parse --git-common-dir)/db-local-lock"
+   cat "$LOCK" 2>/dev/null && echo "OCUPADO — esperar" && exit 1
+   echo "$(git branch --show-current) $(date +%H:%M)" > "$LOCK"
    # ... rodar ...
-   rm .db-local-lock
+   rm "$LOCK"
    ```
 
-   `.db-local-lock` fica no `.gitignore` (é estado de máquina, não do repo).
-   Lock esquecido: quem chegar depois confere o horário e avisa o Marcelo em
-   vez de apagar por conta própria.
+   O lock mora no **git-common-dir** (o `.git/` da árvore principal), não na
+   raiz do worktree: um arquivo na sua pasta é invisível para as outras
+   trilhas, que estão em outra pasta — o lock não travaria nada. Dentro do
+   `.git/` ele é compartilhado por todos os worktrees e nunca entra num commit,
+   sem precisar de `.gitignore`. Lock esquecido: quem chegar depois confere o
+   horário e avisa o Marcelo em vez de apagar por conta própria.
 
 7. **Arquivo compartilhado tem dono.** `proxy.ts`, `lib/utils.ts`,
    `lib/whatsapp-cloud/graphClient.ts`, `CLAUDE.md` e as Edge Functions de

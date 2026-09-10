@@ -570,8 +570,12 @@ texto de botão, relatório CSV por campanha, retomada de campanha pausada por t
   aplicadas via `supabase db push` a partir de agora para não reabrir esse desalinhamento.
 - **Acesso Vercel/Supabase neste ambiente:** projeto Vercel `wa-intelligence` (org
   `marcelos-projects-017e3fe7`) linkado em `apps/web/`; projeto Supabase `byuggqcnvezendgrcysb`
-  (`ccka_whats`) linkado na raiz. Tokens não ficam salvos no repo nem em memória — se precisar
-  religar em uma sessão nova, pedir novos tokens (Vercel: vercel.com/account/tokens; Supabase:
+  (`ccka_whats`) linkado na raiz. **Deploy do web é pelo git**: push em `main` dispara o deploy de
+  produção sozinho. Não rodar `vercel --prod` na mão — de `apps/web/` o build falha com
+  "The specified Root Directory \"apps/web\" does not exist" (o projeto já tem `apps/web` como
+  Root Directory, e subir de dentro dela duplica o caminho) e da raiz o CLI cria um projeto
+  Vercel NOVO em vez de usar o `wa-intelligence` (aconteceu em 10/09/2026). Tokens não ficam
+  salvos no repo nem em memória — se precisar religar em uma sessão nova, pedir novos tokens (Vercel: vercel.com/account/tokens; Supabase:
   supabase.com/dashboard/account/tokens) e rodar `vercel link` / `vercel env pull apps/web/.env.local`
   e `supabase link --project-ref byuggqcnvezendgrcysb`.
 - **BYOK:** `config.api_key` em `integrations` está em texto plano — mover para Supabase Vault

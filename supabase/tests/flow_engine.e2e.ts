@@ -643,6 +643,49 @@ await cenario("abrir_flow grava a sessão que identifica a pessoa no endpoint", 
   await db.from("whatsapp_flows").delete().eq("id", FLOW_AGENDA);
 });
 
+await cenario("/reset só funciona para número cadastrado como de teste", async () => {
+  await db.from("numeros_de_teste").delete().eq("tenant_id", TENANT_A);
+  await clienteJaCadastrado();
+
+  // Número NÃO autorizado: o comando é tratado como texto comum, e nada é
+  // apagado. A resposta não pode revelar que o comando existe.
+  enviadas = [];
+  const semAutorizacao = await chamarEngine(msg({ text: "/reset" }));
+  checar(semAutorizacao !== "reset_de_teste", `não autorizado não pode resetar, veio "${semAutorizacao}"`);
+  checar(await cliente() !== null, "o cadastro de quem não está na lista não pode ser apagado");
+  checar(
+    !enviadas.some((e) => e.body.includes("apagado")),
+    "a resposta não pode denunciar a existência do comando",
+  );
+
+  // Autorizado: apaga cadastro e estado de conversa.
+  await db.from("numeros_de_teste").insert({ tenant_id: TENANT_A, telefone: TELEFONE, nota: "teste e2e" });
+  enviadas = [];
+  const autorizado = await chamarEngine(msg({ text: "/reset" }));
+  checar(autorizado === "reset_de_teste", `autorizado deveria resetar, veio "${autorizado}"`);
+  checar(await cliente() === null, "o cadastro precisa ter sido apagado");
+  checar(enviadas.some((e) => e.body.includes("apagado")), "deveria confirmar o reset");
+
+  const { count } = await db.from("flow_contato_estado").select("id", { count: "exact", head: true })
+    .eq("tenant_id", TENANT_A).eq("contato_telefone", TELEFONE);
+  checar((count ?? 0) === 0, "o estado de conversa também precisa ir — senão as boas-vindas não voltam");
+
+  await db.from("numeros_de_teste").delete().eq("tenant_id", TENANT_A);
+});
+
+await cenario("/reset encontra o número mesmo com formato diferente do cadastrado", async () => {
+  await db.from("numeros_de_teste").delete().eq("tenant_id", TENANT_A);
+  await clienteJaCadastrado();
+  // A conversa chega COM o nono dígito (TELEFONE); a lista é cadastrada SEM
+  // ele, como o WhatsApp identifica contas mais antigas.
+  const semNove = TELEFONE.slice(0, 4) + TELEFONE.slice(5);
+  await db.from("numeros_de_teste").insert({ tenant_id: TENANT_A, telefone: semNove, nota: "sem nono dígito" });
+
+  const r = await chamarEngine(msg({ text: "/reset" }));
+  checar(r === "reset_de_teste", `a lista precisa casar pela chave, não pelo formato — veio "${r}"`);
+  await db.from("numeros_de_teste").delete().eq("tenant_id", TENANT_A);
+});
+
 // ─── Encerramento ────────────────────────────────────────────────────────────
 
 await limparDados();

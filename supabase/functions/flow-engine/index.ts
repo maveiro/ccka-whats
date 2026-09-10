@@ -182,6 +182,32 @@ async function processar(payload: FlowEngineRequest): Promise<string> {
     return "ja_processada";
   }
 
+  // ── Comando de teste ──
+  // Fica ANTES do opt-out e do gate porque serve justamente para destravar quem
+  // está testando. A autorização não está aqui: a função só age sobre números
+  // cadastrados como de teste (migration 0038), então um fã que digite "/reset"
+  // por acaso não apaga nada — e nem descobre que o comando existe, porque a
+  // resposta é a mesma de qualquer outra mensagem.
+  if ((payload.text ?? "").trim().toLowerCase() === "/reset") {
+    const { data: resetou } = await supabase.rpc("resetar_cadastro_teste", {
+      p_tenant_id: tenantId,
+      p_telefone: from,
+    });
+
+    if (resetou === true) {
+      await logEvent(tenantId, sessionId, "flow_reset_de_teste", { messageId, telefone: from });
+      // Enviado sem passar pelo fluxo normal: o cadastro acabou de deixar de
+      // existir, então não há estado de conversa a considerar.
+      await enviarAvulso(
+        credencial,
+        payload,
+        "Pronto — seu cadastro de teste foi apagado. Mande qualquer mensagem para começar do zero.",
+      );
+      return "reset_de_teste";
+    }
+    // Número não autorizado: segue o fluxo normal, como se fosse texto comum.
+  }
+
   // ── Passo 3.5: opt-out, antes de QUALQUER envio automático (inclusive o gate) ──
   const { data: optOut } = await supabase
     .from("whatsapp_opt_outs")
@@ -833,6 +859,32 @@ async function salvarEstado(
 }
 
 // ─── Passos 8 e 9: envio + histórico ─────────────────────────────────────────
+
+/**
+ * Envio que não pertence a nenhum Flow — hoje só o retorno do "/reset", que
+ * acontece antes de o Flow ser resolvido. Sem isto, seria preciso inventar um
+ * Flow vazio só para satisfazer a assinatura de `enviar`.
+ */
+async function enviarAvulso(
+  credencial: Credencial,
+  payload: FlowEngineRequest,
+  texto: string,
+): Promise<void> {
+  const resultado = await enviarTexto({
+    phoneNumberId: credencial.phone_number_id,
+    accessToken: credencial.access_token,
+    to: payload.from,
+    body: texto,
+  });
+
+  if (!resultado.ok) {
+    await logEvent(credencial.tenant_id, payload.sessionId, "flow_reply_erro", {
+      messageId: payload.messageId,
+      telefone: payload.from,
+      errorCode: resultado.errorCode,
+    }, resultado.errorMessage);
+  }
+}
 
 async function enviar(ctx: Contexto, texto: string): Promise<void> {
   const { credencial, tenantId, payload, flow } = ctx;

@@ -20,6 +20,11 @@ export default async function ClientesPage() {
 
   if (operator?.role !== "admin") redirect("/dashboard");
 
+  const { data: numerosTeste } = await supabase
+    .from("numeros_de_teste")
+    .select("id, telefone, nota")
+    .order("created_at", { ascending: false });
+
   return (
     <div className="p-6 max-w-3xl space-y-6">
       <div>
@@ -30,7 +35,7 @@ export default async function ClientesPage() {
           telefone permanece, porque é o que liga a conversa ao histórico de mensagens.
         </p>
       </div>
-      <ClientesBusca />
+      <ClientesBusca numerosTeste={numerosTeste ?? []} />
     </div>
   );
 }

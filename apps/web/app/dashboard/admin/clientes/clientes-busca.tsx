@@ -3,6 +3,12 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+interface NumeroTeste {
+  id: string;
+  telefone: string;
+  nota: string | null;
+}
+
 interface Cliente {
   id: string;
   nome: string | null;
@@ -15,7 +21,37 @@ interface Cliente {
   created_at: string;
 }
 
-export default function ClientesBusca() {
+export default function ClientesBusca({ numerosTeste }: { numerosTeste: NumeroTeste[] }) {
+  const [testes, setTestes] = useState(numerosTeste);
+  const [novoTeste, setNovoTeste] = useState("");
+  const [notaTeste, setNotaTeste] = useState("");
+
+  async function adicionarTeste(e: React.FormEvent) {
+    e.preventDefault();
+    const res = await fetch("/api/numeros-teste", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ telefone: novoTeste, nota: notaTeste }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      toast.error(json.error ?? "Falha ao adicionar");
+      return;
+    }
+    setTestes((ts) => [json, ...ts]);
+    setNovoTeste(""); setNotaTeste("");
+    toast.success("Número liberado para /reset");
+  }
+
+  async function removerTeste(id: string) {
+    const res = await fetch(`/api/numeros-teste?id=${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Falha ao remover");
+      return;
+    }
+    setTestes((ts) => ts.filter((t) => t.id !== id));
+  }
+
   const [telefone, setTelefone] = useState("");
   const [resultados, setResultados] = useState<Cliente[] | null>(null);
   const [buscando, setBuscando] = useState(false);
@@ -131,6 +167,37 @@ export default function ClientesBusca() {
           {cadastrando ? "Cadastrando…" : "Cadastrar"}
         </button>
       </form>
+
+      <div className="border border-gray-800 rounded p-4 space-y-3">
+        <h2 className="text-sm font-semibold text-white">Números de teste</h2>
+        <p className="text-xs text-gray-500">
+          Números desta lista podem enviar <code className="text-gray-300">/reset</code> no
+          WhatsApp para apagar o próprio cadastro e voltar a ser um visitante desconhecido —
+          útil para testar o fluxo de cadastro de ponta a ponta. Quem não está na lista digita
+          o comando e recebe a resposta normal, sem efeito e sem saber que ele existe.
+        </p>
+        <form onSubmit={adicionarTeste} className="flex flex-wrap gap-2">
+          <input value={novoTeste} onChange={(e) => setNovoTeste(e.target.value)}
+            placeholder="(41) 99999-9999"
+            className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white w-44" />
+          <input value={notaTeste} onChange={(e) => setNotaTeste(e.target.value)}
+            placeholder="de quem é este número"
+            className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white flex-1 min-w-[12rem]" />
+          <button type="submit" disabled={!novoTeste.trim()}
+            className="bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white text-sm rounded px-3 py-1.5">
+            Liberar
+          </button>
+        </form>
+        {testes.length === 0 && <p className="text-xs text-gray-600">Nenhum número liberado.</p>}
+        {testes.map((t) => (
+          <div key={t.id} className="flex items-center justify-between text-xs bg-gray-900/50 rounded px-2 py-1.5">
+            <span className="text-gray-300">
+              {t.telefone}{t.nota ? <span className="text-gray-500"> · {t.nota}</span> : null}
+            </span>
+            <button onClick={() => removerTeste(t.id)} className="text-gray-500 hover:text-red-400">remover</button>
+          </div>
+        ))}
+      </div>
 
       <form onSubmit={buscar} className="flex gap-2">
         <input

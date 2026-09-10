@@ -511,18 +511,27 @@ clique e custos de disparo.
    árvore compartilhada, `-A` varre o trabalho não commitado das outras trilhas
    para dentro do seu commit.
 
-3. **Migration nova nasce com timestamp** (`date +%Y%m%d%H%M%S`). Numeração
+3. **Reescrever histórico (`--amend`, `rebase`, `reset --hard`) é tão perigoso
+   quanto `git add -A`.** Entre você commitar e dar o `--amend`, outra trilha
+   pode ter commitado — e o amend reescreve o commit **dela**. Aconteceu em
+   10/09/2026: um amend engoliu o commit de CLAUDE.md de outra sessão (nada se
+   perdeu, o conteúdo era idêntico, mas foi sorte). Regra: `--amend` só no seu
+   próprio worktree e só no commit que você acabou de fazer, depois de
+   conferir com `git log -1` que o topo é seu. `reset --hard` numa árvore
+   compartilhada apaga trabalho não commitado dos outros — use `--mixed`.
+
+4. **Migration nova nasce com timestamp** (`date +%Y%m%d%H%M%S`). Numeração
    sequencial exige "pegar o próximo número", e duas sessões pegam o mesmo.
    Aconteceu em 10/09/2026: duas `0040` diferentes, uma aplicada e outra não —
    e como o Supabase registra pelo **número**, a segunda seria **pulada em
    silêncio** num `db push`, deixando o código sem o schema de que depende
    (mesma família da regra 10).
 
-4. **Só a sessão que estiver integrando aplica migration em produção.** As
-   demais validam localmente (ver o item 5). Duas sessões dando `db push` no
+5. **Só a sessão que estiver integrando aplica migration em produção.** As
+   demais validam localmente (ver o item 6). Duas sessões dando `db push` no
    mesmo projeto é como o número 0040 foi queimado.
 
-5. **O Postgres local também é UM SÓ — `db reset --local` é destrutivo para
+6. **O Postgres local também é UM SÓ — `db reset --local` é destrutivo para
    todas as trilhas.** Não existe "meu banco local": os worktrees compartilham
    o mesmo stack Docker do `supabase start`. Aconteceu em 10/09/2026 — uma
    trilha rodou `db reset` enquanto a outra estava no meio do `npm run
@@ -544,16 +553,16 @@ clique e custos de disparo.
    Lock esquecido: quem chegar depois confere o horário e avisa o Marcelo em
    vez de apagar por conta própria.
 
-6. **Arquivo compartilhado tem dono.** `proxy.ts`, `lib/utils.ts`,
+7. **Arquivo compartilhado tem dono.** `proxy.ts`, `lib/utils.ts`,
    `lib/whatsapp-cloud/graphClient.ts`, `CLAUDE.md` e as Edge Functions de
    campanha são tocados por mais de uma trilha. Precisar mexer fora da sua área
    significa avisar o Marcelo e combinar quem edita — não editar e torcer.
 
-7. **`main` publica sozinho.** Push em `main` dispara o deploy de produção na
+8. **`main` publica sozinho.** Push em `main` dispara o deploy de produção na
    Vercel (ver "Notas operacionais"). Trabalho pela metade vive em branch de
    trilha; `main` só recebe o que pode ir ao ar.
 
-8. **Antes de começar qualquer coisa**, `git fetch && git status` e leia o que
+9. **Antes de começar qualquer coisa**, `git fetch && git status` e leia o que
    já mudou. Commits pequenos e frequentes; não deixe pilha grande de arquivo
    não commitado — é o que torna impossível para as outras trilhas saberem o
    que é seu.

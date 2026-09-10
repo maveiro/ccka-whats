@@ -98,7 +98,18 @@ interface CloudWebhookPayload {
           id: string; // wamid
           status: string; // sent|delivered|read|failed
           timestamp: string;
+          recipient_id?: string; // E.164 puro do destinatário
           errors?: { code: number; title: string }[];
+          // Informação de faturamento POR MENSAGEM — a única fonte de
+          // verdade sobre o que a Meta cobra deste disparo. Chega junto do
+          // primeiro status (normalmente 'sent'). Não traz valor em
+          // dinheiro: o valor sai de whatsapp_rates (migration custos_cloud_api).
+          pricing?: {
+            billable?: boolean;
+            pricing_model?: string; // PMP (per-message) | CBP (legado)
+            type?: string; // regular|free_customer_service|free_entry_point
+            category?: string; // marketing|utility|authentication|service
+          };
         }[];
         messages?: CloudInboundMessage[];
         contacts?: CloudContact[];
@@ -210,7 +221,7 @@ async function processEvent(body: CloudWebhookPayload): Promise<void> {
       }
 
       for (const status of change.value.statuses ?? []) {
-        await handleStatus(status);
+        await handleStatus(status, change.value.metadata?.phone_number_id);
       }
 
       for (const message of change.value.messages ?? []) {
@@ -431,8 +442,10 @@ async function handleStatus(status: {
   id: string;
   status: string;
   timestamp: string;
+  recipient_id?: string;
   errors?: { code: number; title: string }[];
-}): Promise<void> {
+  pricing?: { billable?: boolean; pricing_model?: string; type?: string; category?: string };
+}, phoneNumberId?: string): Promise<void> {
   const { data: recipient, error: findError } = await supabase
     .from("campaign_recipients")
     .select("id, tenant_id, campaign_id, status")
@@ -442,6 +455,15 @@ async function handleStatus(status: {
   if (findError) {
     await logEvent(null, "error", { wamid: status.id }, `campaign_recipients lookup: ${findError.message}`);
     return;
+  }
+
+  // Custo é registrado ANTES do corte por campanha, de propósito: resposta
+  // automática de Flow e envio manual do painel não têm linha em
+  // campaign_recipients e caíam no return abaixo — justamente os disparos
+  // que passam a ser cobrados em 01/10/2026. O objeto `pricing` só chega
+  // uma vez (no primeiro status), e não há como recuperá-lo depois.
+  if (status.pricing) {
+    await registrarCusto(status, phoneNumberId, recipient?.tenant_id ?? null, recipient?.campaign_id ?? null);
   }
 
   if (!recipient) {
@@ -533,6 +555,113 @@ async function handleStatus(status: {
         errorTitle,
       });
     }
+  }
+}
+
+// ─── Custo por disparo (ledger whatsapp_message_costs, migration custos_cloud_api) ───────
+//
+// A Meta manda categoria/tipo de cobrança por mensagem, nunca o valor em
+// dinheiro: o valor sai de whatsapp_rates e é CONGELADO na linha, para que
+// uma mudança futura de rate card não reescreva histórico.
+// Mensagem gratuita (billable=false) também vira linha, com valor zero — é
+// o que dá visibilidade do que a janela de 24h/72h economizou, e a base da
+// projeção da virada de 01/10/2026.
+
+/** ISO-2 do destinatário a partir do DDI. Só o que tem tarifa cadastrada. */
+function paisDoTelefone(phone: string | undefined): string | null {
+  if (!phone) return null;
+  if (phone.startsWith("55")) return "BR";
+  return null; // sem tarifa cadastrada: linha entra com custo zero, e a aba de Custos conta essas mensagens à parte
+}
+
+async function registrarCusto(
+  status: {
+    id: string;
+    timestamp: string;
+    recipient_id?: string;
+    pricing?: { billable?: boolean; pricing_model?: string; type?: string; category?: string };
+  },
+  phoneNumberId: string | undefined,
+  tenantIdDaCampanha: string | null,
+  campaignId: string | null,
+): Promise<void> {
+  const pricing = status.pricing!;
+  const sentAt = new Date(Number(status.timestamp) * 1000).toISOString();
+
+  // Tenant/sessão: a campanha já resolve os dois; fora dela (Flow, envio
+  // manual) vem do número que enviou. Sem nenhum dos dois não há onde
+  // pendurar o custo — registra o buraco em vez de descartar em silêncio.
+  let tenantId = tenantIdDaCampanha;
+  let sessionId: string | null = null;
+
+  if (phoneNumberId) {
+    const { data: credential } = await supabase
+      .from("whatsapp_cloud_credentials")
+      .select("id, tenant_id")
+      .eq("phone_number_id", phoneNumberId)
+      .eq("active", true)
+      .maybeSingle();
+
+    if (credential) {
+      tenantId = tenantId ?? credential.tenant_id;
+      const { data: session } = await supabase
+        .from("wa_sessions")
+        .select("id")
+        .eq("cloud_credential_id", credential.id)
+        .maybeSingle();
+      sessionId = session?.id ?? null;
+    }
+  }
+
+  if (!tenantId) {
+    await logEvent(null, "error", { wamid: status.id, phoneNumberId }, "custo sem tenant resolvível (número sem credencial ativa)");
+    return;
+  }
+
+  const countryCode = paisDoTelefone(status.recipient_id);
+  const category = (pricing.category ?? "").toLowerCase() || null;
+  const billable = pricing.billable === true;
+
+  let rateAmount = 0;
+  if (billable && countryCode && category) {
+    const { data: rate, error: rateError } = await supabase.rpc("resolve_whatsapp_rate", {
+      p_country: countryCode,
+      p_category: category,
+      p_currency: "BRL",
+      p_at: sentAt,
+    });
+    if (rateError) {
+      await logEvent(tenantId, "error", { wamid: status.id, category, countryCode }, `resolve_whatsapp_rate: ${rateError.message}`);
+    }
+    rateAmount = Number(rate ?? 0);
+  }
+
+  // Upsert idempotente por wamid com ignoreDuplicates: só o PRIMEIRO status
+  // com pricing conta. Os seguintes (delivered/read) repetem o mesmo objeto
+  // e não podem duplicar nem reescrever o valor congelado.
+  const { error: insertError } = await supabase
+    .from("whatsapp_message_costs")
+    .upsert({
+      tenant_id: tenantId,
+      wamid: status.id,
+      session_id: sessionId,
+      campaign_id: campaignId,
+      phone_number_id: phoneNumberId ?? null,
+      recipient_phone: status.recipient_id ?? null,
+      country_code: countryCode,
+      billable,
+      pricing_model: pricing.pricing_model ?? null,
+      pricing_type: pricing.type ?? null,
+      pricing_category: category,
+      rate_amount: rateAmount,
+      currency: "BRL",
+      sent_at: sentAt,
+    }, { onConflict: "wamid", ignoreDuplicates: true });
+
+  if (insertError) {
+    // Nunca interrompe o fluxo de status de entrega — custo é observação,
+    // entrega é operação.
+    await logEvent(tenantId, "error", { wamid: status.id }, `whatsapp_message_costs.upsert: ${insertError.message}`);
   }
 }
 

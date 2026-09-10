@@ -96,6 +96,56 @@ async function parseGraphError(response: Response, context: string): Promise<Gra
   );
 }
 
+export interface PricingAnalyticsPoint {
+  start: number;
+  end: number;
+  country?: string;
+  phone_number?: string;
+  pricing_type?: string;
+  pricing_category?: string;
+  tier?: string;
+  volume?: number;
+  cost?: number;
+}
+
+/**
+ * GET /{waba_id}?fields=pricing_analytics — agregado OFICIAL de custo da
+ * Meta, usado só como conferência contra o ledger local
+ * (whatsapp_message_costs). Duas ressalvas documentadas pela própria Meta,
+ * repassadas na UI: o valor é aproximado e pode divergir da fatura, e não
+ * vem nada quando a WABA é faturada por Solution Partner.
+ * Lookback máximo: 1 ano.
+ */
+export async function getPricingAnalytics(
+  wabaId: string,
+  accessToken: string,
+  params: { start: Date; end: Date; granularity?: "DAILY" | "MONTHLY" | "HALF_HOUR" },
+): Promise<PricingAnalyticsPoint[]> {
+  const start = Math.floor(params.start.getTime() / 1000);
+  const end = Math.floor(params.end.getTime() / 1000);
+  const granularity = params.granularity ?? "DAILY";
+
+  // O campo é um "field expression" com os parâmetros embutidos no próprio
+  // fields= — não são query params soltos.
+  const field =
+    `pricing_analytics.start(${start}).end(${end}).granularity(${granularity})` +
+    `.metric_types(["COST","VOLUME"])` +
+    `.dimensions(["PRICING_CATEGORY","PRICING_TYPE","COUNTRY","PHONE"])`;
+
+  const url = new URL(`${GRAPH_API_BASE}/${wabaId}`);
+  url.searchParams.set("fields", field);
+  url.searchParams.set("access_token", accessToken);
+
+  const response = await fetchWithRetry(url.toString(), { method: "GET" });
+  if (!response.ok) throw await parseGraphError(response, `${wabaId}?fields=pricing_analytics`);
+
+  const json = (await response.json()) as {
+    pricing_analytics?: { data?: { data_points?: PricingAnalyticsPoint[] }[] };
+  };
+
+  return json.pricing_analytics?.data?.flatMap((d) => d.data_points ?? []) ?? [];
+}
+
 export interface MessageTemplate {
   id: string;
   name: string;

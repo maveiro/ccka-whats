@@ -18,6 +18,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     mensagemBoasVindas?: unknown;
     mensagemFallback?: unknown;
     ativo?: unknown;
+    mensagemConvite?: unknown;
   };
 
   const patch: Record<string, unknown> = {};
@@ -25,6 +26,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (typeof body.artista === "string") patch.artista = body.artista.trim() || null;
   if (typeof body.mensagemBoasVindas === "string") {
     patch.mensagem_boas_vindas = body.mensagemBoasVindas.trim() || null;
+  }
+  if (typeof body.mensagemConvite === "string") {
+    patch.mensagem_convite = body.mensagemConvite.trim() || null;
   }
   if (typeof body.mensagemFallback === "string") {
     patch.mensagem_fallback = body.mensagemFallback.trim() || null;
@@ -70,7 +74,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     .update(patch)
     .eq("id", id)
     .is("deleted_at", null)
-    .select("id, cloud_credential_id, artista, nome, tipo, ativo, mensagem_boas_vindas, mensagem_fallback, created_at")
+    .select("id, cloud_credential_id, artista, nome, tipo, ativo, mensagem_convite, mensagem_boas_vindas, mensagem_fallback, created_at")
     .maybeSingle();
 
   if (error) {

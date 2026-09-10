@@ -45,7 +45,12 @@ const stub = Deno.serve({ port: STUB_PORT, onListen: () => {} }, async (req) => 
       headers: { "Content-Type": "application/json" },
     });
   }
-  enviadas.push({ to: corpo.to, body: corpo.text?.body ?? "" });
+  // Mensagem de Flow é `interactive`, não `text` — o corpo dela também precisa
+  // ser inspecionável, senão o texto que o fã lê passa sem teste.
+  enviadas.push({
+    to: corpo.to,
+    body: corpo.text?.body ?? corpo.interactive?.body?.text ?? "",
+  });
   return new Response(JSON.stringify({ messages: [{ id: `wamid.STUB_${crypto.randomUUID()}` }] }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
@@ -640,6 +645,44 @@ await cenario("abrir_flow grava a sessão que identifica a pessoa no endpoint", 
   );
 
   await db.from("flow_sessoes").delete().eq("tenant_id", TENANT_A);
+  await db.from("flow_palavras_chave").delete().eq("flow_destino_id", FLOW_AGENDA);
+  await db.from("whatsapp_flows").delete().eq("id", FLOW_AGENDA);
+});
+
+await cenario("o balão que abre o Flow leva o convite, não o rótulo do painel", async () => {
+  await clienteJaCadastrado();
+  const FLOW_AGENDA = "aaaaaaaa-0000-4000-8000-00000000f010";
+  const CONVITE = "Datas, ingressos e dúvidas da turnê — é só abrir.";
+  await db.from("whatsapp_flows").upsert({
+    id: FLOW_AGENDA, tenant_id: TENANT_A, cloud_credential_id: CRED_A,
+    nome: "Agenda (rótulo interno)", tipo: "agenda_shows", ativo: true,
+    meta_flow_id: "META_FLOW_TESTE", meta_flow_cta: "Ver agenda",
+    mensagem_convite: CONVITE,
+  });
+  const { error: erroKeyword } = await db.from("flow_palavras_chave").insert({
+    tenant_id: TENANT_A, flow_id: FLOW_A, palavra_chave: "agenda",
+    tipo_resposta: "abrir_flow", flow_destino_id: FLOW_AGENDA,
+  });
+  checar(!erroKeyword, `keyword não entrou: ${erroKeyword?.message}`);
+  const { data: dbg } = await db.from("flow_palavras_chave").select("flow_id, palavra_chave, tipo_resposta, flow_destino_id, deleted_at").eq("tenant_id", TENANT_A);
+
+  enviadas = [];
+  await chamarEngine(msg({ text: "agenda" }));
+  checar(enviadas.some((e) => e.body === CONVITE), `o convite deveria ir no corpo, foi ${JSON.stringify(enviadas.map((e) => e.body))}`);
+  checar(!enviadas.some((e) => e.body.includes("rótulo interno")), "o nome do painel não pode chegar ao fã");
+
+  // Sem convite, o balão não pode ficar vazio — o nome serve de último recurso.
+  await db.from("whatsapp_flows").update({ mensagem_convite: null }).eq("id", FLOW_AGENDA);
+  await db.from("flow_contato_estado").delete().eq("tenant_id", TENANT_A);
+  enviadas = [];
+  await chamarEngine(msg({ text: "agenda" }));
+  checar(
+    enviadas.some((e) => e.body === "Agenda (rótulo interno)"),
+    "sem convite, o nome do Flow evita um balão sem corpo",
+  );
+
+  await db.from("flow_sessoes").delete().eq("tenant_id", TENANT_A);
+  await db.from("flow_palavras_chave").delete().eq("flow_destino_id", FLOW_AGENDA);
   await db.from("whatsapp_flows").delete().eq("id", FLOW_AGENDA);
 });
 

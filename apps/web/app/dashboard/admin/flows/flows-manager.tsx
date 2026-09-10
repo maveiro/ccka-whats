@@ -26,6 +26,7 @@ interface Flow {
   tipo: string;
   ativo: boolean;
   meta_flow_id: string | null;
+  mensagem_convite: string | null;
   mensagem_boas_vindas: string | null;
   mensagem_fallback: string | null;
   created_at: string;
@@ -302,6 +303,7 @@ function FlowCard({
   onExcluir: () => void;
   onKeywordsMudaram: (keywords: Keyword[]) => void;
 }) {
+  const [convite, setConvite] = useState(flow.mensagem_convite ?? "");
   const [boasVindas, setBoasVindas] = useState(flow.mensagem_boas_vindas ?? "");
   const [fallback, setFallback] = useState(flow.mensagem_fallback ?? "");
   const [novaPalavra, setNovaPalavra] = useState("");
@@ -413,6 +415,28 @@ function FlowCard({
       {expandido && (
         <div className="border-t border-gray-800 p-4 space-y-5">
           <div className="space-y-3">
+            {flow.meta_flow_id && (
+              <label className="text-xs text-gray-400 space-y-1 block">
+                <span>Convite (texto do balão que oferece este Flow ao contato)</span>
+                <textarea
+                  value={convite}
+                  onChange={(e) => setConvite(e.target.value)}
+                  onBlur={() => {
+                    if (convite !== (flow.mensagem_convite ?? "")) {
+                      onAtualizar({ mensagemConvite: convite });
+                    }
+                  }}
+                  rows={2}
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+                  placeholder={flow.nome}
+                />
+                <span className="text-[11px] text-gray-500 block">
+                  Em branco, o balão usa o nome do Flow acima — que é rótulo do painel, não
+                  texto escrito para o fã.
+                </span>
+              </label>
+            )}
+
             <label className="text-xs text-gray-400 space-y-1 block">
               <span>Mensagem de boas-vindas (primeiro contato, e depois de 14 dias sem falar)</span>
               <textarea

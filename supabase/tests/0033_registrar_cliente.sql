@@ -115,6 +115,33 @@ begin
 end;
 $$;
 
+-- 4b. Reforço da MESMA versão não é aceite novo (migration 0039)
+--
+-- O gate pede nome e e-mail em duas mensagens e informa a mesma versão nas
+-- duas. Se cada chamada recarimbasse a data, o registro apontaria a última
+-- resposta e não o momento em que a pessoa aceitou o texto.
+do $$
+declare
+  t      uuid        := (select valor from _ids where chave='tenant');
+  marco  timestamptz := timestamptz '2020-01-01 00:00:00+00';
+begin
+  -- `now()` é o horário de INÍCIO da transação e não avança durante o teste;
+  -- por isso o aceite é fincado no passado, e não medido por sleep.
+  update clientes set consentimento_em = marco where tenant_id = t;
+
+  perform registrar_cliente(t, '5541999999999', null, 'ana@exemplo.com', 'flow', 'v2-2026-09', 'flow');
+  perform pg_temp.assert(
+    (select consentimento_em = marco from clientes where tenant_id = t),
+    'repetir a mesma versão não pode reescrever a data do aceite');
+
+  perform registrar_cliente(t, '5541999999999', null, null, 'flow', 'v3-2026-10', 'flow');
+  perform pg_temp.assert(
+    (select consentimento_em > marco and consentimento_versao = 'v3-2026-10'
+     from clientes where tenant_id = t),
+    'versão nova é aceite novo e carimba a data de agora');
+end;
+$$;
+
 -- ============================================================
 -- 5. Direito ao esquecimento não é desfeito por outro canal
 -- ============================================================

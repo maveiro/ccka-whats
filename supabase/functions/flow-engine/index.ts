@@ -744,12 +744,18 @@ async function abrirFlowNaConversa(ctx: Contexto, flowDestinoId: string | null):
 
   const { data: destino } = await supabase
     .from("whatsapp_flows")
-    .select("id, nome, meta_flow_id, meta_flow_cta")
+    .select("id, nome, meta_flow_id, meta_flow_cta, mensagem_convite")
     .eq("tenant_id", tenantId)
     .eq("id", flowDestinoId)
     .eq("ativo", true)
     .is("deleted_at", null)
-    .maybeSingle<{ id: string; nome: string; meta_flow_id: string | null; meta_flow_cta: string | null }>();
+    .maybeSingle<{
+      id: string;
+      nome: string;
+      meta_flow_id: string | null;
+      meta_flow_cta: string | null;
+      mensagem_convite: string | null;
+    }>();
 
   if (!destino?.meta_flow_id) {
     await logEvent(tenantId, payload.sessionId, "flow_abrir_sem_meta_flow_id", {
@@ -792,7 +798,9 @@ async function abrirFlowNaConversa(ctx: Contexto, flowDestinoId: string | null):
     flowId: destino.meta_flow_id,
     flowToken,
     cta: destino.meta_flow_cta ?? "Ver agenda",
-    corpo: destino.nome,
+    // `nome` é rótulo interno do painel; só serve de último recurso para o
+    // balão não chegar vazio.
+    corpo: destino.mensagem_convite ?? destino.nome,
   });
 
   if (!resultado.ok) {

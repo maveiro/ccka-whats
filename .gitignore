@@ -39,3 +39,6 @@ npm-debug.log*
 # TypeScript
 *.tsbuildinfo
 .vercel
+
+# lock do stack Supabase local compartilhado entre worktrees (ver CLAUDE.md)
+.db-local-lock

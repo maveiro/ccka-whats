@@ -512,20 +512,41 @@ clique e custos de disparo.
    (mesma família da regra 10).
 
 4. **Só a sessão que estiver integrando aplica migration em produção.** As
-   demais validam com `supabase db reset --local` + `npm run test:db`, que roda
-   a suíte inteira. Duas sessões dando `db push` no mesmo projeto é como o
-   número 0040 foi queimado.
+   demais validam localmente (ver o item 5). Duas sessões dando `db push` no
+   mesmo projeto é como o número 0040 foi queimado.
 
-5. **Arquivo compartilhado tem dono.** `proxy.ts`, `lib/utils.ts`,
+5. **O Postgres local também é UM SÓ — `db reset --local` é destrutivo para
+   todas as trilhas.** Não existe "meu banco local": os worktrees compartilham
+   o mesmo stack Docker do `supabase start`. Aconteceu em 10/09/2026 — uma
+   trilha rodou `db reset` enquanto a outra estava no meio do `npm run
+   test:db`; o reset dropou o banco por baixo da suíte e morreu em
+   `0001_initial.sql` com `relation "tenants" already exists`, deixando as
+   duas com estado inconsistente. Verificar que o banco está vazio **não é
+   suficiente**: a janela entre a checagem e o reset é exatamente onde a outra
+   trilha sobe tudo. Protocolo, enquanto houver mais de uma trilha:
+
+   ```bash
+   # antes de qualquer db reset --local ou npm run test:db
+   cat .db-local-lock 2>/dev/null && echo "OCUPADO — esperar" && exit 1
+   echo "$(git branch --show-current) $(date +%H:%M)" > .db-local-lock
+   # ... rodar ...
+   rm .db-local-lock
+   ```
+
+   `.db-local-lock` fica no `.gitignore` (é estado de máquina, não do repo).
+   Lock esquecido: quem chegar depois confere o horário e avisa o Marcelo em
+   vez de apagar por conta própria.
+
+6. **Arquivo compartilhado tem dono.** `proxy.ts`, `lib/utils.ts`,
    `lib/whatsapp-cloud/graphClient.ts`, `CLAUDE.md` e as Edge Functions de
    campanha são tocados por mais de uma trilha. Precisar mexer fora da sua área
    significa avisar o Marcelo e combinar quem edita — não editar e torcer.
 
-6. **`main` publica sozinho.** Push em `main` dispara o deploy de produção na
+7. **`main` publica sozinho.** Push em `main` dispara o deploy de produção na
    Vercel (ver "Notas operacionais"). Trabalho pela metade vive em branch de
    trilha; `main` só recebe o que pode ir ao ar.
 
-7. **Antes de começar qualquer coisa**, `git fetch && git status` e leia o que
+8. **Antes de começar qualquer coisa**, `git fetch && git status` e leia o que
    já mudou. Commits pequenos e frequentes; não deixe pilha grande de arquivo
    não commitado — é o que torna impossível para as outras trilhas saberem o
    que é seu.

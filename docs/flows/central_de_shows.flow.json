@@ -13,13 +13,15 @@
     "3. referência a campo de formulário usa o prefixo LITERAL 'form'",
     "   (${form.campo}), não o nome dado ao componente Form — usar o nome faz",
     "   o payload chegar vazio, sem erro nenhum.",
-    "routing_model conecta APRESENTACAO -> MENU: a Meta valida o grafo estático mesmo quando a navegação real vem do endpoint."
+    "routing_model conecta APRESENTACAO -> MENU: a Meta valida o grafo estático mesmo quando a navegação real vem do endpoint.",
+    "CADASTRO usa TextInput + OptIn; o texto de consentimento vem do banco (whatsapp_flows.texto_consentimento) porque Flow publicado é imutável."
   ],
   "version": "7.2",
   "data_api_version": "3.0",
   "routing_model": {
     "APRESENTACAO": [
-      "MENU"
+      "MENU",
+      "CADASTRO"
     ],
     "MENU": [
       "FAQ_LISTA",
@@ -32,7 +34,10 @@
     "AGENDA": [
       "DETALHE"
     ],
-    "DETALHE": []
+    "DETALHE": [],
+    "CADASTRO": [
+      "MENU"
+    ]
   },
   "screens": [
     {
@@ -77,6 +82,76 @@
                 "destino": "menu"
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "id": "CADASTRO",
+      "title": "Seu cadastro",
+      "terminal": false,
+      "data": {
+        "titulo": {
+          "type": "string",
+          "__example__": "Central de shows — Índio Behn"
+        },
+        "subtitulo": {
+          "type": "string",
+          "__example__": "Para continuar, precisamos te conhecer:"
+        },
+        "texto_consentimento": {
+          "type": "string",
+          "__example__": "Autorizo o contato sobre shows."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.titulo}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.subtitulo}"
+          },
+          {
+            "type": "Form",
+            "name": "form_cadastro",
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "nome",
+                "label": "Seu nome",
+                "required": true,
+                "input-type": "text"
+              },
+              {
+                "type": "TextInput",
+                "name": "email",
+                "label": "Seu e-mail",
+                "required": true,
+                "input-type": "email"
+              },
+              {
+                "type": "OptIn",
+                "name": "consentiu",
+                "label": "${data.texto_consentimento}",
+                "required": true
+              },
+              {
+                "type": "Footer",
+                "label": "Concluir cadastro",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "nome": "${form.nome}",
+                    "email": "${form.email}",
+                    "consentiu": "${form.consentiu}"
+                  }
+                }
+              }
+            ]
           }
         ]
       }

@@ -14,6 +14,7 @@ export const TELA_MENU = "MENU";
 export const TELA_FAQ_LISTA = "FAQ_LISTA";
 export const TELA_FAQ_RESPOSTA = "FAQ_RESPOSTA";
 export const TELA_APRESENTACAO = "APRESENTACAO";
+export const TELA_CADASTRO = "CADASTRO";
 
 // Teto de itens: payload de Flow tem limite de tamanho, e lista longa é ruim de
 // usar no celular. Se o FAQ crescer além disso, vira paginação — não aumentar
@@ -61,6 +62,24 @@ export function telaFaqResposta(item: FaqItem) {
     data: {
       pergunta: item.pergunta,
       resposta: item.resposta,
+    },
+  };
+}
+
+/**
+ * Formulário de cadastro dentro do Flow.
+ *
+ * O texto de consentimento vem do banco (whatsapp_flows.texto_consentimento),
+ * não do JSON publicado: Flow publicado é imutável, e texto legal congelado
+ * numa versão publicada é o oposto do que a LGPD pede.
+ */
+export function telaCadastro(artista: string | null, textoConsentimento: string) {
+  return {
+    screen: TELA_CADASTRO,
+    data: {
+      titulo: artista ? `Central de shows — ${artista}` : "Central de shows",
+      subtitulo: "Para continuar, precisamos te conhecer:",
+      texto_consentimento: textoConsentimento,
     },
   };
 }

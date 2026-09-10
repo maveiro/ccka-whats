@@ -505,7 +505,91 @@ await cenario("menu → agenda continua funcionando (as duas convivem)", async (
   await db.from("agenda_shows_sync").delete().eq("tenant_id", TENANT);
 });
 
-// ─── Limpeza ─────────────────────────────────────────────────────────────────// ─── Limpeza ─────────────────────────────────────────────────────────────────
+// ─── Cadastro dentro do Flow (Sprint C3) ─────────────────────────────────────
+
+const TEL_NOVO = "5541900000009";
+const TOKEN_NOVO = "sessao-visitante-novo";
+const TEXTO_LGPD = "Autorizo o contato pelo WhatsApp sobre shows. Posso pedir a remoção quando quiser.";
+
+await db.from("whatsapp_flows").update({
+  texto_consentimento: TEXTO_LGPD,
+  versao_consentimento: "central-v1-2026-09",
+}).eq("id", FLOW_CENTRAL);
+
+await db.from("flow_sessoes").insert({
+  tenant_id: TENANT, token: TOKEN_NOVO, telefone: TEL_NOVO, cloud_credential_id: CRED,
+  expira_em: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+});
+
+await cenario("quem não tem cadastro vai para o FORMULÁRIO, não para um beco", async () => {
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "7.2", action: "data_exchange", screen: "APRESENTACAO",
+    flow_token: TOKEN_NOVO, data: { destino: "menu" },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string; data: Record<string, unknown> };
+  checar(corpo.screen === "CADASTRO", `deveria abrir o cadastro, veio "${corpo.screen}"`);
+  checar(
+    corpo.data.texto_consentimento === TEXTO_LGPD,
+    "o texto de consentimento precisa vir do BANCO — Flow publicado é imutável",
+  );
+});
+
+await cenario("cadastro pelo Flow grava com o telefone da SESSÃO e a versão do texto", async () => {
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "7.2", action: "data_exchange", screen: "CADASTRO", flow_token: TOKEN_NOVO,
+    data: { nome: "Joana", email: "joana@exemplo.invalido", consentiu: true },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string; data: Record<string, unknown> };
+  checar(corpo.screen === "MENU", `depois de cadastrar deveria abrir o MENU, veio "${corpo.screen}"`);
+  checar(String(corpo.data.saudacao).includes("Joana"), "o menu deveria saudar quem acabou de se cadastrar");
+
+  const { data: cliente } = await db.from("clientes").select("*")
+    .eq("tenant_id", TENANT).eq("telefone", TEL_NOVO).maybeSingle();
+
+  checar(Boolean(cliente), "o cadastro precisa existir");
+  checar(cliente?.origem === "flow", `origem deveria ser flow, veio "${cliente?.origem}"`);
+  checar(cliente?.consentimento_versao === "central-v1-2026-09", "a versão do texto aceito precisa ser registrada");
+  checar(cliente?.cadastro_completo === true, "com nome e e-mail o cadastro está completo");
+});
+
+await cenario("telefone digitado no formulário é IGNORADO — vale o da conversa", async () => {
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "7.2", action: "data_exchange", screen: "CADASTRO", flow_token: TOKEN_OK,
+    data: { nome: "Impostor", email: "x@y.invalido", consentiu: true, telefone: "5511999999999" },
+  });
+  await abrirResposta(res, chaveAes, iv);
+
+  const { count } = await db.from("clientes").select("id", { count: "exact", head: true })
+    .eq("tenant_id", TENANT).eq("telefone", "5511999999999");
+  checar((count ?? 0) === 0, "aceitar telefone do formulário permitiria cadastrar em nome de outra pessoa");
+});
+
+await cenario("sem aceite não grava nada e devolve o formulário", async () => {
+  await db.from("clientes").delete().eq("tenant_id", TENANT).eq("telefone", TEL_NOVO);
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "7.2", action: "data_exchange", screen: "CADASTRO", flow_token: TOKEN_NOVO,
+    data: { nome: "Joana", email: "joana@exemplo.invalido", consentiu: false },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string };
+  checar(corpo.screen === "CADASTRO", `sem aceite deveria voltar ao formulário, veio "${corpo.screen}"`);
+
+  const { count } = await db.from("clientes").select("id", { count: "exact", head: true })
+    .eq("tenant_id", TENANT).eq("telefone", TEL_NOVO);
+  checar((count ?? 0) === 0, "sem consentimento não se grava dado pessoal");
+});
+
+await cenario("sem texto de consentimento cadastrado, não se pede dado nenhum", async () => {
+  await db.from("whatsapp_flows").update({ texto_consentimento: null }).eq("id", FLOW_CENTRAL);
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "7.2", action: "data_exchange", screen: "APRESENTACAO",
+    flow_token: TOKEN_NOVO, data: { destino: "menu" },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string };
+  checar(corpo.screen === "APRESENTACAO", `sem texto legal não pode abrir formulário, veio "${corpo.screen}"`);
+  await db.from("whatsapp_flows").update({ texto_consentimento: TEXTO_LGPD }).eq("id", FLOW_CENTRAL);
+});
+
+// ─── Limpeza ─────────────────────────────────────────────────────────────────
 
 await db.from("agenda_shows_sync").delete().eq("tenant_id", TENANT);
 await db.from("faq_itens").delete().eq("tenant_id", TENANT);

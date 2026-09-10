@@ -32,6 +32,7 @@ import { type ShowRow, telaAgenda, telaDetalhe } from "./agenda.ts";
 import {
   type FaqItem,
   telaApresentacao,
+  telaCadastro,
   telaFaqLista,
   telaFaqResposta,
   telaMenu,
@@ -213,8 +214,10 @@ async function responderTela(
   if (destino === "agenda") return await responderAgenda(acao, corpo, phoneNumberId);
   if (destino === "faq") return await responderCentral(acao, corpo, phoneNumberId);
 
-  // Navegação dentro da central.
-  if (tela === "MENU" || tela === "FAQ_LISTA" || tela === "APRESENTACAO") {
+  // Navegação dentro da central. CADASTRO precisa estar aqui: o envio do
+  // formulário chega como data_exchange vindo dessa tela e, sem a rota, caía
+  // na agenda — o cadastro simplesmente não acontecia.
+  if (tela === "MENU" || tela === "FAQ_LISTA" || tela === "APRESENTACAO" || tela === "CADASTRO") {
     return await responderCentral(acao, corpo, phoneNumberId);
   }
 
@@ -270,6 +273,16 @@ async function responderCentral(
     return telaApresentacao(null, null);
   }
 
+  const { data: flowCentral } = await supabase
+    .from("whatsapp_flows")
+    .select("id, texto_consentimento, versao_consentimento")
+    .eq("tenant_id", credencial.tenant_id)
+    .eq("cloud_credential_id", credencial.id)
+    .eq("tipo", "central")
+    .eq("ativo", true)
+    .is("deleted_at", null)
+    .maybeSingle<{ id: string; texto_consentimento: string | null; versao_consentimento: string | null }>();
+
   const dados = (corpo.data ?? {}) as Record<string, unknown>;
   const tela = typeof corpo.screen === "string" ? corpo.screen : "";
 
@@ -324,6 +337,11 @@ async function responderCentral(
     return telaFaqLista((itens ?? []) as FaqItem[]);
   }
 
+  // Envio do formulário de cadastro (tela CADASTRO).
+  if (typeof dados.consentiu !== "undefined" || tela === "CADASTRO") {
+    return await concluirCadastro(corpo, credencial, flowCentral, phoneNumberId, acao);
+  }
+
   // Identidade pela sessão do flow_token.
   const cliente = await clienteDaSessao(corpo, credencial.tenant_id);
 
@@ -343,14 +361,96 @@ async function responderCentral(
   }
 
   if (!cliente || !cliente.cadastro_completo) {
-    // Sem cadastro (ou sessão não reconhecida): segue na apresentação em vez de
-    // um menu que não corresponde a ninguém. O cadastro é a Sprint C3.
-    await registrarTela(phoneNumberId, acao, "APRESENTACAO", { identificado: Boolean(cliente) });
-    return telaApresentacao(credencial.artista, null);
+    // Sem cadastro: leva ao formulário. Antes esta tela devolvia a própria
+    // apresentação, o que deixava a pessoa presa num laço silencioso ao tocar
+    // em "Continuar" — defeito encontrado ao revisar o caminho de quem chega
+    // sem ser reconhecido.
+    if (!flowCentral?.texto_consentimento) {
+      // Sem texto de consentimento cadastrado não se coleta dado nenhum: pedir
+      // nome e e-mail sem dizer para que serve é o que a LGPD proíbe.
+      await registrar(phoneNumberId, "flow_endpoint_central_sem_consentimento", { phoneNumberId });
+      await registrarTela(phoneNumberId, acao, "APRESENTACAO", { identificado: false });
+      return telaApresentacao(credencial.artista, null);
+    }
+    await registrarTela(phoneNumberId, acao, "CADASTRO", { identificado: false });
+    return telaCadastro(credencial.artista, flowCentral.texto_consentimento);
   }
 
   await registrarTela(phoneNumberId, acao, "MENU", { identificado: true });
   return telaMenu(credencial.artista, cliente.nome);
+}
+
+/**
+ * Grava o cadastro feito dentro do Flow e leva ao menu.
+ *
+ * O telefone NÃO vem do formulário: vem da sessão. Aceitar telefone digitado
+ * aqui permitiria cadastrar (e depois receber mensagem) em nome de outra
+ * pessoa — o número da conversa é o único dado de identidade confiável neste
+ * caminho.
+ */
+async function concluirCadastro(
+  corpo: Record<string, unknown>,
+  credencial: { id: string; tenant_id: string; artista: string | null },
+  flowCentral: { texto_consentimento: string | null; versao_consentimento: string | null } | null,
+  phoneNumberId: string,
+  acao: string,
+): Promise<unknown> {
+  const dados = (corpo.data ?? {}) as Record<string, unknown>;
+  const token = typeof corpo.flow_token === "string" ? corpo.flow_token : null;
+
+  const { data: sessao } = token
+    ? await supabase
+      .from("flow_sessoes")
+      .select("telefone, expira_em")
+      .eq("tenant_id", credencial.tenant_id)
+      .eq("token", token)
+      .maybeSingle<{ telefone: string; expira_em: string }>()
+    : { data: null };
+
+  if (!sessao || new Date(sessao.expira_em).getTime() < Date.now()) {
+    // Sem sessão não há a quem atribuir o cadastro. Volta à apresentação em vez
+    // de gravar um cadastro órfão.
+    await registrar(phoneNumberId, "flow_endpoint_cadastro_sem_sessao", { phoneNumberId });
+    return telaApresentacao(credencial.artista, null);
+  }
+
+  const consentiu = dados.consentiu === true || dados.consentiu === "true";
+  const nome = typeof dados.nome === "string" ? dados.nome.trim() : "";
+  const email = typeof dados.email === "string" ? dados.email.trim() : "";
+
+  if (!consentiu || !nome) {
+    // O Flow marca os campos como obrigatórios, mas o payload vem do cliente e
+    // não é fonte confiável: sem aceite não se grava nada.
+    await registrar(phoneNumberId, "flow_endpoint_cadastro_incompleto", {
+      phoneNumberId,
+      temNome: Boolean(nome),
+      consentiu,
+    });
+    return telaCadastro(credencial.artista, flowCentral?.texto_consentimento ?? "");
+  }
+
+  const { error } = await supabase.rpc("registrar_cliente", {
+    p_tenant_id: credencial.tenant_id,
+    p_telefone: sessao.telefone,
+    p_nome: nome,
+    p_email: email || null,
+    p_origem: "flow",
+    p_consentimento_versao: flowCentral?.versao_consentimento ?? "central-sem-versao",
+    p_consentimento_origem: "central",
+  });
+
+  if (error) {
+    console.error("[flow-endpoint] cadastro pelo Flow falhou:", error.message);
+    await registrar(phoneNumberId, "flow_endpoint_cadastro_falhou", { phoneNumberId, erro: error.message });
+    return telaCadastro(credencial.artista, flowCentral?.texto_consentimento ?? "");
+  }
+
+  await registrar(phoneNumberId, "cliente_cadastrado_pelo_flow", {
+    phoneNumberId,
+    versaoConsentimento: flowCentral?.versao_consentimento ?? null,
+  });
+  await registrarTela(phoneNumberId, acao, "MENU", { identificado: true, recemCadastrado: true });
+  return telaMenu(credencial.artista, nome);
 }
 
 /**

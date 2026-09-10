@@ -22,6 +22,13 @@ export default async function CampaignsPage() {
     .eq("tenant_id", operator.tenant_id)
     .order("created_at", { ascending: false });
 
+  // Custo por campanha (ledger da migration custos_cloud_api) — 0 para
+  // campanha disparada antes do registro de custo existir.
+  const { data: campaignCosts } = await supabase.rpc("campaign_costs");
+  const custoPorCampanha = new Map(
+    (campaignCosts as { campaign_id: string; cost: number }[] | null ?? []).map((c) => [c.campaign_id, Number(c.cost)]),
+  );
+
   // whatsapp_cloud_credentials tem RLS deny-all (só service-role lê, de
   // propósito — guarda o access_token de disparo) — o client autenticado
   // normal sempre voltaria vazio aqui, mesmo com credencial salva.
@@ -54,7 +61,9 @@ export default async function CampaignsPage() {
 
       <div>
         <h2 className="text-sm font-semibold text-white mb-3">Campanhas</h2>
-        <CampaignsList initial={campaigns ?? []} />
+        <CampaignsList
+          initial={(campaigns ?? []).map((c) => ({ ...c, cost: custoPorCampanha.get(c.id) ?? 0 }))}
+        />
       </div>
 
       <div>

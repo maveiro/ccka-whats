@@ -21,7 +21,15 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+
+  // Custo do ledger (migration custos_cloud_api), numa chamada só para a
+  // lista inteira — não uma por campanha.
+  const { data: costs } = await supabase.rpc("campaign_costs");
+  const porCampanha = new Map(
+    (costs as { campaign_id: string; cost: number }[] | null ?? []).map((c) => [c.campaign_id, Number(c.cost)]),
+  );
+
+  return NextResponse.json((data ?? []).map((c) => ({ ...c, cost: porCampanha.get(c.id) ?? 0 })));
 }
 
 export async function POST(req: NextRequest) {

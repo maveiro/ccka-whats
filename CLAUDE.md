@@ -119,6 +119,12 @@ wa-intelligence/
 │       │   │   ├── admin/campaigns/  ← módulo de campanhas (Cloud API), ver seção própria
 │       │   │   ├── admin/integrations/
 │       │   │   ├── admin/history/
+│       │   │   ├── admin/flows/         ← automações e Flows publicados
+│       │   │   ├── admin/numbers/       ← cadastro self-service de número Cloud API
+│       │   │   ├── admin/agenda/        ← shows da central
+│       │   │   ├── admin/faq/           ← perguntas da central
+│       │   │   ├── admin/clientes/      ← busca, LGPD e números de teste
+│       │   │   ├── admin/formularios/   ← cria formulário + embed da landing
 │       │   │   ├── analytics/
 │       │   │   ├── settings/
 │       │   │   └── chat/[id]/
@@ -143,6 +149,12 @@ wa-intelligence/
 │       │       │   ├── credentials/
 │       │       │   ├── templates/
 │       │       │   └── [id]/fire, [id]/status
+│       │       ├── flows/                ← automação: CRUD + keywords + fallbacks
+│       │       ├── agenda/, faq/         ← conteúdo da central
+│       │       ├── clientes/             ← busca por telefone + exclusão LGPD
+│       │       ├── numeros-teste/        ← lista que autoriza o "/reset"
+│       │       ├── formularios/          ← formulários de cadastro (painel)
+│       │       ├── public/cadastro/[slug]← recebe o formulário público (sem auth)
 │       │       └── register/
 │       ├── lib/whatsapp-cloud/       ← graphClient.ts, getCloudCredential.ts (módulo de campanhas)
 │       └── components/
@@ -156,7 +168,8 @@ wa-intelligence/
 │   └── types/                    ← tipos compartilhados
 │
 ├── supabase/
-│   ├── migrations/               ← SQL versionado (0001–0011)
+│   ├── migrations/               ← SQL versionado (0001–0040; novas usam timestamp)
+│   ├── tests/                    ← suíte SQL + e2e (`npm run test:db`)
 │   └── functions/
 │       ├── whatsapp-webhook/     ← recebe eventos do Evolution (JWT off)
 │       ├── media-downloader/     ← baixa mídias antes de expirar (JWT off)
@@ -165,7 +178,9 @@ wa-intelligence/
 │       ├── session-health-check/ ← monitora sessões periodicamente (JWT off)
 │       ├── webhook-delivery/     ← entrega webhooks para integrações
 │       ├── campaign-sender/         ← envia lotes de campanha via Cloud API (JWT on)
-│       └── whatsapp-cloud-webhook/  ← status de entrega Cloud API (JWT off, assinatura própria)
+│       ├── whatsapp-cloud-webhook/  ← status de entrega Cloud API (JWT off, assinatura própria)
+│       ├── flow-engine/             ← responde mensagem recebida: gate, keyword, abrir Flow (JWT on)
+│       └── flow-endpoint/           ← data endpoint do Flow, chamado pela Meta (JWT off, cripto própria)
 │
 └── infra/
     └── evolution/                ← docker-compose + .env.example do VPS
@@ -356,6 +371,103 @@ sucesso ou rejeição) além do início/fim da campanha — é o que atende
 são os únicos valores globais (verificação de assinatura do webhook, um
 único Meta App para todos os tenants); `waba_id`/`phone_number_id`/
 `access_token` são sempre por-tenant, em `whatsapp_cloud_credentials`.
+
+---
+
+## Módulo de automação por Flow + Central de shows (Cloud API) — 04/09 a 10/09/2026
+
+Segunda frente aditiva sobre a Cloud API, irmã do módulo de campanhas e igualmente
+isolada do pipeline Evolution/Baileys. Responde automaticamente a quem escreve
+para um número oficial e mantém uma **central de shows por artista** (Flow nativo
+com agenda, FAQ e cadastro). PRDs: `docs/prd/prd-automacao-flows-whatsapp.md` e
+`docs/prd/prd-central-de-shows.md`. Ver a nota de posicionamento no topo deste
+arquivo — é reabertura consciente, não deriva para atendimento.
+
+**Duas Edge Functions, papéis distintos:**
+
+- **`flow-engine`** (`verify_jwt = true`) — invocado pelo `whatsapp-cloud-webhook`
+  a cada mensagem recebida. Decide: idempotência → `/reset` → opt-out → cliente →
+  gate de cadastro → palavra-chave → resposta (texto, link ou abrir Flow).
+- **`flow-endpoint`** (`verify_jwt = false`) — o *data endpoint* que a **Meta**
+  chama enquanto a pessoa navega dentro do Flow. Tráfego criptografado
+  (RSA-OAEP/SHA-256 + AES-128-GCM com IV invertido); a chave privada por número
+  vive em `internal_secrets` sob `flow_private_key:{phone_number_id}`, nunca em
+  env var.
+
+**Tabelas:** `whatsapp_flows`, `flow_palavras_chave`, `clientes`,
+`flow_contato_estado`, `flow_sessoes`, `flow_mensagens_processadas`,
+`agenda_shows_sync`, `faq_itens`, `formularios_cadastro`, `formulario_envios`,
+`numeros_de_teste`. Migrations `0025`–`0040`.
+
+### Regras próprias deste módulo
+
+24. **`registrar_cliente()` é a ÚNICA porta de cadastro** (migration 0033).
+    Gate por chat, Flow, formulário público, painel e campanha chamam essa
+    função — ninguém escreve em `clientes` por conta própria. Mora no banco
+    porque Edge Functions (Deno) e painel (Next) **não compartilham módulo**; o
+    banco é a única camada que os dois enxergam. A regra nasceu de um cliente
+    real gravado **sem consentimento** pelo gate em 09/09/2026.
+
+25. **Identidade de cliente é `chave_telefone()`, não `telefone`** (migration
+    0037). `55 + DDD + 8 últimos dígitos`: o WhatsApp identifica umas contas com
+    o nono dígito e outras sem, e não existe forma canônica única. `telefone`
+    guarda o que cada canal informou; a **chave** (coluna gerada
+    `clientes.telefone_chave`, com o índice único) é o que deduplica. Buscar por
+    `telefone` cru cria um segundo cadastro para quem veio da landing.
+
+26. **Consentimento é versionado e só é carimbado quando a VERSÃO muda**
+    (migration 0039). Reforço do mesmo texto não é aceite novo — o gate informa a
+    mesma versão ao pedir nome e ao pedir e-mail, e recarimbar faria o registro
+    apontar a última resposta em vez do momento do aceite. Trocar o texto legal
+    **exige** versão nova (o `PATCH /api/formularios/[id]` recusa sem ela):
+    mudar o texto sem mudar a versão tornaria falso todo consentimento anterior.
+
+27. **Texto legal vem do banco, nunca do Flow JSON publicado.** Flow publicado na
+    Meta é imutável; texto de consentimento congelado numa versão publicada é o
+    oposto do que a LGPD pede. Fica em `whatsapp_flows.texto_consentimento` /
+    `versao_consentimento` e em `formularios_cadastro`.
+
+28. **A Meta NUNCA manda o telefone para o `flow-endpoint`** — quem é a pessoa
+    vem de `flow_sessoes`, gravada no momento em que o Flow é oferecido, e
+    encontrada pelo `flow_token`. Token é UUID aleatório: telefone dentro do
+    token seria dado pessoal trafegando pelo aparelho. Sem sessão, todo mundo
+    cai no cadastro — é o ponto de falha mais provável do desenho.
+
+29. **`/reset` tem a autorização no BANCO, não no motor** (migration 0038).
+    `resetar_cadastro_teste()` só age sobre números listados em
+    `numeros_de_teste` e devolve `false` para o resto, então um bug no
+    `flow-engine` não consegue apagar dado de cliente real. Quem não está na
+    lista digita o comando e recebe a resposta normal do flow — sem efeito e sem
+    descobrir que ele existe. Gerência em `/dashboard/admin/clientes`.
+
+30. **Gate por chat e cadastro no Flow coexistem** (decisão do fundador,
+    10/09/2026 — ver `prd-central-de-shows.md`). O gate atende quem escreve para
+    o número; a tela `CADASTRO` do Flow atende quem chega à central por fora do
+    chat (campanha, link), onde não houve conversa. O custo aceito é ter duas
+    portas — o que impede divergência é as duas passarem por `registrar_cliente`.
+    O texto de consentimento, porém, vive em dois lugares: constante
+    `VERSAO_CONSENTIMENTO_GATE` em `gate.ts` (código, exige deploy) e banco, no
+    Flow. Revisar redação legal significa mexer nos dois.
+
+31. **`whatsapp_flows.nome` é rótulo interno; o fã lê `mensagem_convite`**
+    (migration 0039). O balão que oferece um Flow usava o `nome` como corpo e
+    chegava ao fã com o nome que o admin deu para se organizar no painel. O nome
+    ficou como último recurso, só para o balão não ir vazio.
+
+### Armadilhas já pagas
+
+- **Um Flow ativo por credencial e por tipo** (`central`, `agenda_shows`):
+  há índice único. Criar o segundo falha — e, em teste, derruba o cenário
+  seguinte se o anterior não limpou o dele.
+- **Apagar um Flow que é destino de palavra-chave falha em silêncio** (FK). A
+  keyword sai primeiro, o Flow depois.
+- **Palavra-chave só existe em Flow `keyword_automation`** (migration 0032).
+- **Flow JSON**: `version` fora das suportadas é recusado na publicação; não há
+  negação em expressão; `visible` não vale em `Form`; referência de campo é
+  `${form.campo}`, não `${nome_do_form.campo}`; e o `INIT` **precisa** devolver a
+  tela de entrada, não uma tela interna.
+- **`PGRST201` ao embutir `flow_palavras_chave`**: há dois FKs para
+  `whatsapp_flows` (o dono e o destino) — nomear o FK no embed é obrigatório.
 
 ---
 
@@ -592,7 +704,36 @@ texto de botão, relatório CSV por campanha, retomada de campanha pausada por t
   isso `campaigns-list.tsx` tem botão "Excluir" (só pra `draft`/`ready`, preserva histórico de
   campanha que já disparou).
 
+### Módulo de automação + central — em produção (10/09/2026), validado ponta a ponta
+
+Migrations `0025`–`0040` aplicadas. Um número (`+55 41 8440-8675`, Índio Behn /
+Dra. Rosangêla) com automação `FAQ 2026` ativa, Flow `Central de shows`
+publicado, agenda e FAQ com conteúdo inicial, formulário público `/f/teste`
+apontando de volta para a conversa. Suíte: `npm run test:db` (SQL + e2e do
+engine, do endpoint e do painel; ~200 asserções).
+
+O que roda hoje: mensagem recebida → gate de nome/e-mail com consentimento
+versionado → palavra-chave responde texto/link ou abre a central → dentro do
+Flow, agenda e FAQ vindos do banco. Landing pública cadastra e devolve a pessoa
+para a conversa por click-to-WhatsApp. `/reset` devolve um número de teste à
+condição de desconhecido.
+
+**Deployment Protection da Vercel foi desligada em 10/09/2026** para o
+formulário público funcionar — antes disso, `/f/{slug}` e
+`/api/public/cadastro/{slug}` caíam no SSO da Vercel. O `/dashboard` segue
+protegido pelo auth do próprio app (Supabase + `proxy.ts`), que agora é a
+**única** camada: não há mais rede de segurança da plataforma por baixo.
+
 ### Pendente / próximos passos
+- **Central de shows — Sprint C4 (próxima):** `campaign-sender` preenchendo botão
+  de Flow com `flow_token`, UI de campanha escolhendo qual Flow abrir, template
+  com botão de Flow aprovado na Meta (tem fila de aprovação — submeter antes).
+  Depois, C5: piloto com um artista, um número, uma campanha.
+- **Conteúdo da central ainda provisório:** `whatsapp_flows.mensagem_convite` da
+  central está vazio (o balão chega com o rótulo interno), agenda e FAQ têm
+  poucos itens, e os textos do gate seguem os provisórios em `gate.ts`.
+- **Domínio próprio para a landing** — hoje a URL pública é o
+  `*.vercel.app` do projeto, que não se manda para um fã.
 - **Roadmap de inteligência** (wedge defensável, reordenável) — próximo é alertas semânticos:
   - Alertas semânticos (evoluir os alertas por palavra-chave para detecção de risco por
     significado). Colunas em `alerts` (`type` keyword|semantic, `semantic_query`,

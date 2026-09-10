@@ -33,7 +33,7 @@ interface ParsedRecipient {
 
 type Step = "credential" | "template" | "csv" | "review" | "done";
 
-// Botão de URL com placeholder na ponta = link rastreado (migration 0042): o
+// Botão de URL com placeholder na ponta = link rastreado (migration campanhas_clique_rastreado): o
 // campaign-sender manda o click_token de cada destinatário como sufixo.
 // Importa para a UI porque essa variável é a única que NÃO vem do CSV.
 function dynamicUrlButton(components: Template["components"]): TemplateButton | null {

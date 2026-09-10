@@ -319,7 +319,7 @@ async function sendOne(
  *   (chaves numéricas, na ordem) — cada pessoa recebe o texto da própria
  *   linha do CSV, não um valor estático da campanha.
  * - `button`: o click_token, quando o template tem botão de URL dinâmica.
- *   É o que faz cada pessoa receber um link único e rastreável (0042).
+ *   É o que faz cada pessoa receber um link único e rastreável (migration campanhas_clique_rastreado).
  *
  * O click_token NUNCA entra em `variables`: aquele jsonb mapeia 1:1 os
  * placeholders do corpo, e um valor a mais ali deslocaria todas as

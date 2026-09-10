@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration: 0042_campanhas_clique_rastreado.sql
+-- Migration: 20260910172923_campanhas_clique_rastreado.sql
 -- Rastreia o clique no botão de URL de um template de campanha.
 --
 -- Por que precisa existir: clique em botão de URL NÃO gera webhook nenhum

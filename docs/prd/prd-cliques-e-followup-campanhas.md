@@ -101,7 +101,9 @@ exatamente com esse desenho: base fixa + token.
 
 ## Modelo de dados
 
-Migration `0040_campanhas_clique_rastreado.sql`:
+Migration `<timestamp>_campanhas_clique_rastreado.sql` (nome com timestamp:
+ver "Trabalho em paralelo" no CLAUDE.md — numeração sequencial em duas
+sessões ao mesmo tempo queimou o número 0040):
 
 ```
 campaigns

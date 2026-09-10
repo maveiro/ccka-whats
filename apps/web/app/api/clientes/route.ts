@@ -27,12 +27,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Informe ao menos 8 dígitos do telefone" }, { status: 400 });
   }
 
-  // RLS já limita ao tenant (regra 15). O like cobre variações de prefixo
-  // (com/sem 55, com/sem o 9) sem obrigar o admin a saber o formato exato.
+  // Busca pela CHAVE do telefone (migration 0037): "(41) 99883-9193",
+  // "41998839193" e "554198839193" são a mesma pessoa. Um `like` no telefone
+  // não encontrava quem o WhatsApp guardou sem o nono dígito — foi assim que
+  // o bug apareceu, com um cliente existente dando "nenhum resultado".
+  //
+  // Os 8 últimos dígitos são o que a chave preserva de qualquer formato, então
+  // é por eles que se procura. A RLS limita ao tenant do operador.
   const { data, error } = await supabase
     .from("clientes")
     .select("id, nome, email, telefone, origem, cadastro_completo, pulou_cadastro, pii_apagada_em, created_at")
-    .like("telefone", `%${telefone}%`)
+    .like("telefone_chave", `%${telefone.slice(-8)}`)
     .is("deleted_at", null)
     .limit(20);
 

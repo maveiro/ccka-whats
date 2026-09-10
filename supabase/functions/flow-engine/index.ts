@@ -246,15 +246,14 @@ async function processar(payload: FlowEngineRequest): Promise<string> {
 async function obterOuCriarCliente(ctx: Contexto): Promise<Cliente | null> {
   const { tenantId, payload, credencial, flow } = ctx;
 
+  // Busca pela CHAVE do telefone (migration 0037): o WhatsApp identifica sem o
+  // nono dígito em algumas contas e com ele em outras. Comparar o telefone
+  // cru criaria um segundo cadastro para quem veio da landing.
   const { data: existente } = await supabase
-    .from("clientes")
-    .select("id, nome, email, telefone, cadastro_completo, aguardando_campo, tentativas_campo_atual, pulou_cadastro, mensagem_pendente")
-    .eq("tenant_id", tenantId)
-    .eq("telefone", payload.from)
-    .is("deleted_at", null)
+    .rpc("buscar_cliente", { p_tenant_id: tenantId, p_telefone: payload.from })
     .maybeSingle<Cliente>();
 
-  if (existente) return existente;
+  if (existente?.id) return existente;
 
   // Telefone conhecido de QUALQUER campanha já disparada por este número
   // (não "a" campanha, no singular — um número roda várias ao longo do tempo).
@@ -313,26 +312,28 @@ async function obterOuCriarCliente(ctx: Contexto): Promise<Cliente | null> {
   // Campos que só o gate conhece (a pergunta pendente e qual Flow abriu o
   // gate) não pertencem à porta comum de cadastro.
   if (!veioDeCampanha) {
-    await supabase
-      .from("clientes")
-      .update({
-        aguardando_campo: "nome",
-        mensagem_pendente: payload.text,
-        gate_iniciado_por_flow_id: flow.id,
-      })
-      .eq("tenant_id", tenantId)
-      .eq("telefone", payload.from)
-      .is("nome", null);
+    const { data: recem } = await supabase
+      .rpc("buscar_cliente", { p_tenant_id: tenantId, p_telefone: payload.from })
+      .maybeSingle<{ id: string }>();
+
+    if (recem?.id) {
+      await supabase
+        .from("clientes")
+        .update({
+          aguardando_campo: "nome",
+          mensagem_pendente: payload.text,
+          gate_iniciado_por_flow_id: flow.id,
+        })
+        .eq("id", recem.id)
+        .is("nome", null);
+    }
   }
 
   const { data: relido } = await supabase
-    .from("clientes")
-    .select("id, nome, email, telefone, cadastro_completo, aguardando_campo, tentativas_campo_atual, pulou_cadastro, mensagem_pendente")
-    .eq("tenant_id", tenantId)
-    .eq("telefone", payload.from)
+    .rpc("buscar_cliente", { p_tenant_id: tenantId, p_telefone: payload.from })
     .maybeSingle<Cliente>();
 
-  return relido ?? null;
+  return relido?.id ? relido : null;
 }
 
 // ─── Passo 5: gate de cadastro ───────────────────────────────────────────────

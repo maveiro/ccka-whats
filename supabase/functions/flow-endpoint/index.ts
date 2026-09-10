@@ -478,15 +478,13 @@ async function clienteDaSessao(
   if (!sessao) return null;
   if (new Date(sessao.expira_em).getTime() < Date.now()) return null;
 
+  // Pela CHAVE (migration 0037): a sessão guarda o telefone como o WhatsApp o
+  // informou, e o cadastro pode ter entrado pela landing com o nono dígito.
   const { data: cliente } = await supabase
-    .from("clientes")
-    .select("nome, cadastro_completo")
-    .eq("tenant_id", tenantId)
-    .eq("telefone", sessao.telefone)
-    .is("deleted_at", null)
-    .maybeSingle<{ nome: string | null; cadastro_completo: boolean }>();
+    .rpc("buscar_cliente", { p_tenant_id: tenantId, p_telefone: sessao.telefone })
+    .maybeSingle<{ id: string; nome: string | null; cadastro_completo: boolean }>();
 
-  return cliente ?? null;
+  return cliente?.id ? cliente : null;
 }
 
 /**

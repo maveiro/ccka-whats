@@ -189,6 +189,35 @@ begin
 end;
 $$;
 
+-- ============================================================
+-- 9. Nono dígito brasileiro: com e sem o 9 são a MESMA pessoa
+--    (migration 0037 — o caso que criou duplicata em produção)
+-- ============================================================
+do $$
+declare t uuid := (select valor from _ids where chave='tenant');
+begin
+  -- Como o WhatsApp identifica (sem o nono dígito)
+  perform registrar_cliente(t, '554188887777', null, null, 'organico', null, null);
+  -- Como alguém digita no formulário da landing (com o nono dígito)
+  perform registrar_cliente(t, '(41) 98888-7777', 'Carla', 'carla@exemplo.invalido', 'landing', 'v1', 'landing');
+
+  perform pg_temp.assert(
+    (select count(*) from clientes where tenant_id = t and telefone_chave = '554188887777') = 1,
+    'com e sem o nono dígito precisam ser o MESMO cadastro — foi este o bug em produção');
+
+  perform pg_temp.assert(
+    (select nome = 'Carla' from clientes where tenant_id = t and telefone_chave = '554188887777'),
+    'o cadastro da landing deveria completar o que o WhatsApp já conhecia');
+
+  perform pg_temp.assert(
+    (select (buscar_cliente(t, '41988887777')).id is not null),
+    'buscar pelo formato digitado precisa encontrar quem foi gravado pelo WhatsApp');
+  perform pg_temp.assert(
+    (select (buscar_cliente(t, '554188887777')).id is not null),
+    'e o contrário também');
+end;
+$$;
+
 do $$ begin raise notice 'OK: todas as asserções de 0033 passaram'; end; $$;
 
 rollback;

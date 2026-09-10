@@ -11,13 +11,19 @@ interface Credential {
   active: boolean;
 }
 
+interface TemplateButton {
+  type?: string;
+  text?: string;
+  url?: string;
+}
+
 interface Template {
   id: string;
   name: string;
   language: string;
   category: string;
   status: string;
-  components: { type: string; text?: string }[];
+  components: { type: string; text?: string; buttons?: TemplateButton[] }[];
 }
 
 interface ParsedRecipient {
@@ -26,6 +32,19 @@ interface ParsedRecipient {
 }
 
 type Step = "credential" | "template" | "csv" | "review" | "done";
+
+// Botão de URL com placeholder na ponta = link rastreado (migration 0042): o
+// campaign-sender manda o click_token de cada destinatário como sufixo.
+// Importa para a UI porque essa variável é a única que NÃO vem do CSV.
+function dynamicUrlButton(components: Template["components"]): TemplateButton | null {
+  for (const component of components) {
+    const found = component.buttons?.find(
+      (b) => b.type?.toUpperCase() === "URL" && typeof b.url === "string" && b.url.includes("{{"),
+    );
+    if (found) return found;
+  }
+  return null;
+}
 
 function countPlaceholders(components: Template["components"]): number {
   const body = components.find((c) => c.type === "BODY");
@@ -55,6 +74,7 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
 
   // Campanha
   const [name, setName] = useState("");
+  const [clickTargetUrl, setClickTargetUrl] = useState("");
 
   // CSV
   const [recipients, setRecipients] = useState<ParsedRecipient[]>([]);
@@ -163,6 +183,7 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
           templateLanguage: selectedTemplate.language,
           templateCategory: selectedTemplate.category,
           templateComponents: selectedTemplate.components,
+          clickTargetUrl,
           recipients,
         }),
       });
@@ -188,7 +209,11 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
     setError(null);
     setCsvError(null);
     setName("");
+    setClickTargetUrl("");
   }
+
+  const trackedButton = selectedTemplate ? dynamicUrlButton(selectedTemplate.components) : null;
+  const missingTargetUrl = trackedButton !== null && !clickTargetUrl.trim();
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4">
@@ -279,6 +304,13 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
             template tiver variáveis, colunas adicionais na ordem dos placeholders {"{{1}}"}, {"{{2}}"}...
             (template tem {countPlaceholders(selectedTemplate.components)} variável(is)).
           </p>
+          {trackedButton && (
+            <p className="text-xs text-amber-400 bg-amber-900/20 border border-amber-900 rounded-md px-3 py-2">
+              O botão <b>{trackedButton.text}</b> tem link rastreado. A variável dele{" "}
+              <b>não é coluna do CSV</b> — o link único de cada pessoa é gerado por nós.
+              Conte só as {countPlaceholders(selectedTemplate.components)} variável(is) do texto.
+            </p>
+          )}
           <input
             type="file"
             accept=".csv"
@@ -296,6 +328,19 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
         <div className="space-y-3">
           <p className="text-sm font-medium text-white">Revisão</p>
           <Field label="Nome da campanha" value={name} onChange={setName} />
+          {trackedButton && (
+            <div className="space-y-1">
+              <Field
+                label={`Destino do botão "${trackedButton.text}"`}
+                value={clickTargetUrl}
+                onChange={setClickTargetUrl}
+              />
+              <p className="text-xs text-gray-500">
+                Para onde a pessoa vai depois do clique (ex: a página do evento no Sympla).
+                O link do template passa pelo nosso redirect, que registra quem clicou.
+              </p>
+            </div>
+          )}
           <p className="text-xs text-gray-400">
             {recipients.length} destinatário(s) válido(s) · template <b>{selectedTemplate.name}</b> ({selectedTemplate.category})
           </p>
@@ -323,7 +368,7 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
           <div className="flex gap-2">
             <button
               onClick={handleCreate}
-              disabled={creating || !name.trim()}
+              disabled={creating || !name.trim() || missingTargetUrl}
               className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
             >
               {creating ? "Criando..." : "Criar campanha"}

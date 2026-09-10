@@ -35,7 +35,9 @@ export async function proxy(request: NextRequest) {
   // Rotas sempre públicas — sem proteção de auth
   // "/f/" é a página pública de formulário de cadastro: é embutida por iframe
   // em sites de terceiros e, por definição, não tem sessão de usuário.
-  const publicPaths = ["/register", "/forgot-password", "/reset-password", "/auth/", "/api/", "/f/"];
+  // "/c/" é o redirect rastreado do botão de campanha: quem abre é um cliente
+  // com o link que recebeu no WhatsApp, também sem sessão.
+  const publicPaths = ["/register", "/forgot-password", "/reset-password", "/auth/", "/api/", "/f/", "/c/"];
   if (publicPaths.some((p) => pathname.startsWith(p))) {
     return supabaseResponse;
   }

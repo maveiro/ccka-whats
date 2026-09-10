@@ -55,6 +55,7 @@ interface Recipient {
   phone_e164: string;
   variables: Record<string, unknown>;
   attempts: number;
+  click_token: string;
 }
 
 interface Campaign {
@@ -129,6 +130,11 @@ Deno.serve(async (req: Request) => {
   // ainda está processando seu próprio lote.
   const claimedIds: string[] = [];
 
+  // Resolvido uma vez por invocação (não por destinatário): a posição do
+  // botão de URL dinâmica dentro do template, se houver. Ver
+  // findDynamicUrlButtonIndex para por que não pode ser fixo.
+  const urlButtonIndex = findDynamicUrlButtonIndex(campaign.template_components);
+
   for (let batchNum = 0; batchNum < MAX_BATCHES_PER_INVOCATION; batchNum++) {
     // Claim atômico do lote — SKIP LOCKED garante que esta invocação nunca
     // pega uma linha que outra invocação concorrente (próximo tick do cron
@@ -150,7 +156,7 @@ Deno.serve(async (req: Request) => {
     for (let i = 0; i < recipients.length; i += CONCURRENCY) {
       if (messagingLimitHit || throughputLimitHit) break;
       const slice = recipients.slice(i, i + CONCURRENCY);
-      const results = await Promise.allSettled(slice.map((r) => sendOne(campaign, credential, r)));
+      const results = await Promise.allSettled(slice.map((r) => sendOne(campaign, credential, r, urlButtonIndex)));
 
       for (const result of results) {
         if (result.status !== "fulfilled") continue;
@@ -199,7 +205,10 @@ async function sendOne(
   campaign: Campaign,
   credential: Credential,
   recipient: Recipient,
+  urlButtonIndex: number | null,
 ): Promise<{ messagingLimitHit: boolean; throughputLimitHit: boolean }> {
+  const components = buildComponents(recipient, urlButtonIndex);
+
   try {
     const response = await fetchWithRetry(`${GRAPH_API_BASE}/${credential.phone_number_id}/messages`, {
       method: "POST",
@@ -214,7 +223,7 @@ async function sendOne(
         template: {
           name: campaign.template_name,
           language: { code: campaign.template_language },
-          ...(buildComponents(recipient.variables) ? { components: buildComponents(recipient.variables) } : {}),
+          ...(components ? { components } : {}),
         },
       }),
     });
@@ -304,21 +313,83 @@ async function sendOne(
 }
 
 /**
- * Monta os parâmetros de corpo do template a partir de recipient.variables
- * (chaves "1", "2", ... correspondendo aos placeholders {{1}}, {{2}}, ... do
- * template, na ordem numérica) — cada destinatário recebe o texto que veio
- * da própria linha do CSV, não um valor estático da campanha.
- * campaign.template_components (jsonb salvo na criação) é só metadata usada
- * pela UI para saber quantos placeholders o template tem — nunca é enviado
- * como está para a Graph API.
+ * Monta os componentes do template para UM destinatário:
+ *
+ * - `body`: os placeholders {{1}}, {{2}}... vindos de recipient.variables
+ *   (chaves numéricas, na ordem) — cada pessoa recebe o texto da própria
+ *   linha do CSV, não um valor estático da campanha.
+ * - `button`: o click_token, quando o template tem botão de URL dinâmica.
+ *   É o que faz cada pessoa receber um link único e rastreável (0042).
+ *
+ * O click_token NUNCA entra em `variables`: aquele jsonb mapeia 1:1 os
+ * placeholders do corpo, e um valor a mais ali deslocaria todas as
+ * variáveis do texto.
+ *
+ * campaign.template_components (jsonb salvo na criação) é só metadata —
+ * nunca é enviado como está para a Graph API.
  */
-function buildComponents(variables: Record<string, unknown>): unknown[] | undefined {
-  const keys = Object.keys(variables ?? {}).sort((a, b) => Number(a) - Number(b));
-  if (keys.length === 0) return undefined;
-  return [{
-    type: "body",
-    parameters: keys.map((k) => ({ type: "text", text: String(variables[k]) })),
-  }];
+function buildComponents(
+  recipient: Recipient,
+  urlButtonIndex: number | null,
+): unknown[] | undefined {
+  const components: unknown[] = [];
+
+  const variables = recipient.variables ?? {};
+  const keys = Object.keys(variables).sort((a, b) => Number(a) - Number(b));
+  if (keys.length > 0) {
+    components.push({
+      type: "body",
+      parameters: keys.map((k) => ({ type: "text", text: String(variables[k]) })),
+    });
+  }
+
+  if (urlButtonIndex !== null && recipient.click_token) {
+    components.push({
+      type: "button",
+      sub_type: "url",
+      index: String(urlButtonIndex),
+      // A Graph API ANEXA este valor ao final da URL do template (que
+      // termina em /c/), em vez de substituir um placeholder no meio — é
+      // por isso que a Meta só aceita uma variável, e só no fim da URL.
+      parameters: [{ type: "text", text: recipient.click_token }],
+    });
+  }
+
+  return components.length > 0 ? components : undefined;
+}
+
+interface TemplateButton {
+  type?: string;
+  url?: string;
+}
+
+/**
+ * Posição do botão de URL DINÂMICA dentro do template, ou null se não houver.
+ *
+ * Não pode ser fixo em 0. O índice é a posição entre TODOS os botões do
+ * template, e a ordem é definida no editor da Meta: hoje o template real tem
+ * `Comprar Meu Ingresso` (URL) na frente de dois quick-replies, o que dá 0 por
+ * coincidência de layout. Reordenar os botões lá mandaria o token para o botão
+ * errado — e a Graph API aceitaria sem erro nenhum, deixando o link quebrado
+ * para a base inteira.
+ *
+ * Só conta como dinâmico o botão cuja URL tem placeholder: um botão de URL
+ * estática que receba parâmetro é rejeitado no envio.
+ */
+function findDynamicUrlButtonIndex(templateComponents: unknown[] | null): number | null {
+  if (!Array.isArray(templateComponents)) return null;
+
+  for (const component of templateComponents) {
+    const buttons = (component as { type?: string; buttons?: TemplateButton[] })?.buttons;
+    if (!Array.isArray(buttons)) continue;
+
+    const index = buttons.findIndex(
+      (b) => b?.type?.toUpperCase() === "URL" && typeof b.url === "string" && b.url.includes("{{"),
+    );
+    if (index !== -1) return index;
+  }
+
+  return null;
 }
 
 async function maybeCompleteCampaign(campaign: Campaign): Promise<void> {

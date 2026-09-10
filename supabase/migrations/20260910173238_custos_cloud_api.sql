@@ -160,17 +160,28 @@ begin
   --    utilidade, sem franquia (perde a gratuidade dentro da janela);
   --  • free_entry_point                          → continua grátis;
   --  • regular                                   → inalterado.
+  -- A ordem da franquia é contada SÓ entre as mensagens de serviço: uma
+  -- janela sobre `base` inteira faria marketing e utilidade empurrarem
+  -- mensagem de serviço para fora da franquia (pego pelo teste
+  -- supabase/tests/custos_cloud_api.sql).
+  servico as (
+    select
+      b.id,
+      row_number() over (
+        partition by b.phone_number_id, date_trunc('month', b.sent_at)
+        order by b.sent_at
+      ) as ordem_no_mes
+    from base b
+    where b.pricing_type = 'free_customer_service'
+      and coalesce(b.pricing_category, 'service') = 'service'
+  ),
   projetado as (
     select
       b.*,
       case
-        when b.pricing_type = 'free_customer_service' and coalesce(b.pricing_category, 'service') = 'service'
+        when s.id is not null
           then case
-            when row_number() over (
-                   partition by b.phone_number_id, date_trunc('month', b.sent_at)
-                   order by b.sent_at
-                 ) <= 1000
-              then 0
+            when s.ordem_no_mes <= 1000 then 0
             else coalesce(resolve_whatsapp_rate(coalesce(b.country_code, 'BR'), 'service', b.currency, '2026-10-01'::timestamptz), 0)
           end
         when b.pricing_type = 'free_customer_service'
@@ -178,6 +189,7 @@ begin
         else b.rate_amount
       end as rate_futuro
     from base b
+    left join servico s on s.id = b.id
   )
   select jsonb_build_object(
     'total',            coalesce((select sum(rate_amount) from base), 0),

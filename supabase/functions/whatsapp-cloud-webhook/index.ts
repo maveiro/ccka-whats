@@ -574,6 +574,65 @@ function paisDoTelefone(phone: string | undefined): string | null {
   return null; // sem tarifa cadastrada: linha entra com custo zero, e a aba de Custos conta essas mensagens à parte
 }
 
+// Cache por invocação (o worker é reaproveitado entre requisições), mesmo
+// padrão de obterChavePrivada no flow-endpoint. Sem ele, cada evento de
+// status com `pricing` faria duas queries: numa campanha de 1.889
+// destinatários são ~3.800 requests extras no caminho quente do webhook,
+// para resolver sempre os MESMOS 4 números.
+// Guarda `null` também: número sem credencial ativa não pode virar duas
+// queries por evento pelo resto da vida do worker.
+interface OrigemDoNumero {
+  tenantId: string;
+  sessionId: string | null;
+}
+
+const cacheOrigemPorNumero = new Map<string, OrigemDoNumero | null>();
+
+async function resolverOrigemDoNumero(phoneNumberId: string): Promise<OrigemDoNumero | null> {
+  if (cacheOrigemPorNumero.has(phoneNumberId)) return cacheOrigemPorNumero.get(phoneNumberId)!;
+
+  const { data: credential, error: credError } = await supabase
+    .from("whatsapp_cloud_credentials")
+    .select("id, tenant_id")
+    .eq("phone_number_id", phoneNumberId)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (credError || !credential) {
+    // Erro de leitura não é cacheado: pode ser falha momentânea, e gravar
+    // null aqui cegaria o número até o worker reciclar.
+    if (credError) {
+      console.error("[custos] whatsapp_cloud_credentials lookup:", credError.message);
+      return null;
+    }
+    cacheOrigemPorNumero.set(phoneNumberId, null);
+    return null;
+  }
+
+  // maybeSingle devolve PGRST116 (ERRO, não null) quando a query casa mais de
+  // uma linha — foi assim que o envio quebrou em produção ao cadastrar o
+  // quarto número. Aqui o índice único parcial wa_sessions_cloud_credential_id_key
+  // (0021) já impede o caso, mas o erro nunca era checado: qualquer falha de
+  // leitura viraria session_id null em silêncio. .limit(1) com ordem explícita
+  // torna a query imune por construção, e o erro agora é logado.
+  const { data: session, error: sessionError } = await supabase
+    .from("wa_sessions")
+    .select("id")
+    .eq("cloud_credential_id", credential.id)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (sessionError) {
+    console.error("[custos] wa_sessions lookup:", sessionError.message);
+    return null;
+  }
+
+  const origem: OrigemDoNumero = { tenantId: credential.tenant_id, sessionId: session?.id ?? null };
+  cacheOrigemPorNumero.set(phoneNumberId, origem);
+  return origem;
+}
+
 async function registrarCusto(
   status: {
     id: string;
@@ -595,21 +654,10 @@ async function registrarCusto(
   let sessionId: string | null = null;
 
   if (phoneNumberId) {
-    const { data: credential } = await supabase
-      .from("whatsapp_cloud_credentials")
-      .select("id, tenant_id")
-      .eq("phone_number_id", phoneNumberId)
-      .eq("active", true)
-      .maybeSingle();
-
-    if (credential) {
-      tenantId = tenantId ?? credential.tenant_id;
-      const { data: session } = await supabase
-        .from("wa_sessions")
-        .select("id")
-        .eq("cloud_credential_id", credential.id)
-        .maybeSingle();
-      sessionId = session?.id ?? null;
+    const origem = await resolverOrigemDoNumero(phoneNumberId);
+    if (origem) {
+      tenantId = tenantId ?? origem.tenantId;
+      sessionId = origem.sessionId;
     }
   }
 

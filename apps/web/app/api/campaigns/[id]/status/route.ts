@@ -19,5 +19,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   if (error || !data) return NextResponse.json({ error: "Campanha não encontrada" }, { status: 404 });
 
-  return NextResponse.json(data);
+  // Custo do ledger (migration custos_cloud_api). Só existe para disparos
+  // posteriores ao deploy do registro de custo — campanha antiga volta 0.
+  const { data: cost } = await supabase.rpc("campaign_cost", { p_campaign_id: id });
+
+  return NextResponse.json({ ...data, cost: Number(cost ?? 0) });
 }

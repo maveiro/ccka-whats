@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Papa from "papaparse";
+import { formatCurrency } from "@/lib/utils";
 
 interface Campaign {
   id: string;
@@ -15,6 +16,8 @@ interface Campaign {
   read_count: number;
   failed_count: number;
   created_at: string;
+  /** Ledger de custo (migration custos_cloud_api). 0 para campanha anterior ao registro. */
+  cost?: number;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -171,7 +174,12 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
             <div className="mt-2 space-y-1">
               <div className="flex justify-between text-xs text-gray-500">
                 <span>{c.sent_count + c.failed_count}/{c.total_recipients} processados</span>
-                <span>{c.delivered_count} entregues · {c.read_count} lidos · {c.failed_count} falhas</span>
+                <span>
+                  {c.delivered_count} entregues · {c.read_count} lidos · {c.failed_count} falhas
+                  {(c.cost ?? 0) > 0 && (
+                    <span className="text-gray-400"> · {formatCurrency(c.cost!)}</span>
+                  )}
+                </span>
               </div>
               <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
                 <div

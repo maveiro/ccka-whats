@@ -21,11 +21,21 @@ alter table campaigns
 -- obrigaria a duplicar a lógica e a esquecer num deles seria exatamente o
 -- tipo de falha silenciosa que o CLAUDE.md já documenta.
 --
--- 8 bytes = 64 bits = 16 chars hex. Não é segredo criptográfico (o token não
--- dá acesso a nada, só identifica uma linha), mas precisa ser não-enumerável
--- para que ninguém varra tokens e infle contadores alheios.
+-- 16 chars hex = 64 bits. Não é segredo criptográfico (o token não dá acesso a
+-- nada, só identifica uma linha), mas precisa ser não-enumerável para que
+-- ninguém varra tokens e infle contadores alheios.
+--
+-- Sai de gen_random_uuid() (pg_catalog, core) e NÃO de gen_random_bytes()
+-- (pgcrypto). Dois motivos, o segundo descoberto aplicando em produção
+-- (10/09/2026, SQLSTATE 42883): (a) o pgcrypto vive no schema `extensions`, que
+-- está no search_path local mas não no do papel que aplica migration em
+-- produção — a migration morria antes de criar qualquer coluna; (b) mais grave,
+-- isto é DEFAULT gravado na tabela, avaliado depois por quem inserir. Um
+-- default que depende de search_path quebraria todo INSERT vindo do PostgREST,
+-- que conecta com outro papel — e só na hora de cadastrar destinatário, não
+-- aqui. Função do core não tem esse problema em papel nenhum.
 alter table campaign_recipients
-  add column click_token text not null default encode(gen_random_bytes(8), 'hex'),
+  add column click_token text not null default substr(replace(gen_random_uuid()::text, '-', ''), 1, 16),
   add column clicked_at  timestamptz,
   add column click_count int default 0;
 

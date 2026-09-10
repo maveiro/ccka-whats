@@ -167,6 +167,28 @@ begin
 end;
 $$;
 
+-- ============================================================
+-- 8. Toda origem prevista é aceita — a lista cresce a cada porta nova, e
+--    descobrir isso só na hora do insert já aconteceu (migration 0034).
+-- ============================================================
+do $$
+declare
+  t uuid := (select valor from _ids where chave='tenant');
+  origens text[] := array['campanha','organico','landing','flow','painel'];
+  o text;
+  i int := 0;
+begin
+  foreach o in array origens loop
+    i := i + 1;
+    perform registrar_cliente(t, '5541' || lpad(i::text, 9, '9'), null, null, o, null, null);
+  end loop;
+
+  perform pg_temp.assert(
+    (select count(*) from clientes where tenant_id = t and origem = any(origens)) >= array_length(origens,1),
+    'toda origem prevista precisa ser aceita pelo constraint');
+end;
+$$;
+
 do $$ begin raise notice 'OK: todas as asserções de 0033 passaram'; end; $$;
 
 rollback;

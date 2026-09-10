@@ -368,6 +368,55 @@ são os únicos valores globais (verificação de assinatura do webhook, um
 - Imports absolutos com `@/` no web app
 - Sem `any` — use `unknown` e narrowing explícito
 - Route Handlers: sempre `await params` (Next.js 16 — `params` é Promise)
+- **Migrations novas usam timestamp, não sequencial**: `20260910143000_nome.sql`
+  (ver "Trabalho em paralelo" abaixo). As `00NN` existentes ficam como estão —
+  ordenam antes de qualquer timestamp, então as duas convenções convivem.
+
+---
+
+## Trabalho em paralelo (mais de um agente no mesmo repo)
+
+Vale sempre que houver mais de uma sessão trabalhando ao mesmo tempo — e é o
+padrão desde 10/09/2026, com trilhas separadas de central de shows, rastreio de
+clique e custos de disparo.
+
+**O que dá para isolar e o que não dá.** Worktree resolve arquivo e git.
+**Não** resolve banco: o Supabase de produção é um só para todas as sessões, e
+é ali que o estrago acontece.
+
+1. **Um `git worktree` por trilha, nunca duas sessões na mesma pasta.**
+   `git worktree add ../whats-<trilha> -b feat/<trilha>`. Sem isso, uma sessão
+   commita o arquivo pela metade da outra e ninguém percebe até quebrar.
+
+2. **`git add -A` é proibido.** Sempre `git add <caminho>` explícito. Numa
+   árvore compartilhada, `-A` varre o trabalho não commitado das outras trilhas
+   para dentro do seu commit.
+
+3. **Migration nova nasce com timestamp** (`date +%Y%m%d%H%M%S`). Numeração
+   sequencial exige "pegar o próximo número", e duas sessões pegam o mesmo.
+   Aconteceu em 10/09/2026: duas `0040` diferentes, uma aplicada e outra não —
+   e como o Supabase registra pelo **número**, a segunda seria **pulada em
+   silêncio** num `db push`, deixando o código sem o schema de que depende
+   (mesma família da regra 10).
+
+4. **Só a sessão que estiver integrando aplica migration em produção.** As
+   demais validam com `supabase db reset --local` + `npm run test:db`, que roda
+   a suíte inteira. Duas sessões dando `db push` no mesmo projeto é como o
+   número 0040 foi queimado.
+
+5. **Arquivo compartilhado tem dono.** `proxy.ts`, `lib/utils.ts`,
+   `lib/whatsapp-cloud/graphClient.ts`, `CLAUDE.md` e as Edge Functions de
+   campanha são tocados por mais de uma trilha. Precisar mexer fora da sua área
+   significa avisar o Marcelo e combinar quem edita — não editar e torcer.
+
+6. **`main` publica sozinho.** Push em `main` dispara o deploy de produção na
+   Vercel (ver "Notas operacionais"). Trabalho pela metade vive em branch de
+   trilha; `main` só recebe o que pode ir ao ar.
+
+7. **Antes de começar qualquer coisa**, `git fetch && git status` e leia o que
+   já mudou. Commits pequenos e frequentes; não deixe pilha grande de arquivo
+   não commitado — é o que torna impossível para as outras trilhas saberem o
+   que é seu.
 
 ---
 

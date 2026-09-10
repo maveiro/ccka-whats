@@ -22,8 +22,16 @@ interface Chat {
   wa_sessions: { label: string | null; phone_number: string; status: string } | null;
 }
 
+interface Sessao {
+  id: string;
+  label: string | null;
+  phone_number: string;
+  status: string;
+}
+
 interface ChatListProps {
   chats: Chat[];
+  sessoes: Sessao[];
   operatorRole: string;
 }
 
@@ -44,29 +52,49 @@ interface SessionInfo {
   unread: number;
 }
 
-export default function ChatList({ chats: initial, operatorRole }: ChatListProps) {
+export default function ChatList({ chats: initial, sessoes, operatorRole }: ChatListProps) {
   const pathname = usePathname();
-  const [chats, setChats] = useState(initial);
+  // `initial` são as 50 conversas mais recentes do tenant (visão "Todas").
+  // `chatsDaSessao` guarda as conversas do número escolhido, buscadas à parte.
+  // Manter as duas separadas é o que faz o filtro sobreviver à navegação: o
+  // layout é server component e devolve `initial` novo a cada rota.
+  const [chatsDaSessao, setChatsDaSessao] = useState<Chat[] | null>(null);
+  const [ajustes, setAjustes] = useState<Record<string, Partial<Chat>>>({});
+  const [carregandoSessao, setCarregandoSessao] = useState(false);
   const [filter, setFilter] = useState<FilterTab>("all");
   const [selectedSession, setSelectedSession] = useState<string>("all");
 
-  useEffect(() => { setChats(initial); }, [initial]);
-
-  // Derive unique sessions from chats (stable order by first appearance)
-  const sessions: SessionInfo[] = [];
-  const seen = new Set<string>();
-  for (const c of chats) {
-    if (c.session_id && !seen.has(c.session_id)) {
-      seen.add(c.session_id);
-      sessions.push({
-        id: c.session_id,
-        label: c.wa_sessions?.label ?? null,
-        phone_number: c.wa_sessions?.phone_number ?? c.session_id,
-        status: c.wa_sessions?.status ?? "disconnected",
-        unread: 0,
-      });
+  // Trocar de número refaz a busca no servidor: filtrar as 50 conversas já
+  // carregadas mostraria "nenhuma conversa" para qualquer número que não
+  // estivesse entre as mais recentes do tenant.
+  async function escolherSessao(id: string) {
+    setSelectedSession(id);
+    if (id === "all") {
+      setChatsDaSessao(null);
+      return;
+    }
+    setCarregandoSessao(true);
+    try {
+      const res = await fetch(`/api/chats?sessionId=${encodeURIComponent(id)}`);
+      if (res.ok) setChatsDaSessao(await res.json());
+    } finally {
+      setCarregandoSessao(false);
     }
   }
+
+  // Os números vêm da tabela de sessões, não das conversas carregadas. Derivar
+  // dos 50 chats mais recentes fazia o filtro sumir para números parados — e
+  // filtrar por um número quieto é justamente o caso de uso.
+  const sessions: SessionInfo[] = sessoes.map((s) => ({
+    id: s.id,
+    label: s.label,
+    phone_number: s.phone_number,
+    status: s.status,
+    unread: 0,
+  }));
+  const base = selectedSession === "all" ? initial : (chatsDaSessao ?? []);
+  const chats: Chat[] = base.map((c) => (ajustes[c.id] ? { ...c, ...ajustes[c.id] } : c));
+
   // Count unread per session
   for (const c of chats) {
     const s = sessions.find((s) => s.id === c.session_id);
@@ -76,35 +104,37 @@ export default function ChatList({ chats: initial, operatorRole }: ChatListProps
   const showSessionFilter = sessions.length > 1;
   const totalUnread = chats.reduce((s, c) => s + (c.unread_count ?? 0), 0);
 
-  const filteredChats = chats.filter((c) => {
-    if (selectedSession !== "all" && c.session_id !== selectedSession) return false;
-    if (filter === "groups") return c.jid.endsWith("@g.us");
-    if (filter === "contacts") return !c.jid.endsWith("@g.us");
-    return true;
-  });
+  const filteredChats = chats
+    .filter((c) => {
+      if (selectedSession !== "all" && c.session_id !== selectedSession) return false;
+      if (filter === "groups") return c.jid.endsWith("@g.us");
+      if (filter === "contacts") return !c.jid.endsWith("@g.us");
+      return true;
+    })
+    // Ordenar na exibição (e não ao receber o evento) mantém a lista correta
+    // mesmo quando o realtime só ajusta campos de uma conversa.
+    .sort((a, b) => {
+      const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+      const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+      return tb - ta;
+    });
 
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
       .channel("chat-list-updates")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chats" }, (payload) => {
-        setChats((prev) =>
-          prev.map((c) =>
-            c.id === payload.new.id
-              ? {
-                  ...c,
-                  unread_count: payload.new.unread_count,
-                  last_message_at: payload.new.last_message_at,
-                  last_message_body: payload.new.last_message_body ?? c.last_message_body,
-                  name: payload.new.name ?? c.name,
-                }
-              : c,
-          ).sort((a, b) => {
-            const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
-            const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
-            return tb - ta;
-          }),
-        );
+        // Guardado como AJUSTE, não sobrescrevendo a lista: a lista base
+        // depende do número selecionado, e reescrevê-la aqui desfaria o filtro.
+        setAjustes((prev) => ({
+          ...prev,
+          [payload.new.id]: {
+            unread_count: payload.new.unread_count,
+            last_message_at: payload.new.last_message_at,
+            last_message_body: payload.new.last_message_body ?? undefined,
+            name: payload.new.name ?? undefined,
+          },
+        }));
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -148,7 +178,7 @@ export default function ChatList({ chats: initial, operatorRole }: ChatListProps
             <button
               role="tab"
               aria-selected={selectedSession === "all"}
-              onClick={() => setSelectedSession("all")}
+              onClick={() => escolherSessao("all")}
               className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors ${
                 selectedSession === "all"
                   ? "bg-gray-800 text-white font-medium"
@@ -168,7 +198,7 @@ export default function ChatList({ chats: initial, operatorRole }: ChatListProps
                   key={s.id}
                   role="tab"
                   aria-selected={selectedSession === s.id}
-                  onClick={() => setSelectedSession(s.id)}
+                  onClick={() => escolherSessao(s.id)}
                   className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors ${
                     selectedSession === s.id
                       ? "bg-gray-800 text-white"
@@ -207,7 +237,12 @@ export default function ChatList({ chats: initial, operatorRole }: ChatListProps
       </div>
 
       <div className="flex-1 overflow-y-auto" role="list" aria-label="Lista de conversas">
-        {filteredChats.length === 0 && (
+        {carregandoSessao && (
+          <div className="flex items-center justify-center py-12">
+            <p className="text-xs text-gray-600">Carregando conversas…</p>
+          </div>
+        )}
+        {!carregandoSessao && filteredChats.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-2 py-12 px-6 text-center">
             <p className="text-xs text-gray-600">Nenhuma conversa nesta categoria</p>
           </div>

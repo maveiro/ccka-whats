@@ -34,6 +34,15 @@ export default async function InboxLayout({ children }: { children: React.ReactN
 
   if (chatsError) console.error("InboxLayout: failed to load chats:", chatsError.message);
 
+  // Os números vêm de wa_sessions, NÃO das conversas carregadas: derivar dos
+  // 50 chats mais recentes fazia o filtro sumir justamente para os números
+  // parados — que é quando filtrar é mais útil. A RLS já limita o operator aos
+  // números a que tem acesso.
+  const { data: sessoes } = await supabase
+    .from("wa_sessions")
+    .select("id, label, phone_number, status")
+    .order("label", { ascending: true, nullsFirst: false });
+
   const chats = (rawChats ?? []).map((c) => ({
     ...c,
     wa_sessions: Array.isArray(c.wa_sessions) ? c.wa_sessions[0] ?? null : c.wa_sessions,
@@ -41,7 +50,11 @@ export default async function InboxLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex h-full">
-      <ChatList chats={chats} operatorRole={operator?.role ?? "operator"} />
+      <ChatList
+        chats={chats}
+        sessoes={sessoes ?? []}
+        operatorRole={operator?.role ?? "operator"}
+      />
       {children}
     </div>
   );

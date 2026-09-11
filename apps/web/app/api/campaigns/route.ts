@@ -16,12 +16,20 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("campaigns")
-    .select("id, name, template_name, template_category, status, total_recipients, sent_count, delivered_count, read_count, failed_count, created_at")
+    .select("id, name, template_name, template_category, status, total_recipients, sent_count, delivered_count, read_count, failed_count, clicked_count, created_at")
     .eq("tenant_id", operator.tenant_id)
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+
+  // Custo do ledger (migration custos_cloud_api), numa chamada só para a
+  // lista inteira — não uma por campanha.
+  const { data: costs } = await supabase.rpc("campaign_costs");
+  const porCampanha = new Map(
+    (costs as { campaign_id: string; cost: number }[] | null ?? []).map((c) => [c.campaign_id, Number(c.cost)]),
+  );
+
+  return NextResponse.json((data ?? []).map((c) => ({ ...c, cost: porCampanha.get(c.id) ?? 0 })));
 }
 
 export async function POST(req: NextRequest) {
@@ -40,6 +48,7 @@ export async function POST(req: NextRequest) {
     templateLanguage?: unknown;
     templateCategory?: unknown;
     templateComponents?: unknown;
+    clickTargetUrl?: unknown;
     recipients?: unknown;
   };
 
@@ -85,6 +94,12 @@ export async function POST(req: NextRequest) {
         template_language: body.templateLanguage,
         template_category: typeof body.templateCategory === "string" ? body.templateCategory : null,
         template_components: body.templateComponents ?? null,
+        // Destino real do botão rastreado (migration campanhas_clique_rastreado).
+        // O template aponta para /c/{{1}} e é daqui que o redirect descobre
+        // para onde mandar.
+        click_target_url: typeof body.clickTargetUrl === "string" && body.clickTargetUrl.trim()
+          ? body.clickTargetUrl.trim()
+          : null,
         status: "draft",
       })
       .select("id")

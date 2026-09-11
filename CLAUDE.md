@@ -478,6 +478,89 @@ arquivo — é reabertura consciente, não deriva para atendimento.
 
 ---
 
+## Módulo de cliques e custos de disparo (Cloud API) — 10/09/2026
+
+Duas frentes que entraram juntas sobre o módulo de campanhas, mantendo o mesmo
+isolamento do pipeline Evolution. PRD: `docs/prd/prd-cliques-e-followup-campanhas.md`.
+Migrations `20260910172923_campanhas_clique_rastreado` e
+`20260910173238_custos_cloud_api`.
+
+**Rastreio de clique.** Clique em botão de URL **não gera webhook nenhum** na
+Cloud API (ao contrário do quick-reply, coberto pela `0022`) — a Meta expõe só
+contagem agregada por template/dia, que nunca identifica quem clicou. Para saber
+QUEM clicou, o botão do template aponta para `/c/{{1}}` no nosso domínio, com um
+`click_token` por destinatário, e de lá redirecionamos ao destino real
+(`campaigns.click_target_url`).
+
+**Custo por disparo.** A Meta manda um objeto `pricing` junto do **primeiro**
+status de cada mensagem (normalmente o `sent`), uma vez só: categoria e se é
+cobrada, nunca o valor. O valor sai de `whatsapp_rates` e é **congelado** na
+linha do ledger `whatsapp_message_costs`, para reajuste futuro não reescrever
+histórico.
+
+### Regras próprias deste módulo
+
+32. **A Graph API ANEXA o valor da variável ao fim da URL do botão**, em vez de
+    substituir um placeholder no meio. Por isso a URL do template precisa
+    terminar em `/c/{{1}}` — `https://…/c/{{1}}/checkout` é rejeitado — e por
+    isso a Meta só aceita uma variável, e só na ponta. O botão também precisa
+    ser de **URL dinâmica**; com URL estática o `campaign-sender` não anexa nada
+    (e não dá erro: simplesmente não rastreia).
+
+33. **`clicked_count` da campanha conta PESSOAS; `click_count` do destinatário
+    conta ABERTURAS.** `clicked_at` guarda o **primeiro** clique e nunca é
+    sobrescrito — reabrir o link não pode empurrar para frente um follow-up
+    disparado a partir dele. O contador da campanha é recalculado por `count(*)`,
+    nunca incrementado (mesma regra da `0019`).
+
+34. **`/c/{token}` nunca devolve erro.** Token inexistente, RPC falhando, destino
+    ausente: tudo cai em redirect para a home. Quem está do outro lado é um
+    comprador, e clique perdido é um dado; comprador vendo erro é uma venda.
+    Buscadores de preview são filtrados por user-agent (lista conservadora: um
+    falso positivo descarta a compra de alguém real).
+
+35. **DEFAULT de coluna não pode depender de `search_path`.** `click_token` usa
+    `gen_random_uuid()` (pg_catalog) e **não** `gen_random_bytes()` (pgcrypto, no
+    schema `extensions`). Descoberto aplicando em produção (SQLSTATE 42883): o
+    `extensions` está no search_path local mas não no do papel que aplica
+    migration. E o problema maior nem é esse — default é avaliado **depois, por
+    quem insere**: um default dependente de search_path quebraria todo INSERT
+    vindo do PostgREST, que conecta com outro papel, longe da migration.
+
+36. **O custo é gravado ANTES do corte por campanha.** Resposta automática de
+    Flow, envio manual do painel e disparo feito por **outra ferramenta** não têm
+    linha em `campaign_recipients` e cairiam no `return` — justamente o que passa
+    a ser cobrado em 01/10/2026. Ledger é idempotente por `wamid` (unique +
+    `ignoreDuplicates`): só o primeiro status conta, os seguintes repetem o mesmo
+    `pricing` e não podem duplicar nem reescrever o valor congelado.
+
+### O que NÃO dá para saber de outro app na mesma WABA (verificado, não suponha)
+
+Vários apps podem estar inscritos na mesma WABA e **todos recebem os eventos**
+— foi assim que o custo dos disparos feitos por outra ferramenta passou a ser
+contabilizado aqui sem configuração nenhuma (comprovado em produção em
+10-11/09/2026, com quatro números da Plauz numa WABA só).
+
+O que chega desses disparos: que saiu, para quem, quando, a categoria cobrada e
+o custo. **O que não chega, e não há como fazer chegar:**
+
+- **conteúdo e nome do template** — o campo de eco da Meta chama-se
+  `smb_message_echoes` e cobre **apenas** mensagens digitadas no app WhatsApp
+  Business ou dispositivo vinculado, explicitamente **não** envios via Cloud API;
+  e mesmo nesses casos o payload não identifica template nenhum;
+- **agrupamento por campanha** — não existe no protocolo, e reconstruir por
+  janela de tempo não funciona: em produção, dois disparos simultâneos e envios
+  um-a-um se fundem num bloco só;
+- **clique em botão de URL** — o link é da outra ferramenta e não passa pelo
+  nosso `/c/`.
+
+Quick-reply, por outro lado, **chega** (vira mensagem recebida), mas sem
+destinatário a que atribuir. Conclusão prática: atribuição por campanha é
+consequência de disparar daqui, não de instrumentar melhor o webhook. Não gastar
+tempo procurando um jeito — não existe.
+
+---
+
 ## Convenções de código
 
 - TypeScript estrito (`strict: true`) em todo o projeto
@@ -765,6 +848,21 @@ formulário público funcionar — antes disso, `/f/{slug}` e
 protegido pelo auth do próprio app (Supabase + `proxy.ts`), que agora é a
 **única** camada: não há mais rede de segurança da plataforma por baixo.
 
+### Cliques e custos — em produção (10/09/2026)
+
+Migrations aplicadas, `whatsapp-cloud-webhook` deployado. Rastreio de clique
+testado ponta a ponta pela URL pública (clique conta, segunda abertura não
+duplica a pessoa, preview do WhatsApp não conta, token inválido não dá erro); o
+único elo não testado é a Meta anexar o token ao botão, que depende de template
+aprovado. Ledger de custo capturando ao vivo, inclusive disparo feito por outra
+ferramenta na mesma WABA — em 11/09/2026, ~2,4 mil mensagens e R$ 658 num
+período de 40 minutos, todas com tenant e sessão resolvidos.
+
+Rate card BRL de jul/2026 semeado; a linha de mensagem de serviço a partir de
+01/10/2026 está marcada `estimated` até a Meta publicar o valor final (é um
+update numa linha, e o rótulo "estimativa" some sozinho da tela). Só BR está
+cadastrado: disparo para outro DDI entra com custo zero e é contado à parte.
+
 ### Pendente / próximos passos
 - **Central de shows — Sprint C4 (próxima):** `campaign-sender` preenchendo botão
   de Flow com `flow_token`, UI de campanha escolhendo qual Flow abrir, template
@@ -773,8 +871,20 @@ protegido pelo auth do próprio app (Supabase + `proxy.ts`), que agora é a
 - **Conteúdo da central ainda provisório:** `whatsapp_flows.mensagem_convite` da
   central está vazio (o balão chega com o rótulo interno), agenda e FAQ têm
   poucos itens, e os textos do gate seguem os provisórios em `gate.ts`.
-- **Domínio próprio para a landing** — hoje a URL pública é o
-  `*.vercel.app` do projeto, que não se manda para um fã.
+- **Domínio próprio (`link.plauz.com.br`)** — bloqueia o template com botão
+  rastreado: URL crua da Vercel num botão de marketing lê como phishing, derruba
+  clique e chama atenção na revisão da Meta; trocar depois é outro ciclo de
+  aprovação. Também resolve a landing, que hoje usa a URL do projeto. Parado em
+  11/09/2026 por falta de acesso ao DNS.
+- **Dívidas menores abertas em 11/09/2026:** erro de ESLint em
+  `costs-dashboard.tsx` (`react-hooks/set-state-in-effect` — não quebra o build
+  do Next 16, quebra `npx eslint`); `handleReport` engole falha em silêncio (o
+  botão "Baixar relatório" só não faz nada); status de entrega de mensagem fora
+  de campanha não é guardado (o ledger registra que saiu e quanto custou, mas
+  `delivered`/`read` passam); custo por template das campanhas daqui, que já dá
+  com `campaigns.template_name`; e conferir por que o app `Business Agent` da
+  Meta está inscrito na WABA, dado que o uso dele é decisão explicitamente
+  recusada no topo deste arquivo.
 - **Roadmap de inteligência** (wedge defensável, reordenável) — próximo é alertas semânticos:
   - Alertas semânticos (evoluir os alertas por palavra-chave para detecção de risco por
     significado). Colunas em `alerts` (`type` keyword|semantic, `semantic_query`,

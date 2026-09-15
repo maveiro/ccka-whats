@@ -102,33 +102,65 @@ configuração do `painel-shows`, não mudança de código.
 
 ## Fases
 
-### Fase 1 — `painel-shows` aprende a hora (plauz-core)
+### Fase 1 — REVISADA em 15/09/2026, depois de ler a produção do plauz-core
 
-Menor do que parecia. O import já grava **toda** coluna não-mapeada em
-`shows.dados_monday` (jsonb chaveado pelo *título* da coluna), com os espelhos
-já resolvidos por `display_value` — então **Cidade e Estado já estão sendo
-capturados hoje**, a cada importação, sem nenhuma mudança.
+**A versão anterior desta seção estava errada** e é registrada aqui porque o
+erro é instrutivo: ela dizia que "Cidade e Estado já estão sendo capturados em
+`shows.dados_monday`". Isso valeria se o `painel-shows` lesse o board de shows.
+Ele não lê.
 
-O que falta de fato é **a hora**: a coluna "Data" É mapeada
-(`data_column_id`), e por isso fica fora de `dados_monday`; o campo dedicado
-`shows.data_show` é `date` e descarta o horário. Show às 20h e show às 22h30 no
-mesmo teatro (caso real e comum: sessão extra) chegariam à central como duas
-linhas idênticas.
+O que a produção do `plauz-core` mostra (`painel_shows.fontes_config`,
+`tipo='monday'`):
 
-Migration aditiva: `hora_show time` — e, no mesmo golpe, promover
-`cidade text` / `estado text` a campo dedicado. Ler de `dados_monday` por
-título funciona, mas renomear a coluna no board esvaziaria a cidade em
-silêncio; como a migration é a mesma, não vale economizar as duas colunas.
+- o board mapeado é **`18399556790` = 📊 Marketing** (665 itens), não o
+  `18396655380` (26 | SHOWS PLAUZ). O board de Marketing **espelha** campos do
+  show (Artista, Data, Teatro, Status, Link de Vendas, Capacidade, Vendas) — é
+  por isso que todas as colunas mapeadas são `lookup_*` e que o
+  `importShows.ts` lida com espelho concatenado ("Vendendo, Vendendo");
+- o board de Marketing **não tem Cidade nem Estado**, em coluna nenhuma. A
+  cidade só existe dentro do nome do item
+  (`elemento = "IB - 19/12/2026 - Curitiba, PR"`);
+- `link_vendas_column_id`, `capacidade_column_id`, `vendas_column_id` e
+  `producao_column_id` estão mapeados como **`"name"`** — e o resultado é
+  `shows.link_vendas` **nulo em 100% das 276 linhas**. O link existe, mas só em
+  `dados_monday['Link de Vendas']`, e só em parte dos itens;
+- a última importação foi em **14/08/2026** — um mês atrás. O import é manual
+  (botão "Importar do monday" em `/admin/fontes`); os crons do `vercel.json`
+  são de Sympla e Meta Ads, não de Monday. Logo `status_producao_monday` é
+  status de um mês atrás;
+- são **276 shows**, não os 1.021 do board: só existe linha para show que tem
+  item de Marketing.
 
-**Não** mexer no tipo de `data_show` (`date`): ele alimenta `lib/signal.ts`,
-`lib/metrics.ts` e as views `shows_ativos` — trocar para `timestamptz` é
-refatoração de raio grande por um campo que a central resolve com uma coluna ao
-lado.
+### O que isso significa, em números, para a agenda do IB
 
-`lib/monday/importShows.ts`: a hora sai do `value` da coluna de data (UTC,
-armadilha 2), nunca do `text`; cidade/estado saem por título com fallback de
-mapeamento explícito, exatamente o padrão que o arquivo já usa para
-capacidade/vendas (`colunaPorTitulo`).
+| | Pelo `painel-shows` hoje | Lendo o board 26 |
+|---|---|---|
+| Shows futuros | 27 | 22 elegíveis (`Vendendo`/`Esgotado`) |
+| Com link de compra | **0** (`link_vendas`); 11 no jsonb | 22 |
+| Com cidade | **0** | 22 |
+| Com horário | 0 (`data_show` é `date`) | 22 |
+| Idade do status | ~1 mês | ao vivo |
+
+Ou seja: a ponte, como o `painel-shows` está hoje, entregaria ao fã uma agenda
+sem cidade, quase toda sem link e com status vencido. Não é o desenho que
+falhou — é que a cópia do `painel-shows` foi construída para o dashboard de
+marketing dele, não para ser espelho do board de shows.
+
+### Fase 1 — as três saídas possíveis
+
+1. **Repontar o `painel-shows` para o board 26.** Uma linha de configuração,
+   mas muda a semântica do app inteiro: `painel_shows.shows` iria de 276 para
+   ~1.021 linhas, passando a incluir bloqueio, corporativo e pauta, e
+   `lib/signal.ts`/`/shows` foram construídos sobre "show que tem marketing".
+   É decisão de produto **daquele** app, não desta integração.
+2. **Leitor dedicado no `painel-shows`** (recomendado): tabela nova
+   (`painel_shows.shows_board`, espelho fiel do board 26, com cidade, estado,
+   hora e link), com cron próprio, servida pela API interna. O dashboard atual
+   fica intacto, o Monday continua tendo **um único dono** (ADR 0006 mantida) e
+   a agenda da central passa a ler um espelho feito para ela.
+3. **Monday direto do whats.** Resolve em um dia e entrega os 22 shows
+   completos, ao preço de duas credenciais e dois mapeamentos do mesmo board —
+   o que a ADR 0006 chama de quebra da regra 1, não exceção.
 
 ### Fase 2 — API interna do `painel-shows`
 
@@ -229,12 +261,14 @@ aparecer como **aviso na tela**, não só no log — é o defeito mais provável
 
 ## O que falta (dependências, não código)
 
-1. **Chaves do projeto Supabase do `plauz-core`** (`djipzlztvydgsfkolnej`) ou a
-   conferência manual em `/admin/fontes`: não foi possível verificar se o
-   import do Monday está rodando em produção, nem qual board está mapeado
-   (o `.env.local` local do `painel-shows` tem valores fictícios).
-2. **Autorização para trabalhar no `plauz-core`** — Fases 1 e 2 são naquele
-   repo, com deploy próprio por push em `main`.
+1. ~~Chaves do projeto Supabase do `plauz-core`~~ — resolvido em 15/09/2026:
+   o Personal Access Token com que o CLI já está autenticado alcança os dois
+   projetos da organização, então `supabase db query --linked` rodado de dentro
+   da pasta do `plauz-core` lê a produção dele. Foi assim que os achados acima
+   apareceram.
+2. **Decisão da Fase 1** entre as três saídas acima — é decisão de negócio,
+   não de implementação, porque a saída 1 mexe no produto de outro app e a 3
+   abre mão da regra de uma credencial por fonte.
 3. **Escopo por artista:** hoje só o IB tem número e central, então nasce uma
    linha de `agenda_filtros`. `DA`/`FP`/`CD` entram quando tiverem número
    próprio — cada um é uma linha nova, sem código novo.

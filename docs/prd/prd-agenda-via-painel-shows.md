@@ -35,9 +35,11 @@ exatamente o que quebra em silêncio quando alguém renomeia uma coluna.
 
 ## Mapa de campos (IDs reais, verificados no board em 15/09/2026)
 
-Board `18396655380` (26 | SHOWS PLAUZ, 1.021 itens) e `18427062838`
-(27 | SHOWS PLAUZ, 1.460 itens) — **mesmos IDs de coluna**, por duplicação do
-board. A temporada corrente é a 26; a 27 ainda não tem nada `Vendendo`.
+Board `18396655380` — **26 | SHOWS PLAUZ, o único em uso** (decisão do
+fundador, 15/09/2026). O board `18427062838` (27 | SHOWS PLAUZ) existe, tem os
+**mesmos IDs de coluna** por duplicação, e ainda não tem nada `Vendendo` — fica
+de fora até a virada de temporada, que será uma troca de `board_id` na
+configuração do `painel-shows`, não mudança de código.
 
 | Campo da central (`agenda_shows_sync`) | Coluna no Monday | Tipo | Hoje no painel-shows |
 |---|---|---|---|
@@ -72,14 +74,27 @@ board. A temporada corrente é a 26; a 27 ainda não tem nada `Vendendo`.
    1º Turno" são linhas de calendário interno, sem teatro nem cidade.
    O filtro é allowlist de status, não "data futura".
 
-4. **`artista` no board é código (`IB`), na central é nome
+4. **Filtro de status/artista na API do Monday exige o ÍNDICE do rótulo, não o
+   texto.** `compare_value: ["Vendendo"]` devolve **zero itens, sem erro**;
+   `compare_value: [2]` devolve os itens certos. Os índices do board 26 hoje:
+   Status — `0` Aguardando, `1` Pauta, `2` Vendendo, `3` Finalizado,
+   `4` Esgotado, `6` Bloqueio, `7` Corporativo, `8` Cancelado, `9` Adiado,
+   `10` Negociando, `11` Confirmado, `12` Revisão, `13` Disponível,
+   `14` Inviável; Artista — `0` DA, `1` FP, `2` IB, `3` CD. **Índice não é
+   estável**: depende da ordem em que os rótulos foram criados no board, e nada
+   impede alguém de criar um rótulo novo. É por isso que o filtro de uma agenda
+   é guardado por **rótulo** e aplicado sobre a cópia local (ver "Filtro por
+   agenda"), não como regra de `query_params` — ali o índice seria um número
+   mágico no banco, e o modo de falhar é agenda vazia sem erro.
+
+5. **`artista` no board é código (`IB`), na central é nome
    (`Índio Behn - Dra. Rosangêla`).** O casamento por igualdade de texto que o
    endpoint do Flow faz (`credencial.artista = agenda.artista`) nunca casaria.
    Precisa de mapa explícito, e show de artista não mapeado **não entra** —
    entrar com o nome errado é pior que não entrar, porque não aparece para
    ninguém e não gera erro.
 
-5. **O endpoint do Flow não filtra status.** A lista do fã filtra só
+6. **O endpoint do Flow não filtra status.** A lista do fã filtra só
    `data_show >= now` e `artista`. Logo, o que está em `agenda_shows_sync` é o
    que o fã vê: a allowlist tem que ser aplicada **na escrita**, e o show que
    sai de `Vendendo` (cancelou, adiou, virou bloqueio) tem que **sair da
@@ -87,17 +102,33 @@ board. A temporada corrente é a 26; a 27 ainda não tem nada `Vendendo`.
 
 ## Fases
 
-### Fase 1 — `painel-shows` aprende cidade, estado e hora (plauz-core)
+### Fase 1 — `painel-shows` aprende a hora (plauz-core)
 
-Migration aditiva em `painel_shows.shows`: `cidade text`, `estado text`,
-`hora_show time`. **Não** mexer no tipo de `data_show` (`date`): ele alimenta
-`lib/signal.ts`, `lib/metrics.ts` e as views `shows_ativos` — trocar para
-`timestamptz` é refatoração de raio grande por um campo que a central resolve
-com uma coluna ao lado.
+Menor do que parecia. O import já grava **toda** coluna não-mapeada em
+`shows.dados_monday` (jsonb chaveado pelo *título* da coluna), com os espelhos
+já resolvidos por `display_value` — então **Cidade e Estado já estão sendo
+capturados hoje**, a cada importação, sem nenhuma mudança.
 
-`lib/monday/importShows.ts` + `MondayBoardMappingForm.tsx`: dois mapeamentos
-novos (`cidade_column_id`, `estado_column_id`) e a hora lida do `value` da
-coluna de data (armadilha 2), não do `text`.
+O que falta de fato é **a hora**: a coluna "Data" É mapeada
+(`data_column_id`), e por isso fica fora de `dados_monday`; o campo dedicado
+`shows.data_show` é `date` e descarta o horário. Show às 20h e show às 22h30 no
+mesmo teatro (caso real e comum: sessão extra) chegariam à central como duas
+linhas idênticas.
+
+Migration aditiva: `hora_show time` — e, no mesmo golpe, promover
+`cidade text` / `estado text` a campo dedicado. Ler de `dados_monday` por
+título funciona, mas renomear a coluna no board esvaziaria a cidade em
+silêncio; como a migration é a mesma, não vale economizar as duas colunas.
+
+**Não** mexer no tipo de `data_show` (`date`): ele alimenta `lib/signal.ts`,
+`lib/metrics.ts` e as views `shows_ativos` — trocar para `timestamptz` é
+refatoração de raio grande por um campo que a central resolve com uma coluna ao
+lado.
+
+`lib/monday/importShows.ts`: a hora sai do `value` da coluna de data (UTC,
+armadilha 2), nunca do `text`; cidade/estado saem por título com fallback de
+mapeamento explícito, exatamente o padrão que o arquivo já usa para
+capacidade/vendas (`colunaPorTitulo`).
 
 ### Fase 2 — API interna do `painel-shows`
 
@@ -118,29 +149,83 @@ ela serve o dado da produção; quem decide o que o fã vê é o consumidor.
 
 Tabelas novas:
 
-- `agenda_fontes` — por tenant: `base_url`, `token` (RLS **deny-all**, mesmo
-  desenho de `whatsapp_cloud_credentials` e `internal_secrets`; token de API
-  não vai para `integrations.config`, que é texto plano e já é dívida datada),
-  `status_permitidos text[]` (default `{Vendendo,Esgotado}`), `ativo`.
-- `agenda_artista_mapa` — `artista_origem` (`IB`) → `artista_central`
-  (`Índio Behn - Dra. Rosangêla`), único por `(tenant_id, artista_origem)`.
-  Sem linha, o show é ignorado e **contado** no resultado do sync.
+- `agenda_conexoes` — uma por tenant: `base_url`, `token` do painel-shows. RLS
+  **deny-all**, mesmo desenho de `whatsapp_cloud_credentials` e
+  `internal_secrets`. Token de API não vai para `integrations.config`, que é
+  texto plano e já é dívida datada.
+- `agenda_filtros` — **uma linha por agenda**, é o que a próxima seção
+  descreve.
 
-Edge Function `agenda-sync` (+ `pg_cron`, de hora em hora): busca a API,
-filtra pela allowlist e pelo mapa de artista, traduz status (`Vendendo` →
+## Filtro por agenda (decisão do fundador, 15/09/2026)
+
+Em vez de um mapa global de artistas, cada agenda declara **como o board é
+filtrado para ela**. Uma linha de `agenda_filtros` por número/central:
+
+| Campo | Exemplo | Papel |
+|---|---|---|
+| `cloud_credential_id` | número do IB | a central que esta agenda alimenta (único) |
+| `artista_origem` | `IB` | rótulo da coluna "Artista" no board |
+| `status_permitidos` | `{Vendendo,Esgotado}` | allowlist; default no cadastro |
+| `espetaculos` | `null` = todos | rótulos de "Espetáculo", quando a central é de um show só |
+| `janela_dias` | `null` = todo o futuro | teto de horizonte, se algum dia fizer sentido |
+
+**O nome do artista na central NÃO é digitado aqui.** Sai de
+`whatsapp_cloud_credentials.artista` do próprio número — o mesmo valor que o
+endpoint do Flow usa para filtrar a lista do fã. Digitar de novo seria criar a
+chance de um typo que produz agenda vazia sem erro (armadilha 5); assim as duas
+pontas leem o mesmo campo por construção.
+
+**As opções vêm do board, não de campo livre.** A API interna expõe
+`GET /api/interno/agenda/filtros`, que devolve os valores **distintos** que o
+painel-shows já tem (`artista`, `status_producao_monday`, `elemento`). A tela
+oferece dropdown; ninguém digita `Vendendo` errado, e não há índice de rótulo
+em lugar nenhum do nosso banco (armadilha 4).
+
+**O filtro é aplicado sobre a cópia local, não como `query_params` do Monday.**
+O painel-shows importa o board inteiro de qualquer forma (só pula item sem
+artista/teatro/data — o que já descarta as linhas de "Bloqueio", que não têm
+teatro), então filtrar por rótulo em SQL é mais simples, não tem o problema do
+índice, e não gasta uma chamada ao Monday por agenda.
+
+### Validação do desenho contra o board real (15/09/2026)
+
+Com o filtro `artista_origem=IB`, `status_permitidos={Vendendo,Esgotado}` e
+data futura, o board 26 devolve **22 shows** — todos com cidade, teatro,
+horário e link de compra: Curitiba (duas sessões no mesmo dia, 18h e 20h15),
+Foz do Iguaçu, Uberlândia, Uberaba, Novo Hamburgo, Rio (duas sessões), Blumenau,
+Joinville, Tubarão, São Paulo, Fortaleza, Osasco, Itu, Bauru, São Carlos,
+Maceió, Recife, Natal, Porto Alegre e Curitiba de novo em dezembro, entre
+"Como Ser Tóxica e Influenciar Pessoas" e "Especial de Natal".
+
+É essa a agenda que a central passaria a mostrar — hoje ela mostra duas linhas
+de teste com link de busca do Google.
+
+**Ponto de dado a confirmar com a produção:** Fortaleza, 23/10, está com
+**09:00** no board, enquanto todo o resto está entre 16h30 e 22h30 — e 09:00 é
+também o horário das linhas de "Bloqueio", o que sugere ser o default de quem
+não preencheu a hora. Sem convenção, o fã vê "23/10 09:00" para um show de
+noite. Duas saídas: corrigir no board (preferível, o board é a fonte de
+verdade), ou o sync tratar 09:00 como "hora a confirmar" — que é adivinhação e
+erraria uma matinê real.
+
+Edge Function `agenda-sync` (+ `pg_cron`, de hora em hora): busca a API e,
+para cada linha de `agenda_filtros` ativa, aplica o filtro daquela agenda,
+traduz status (`Vendendo` →
 `à venda`, `Esgotado` → `esgotado`), faz upsert por
 `(tenant_id, show_id_origem)` — a chave e o índice parcial **já existem** na
 migration `0025` — e **apaga** as linhas com `show_id_origem` que não vieram
 elegíveis nesta rodada (armadilha 5). Linha manual (`show_id_origem is null`)
 nunca é tocada: é o que o índice parcial preserva de propósito.
 
-Cada rodada grava `events_log` (`agenda_sync`) com contagens: importados,
-atualizados, removidos, ignorados por artista não mapeado, ignorados por
-status. Sem isso, "a agenda não atualizou" não tem como ser investigado.
+Cada rodada grava `events_log` (`agenda_sync`) com contagens **por agenda**:
+importados, atualizados, removidos, ignorados por status fora da allowlist, e
+ignorados por não casar nenhum filtro. Sem isso, "a agenda não atualizou" não tem como ser investigado.
 
-UI: `/dashboard/admin/agenda` ganha o mapa de artistas, a última sincronização
-e um marcador de origem por linha (Monday × manual), mais o aviso de artista
-não mapeado — que é o defeito mais provável e o mais silencioso.
+UI: `/dashboard/admin/agenda` ganha o cadastro de agenda (o filtro acima, em
+dropdowns), a última sincronização com as contagens, e um marcador de origem
+por linha (Monday × manual). Filtro que não devolveu nenhum show precisa
+aparecer como **aviso na tela**, não só no log — é o defeito mais provável
+(rótulo que mudou de nome no board) e o mais silencioso.
 
 ## O que falta (dependências, não código)
 
@@ -150,9 +235,9 @@ não mapeado — que é o defeito mais provável e o mais silencioso.
    (o `.env.local` local do `painel-shows` tem valores fictícios).
 2. **Autorização para trabalhar no `plauz-core`** — Fases 1 e 2 são naquele
    repo, com deploy próprio por push em `main`.
-3. **Decisão de escopo por artista:** hoje a central existe para
-   `Índio Behn - Dra. Rosangêla`. `DA`/`FP`/`CD` entram no mapa quando cada um
-   tiver número e central próprios.
+3. **Escopo por artista:** hoje só o IB tem número e central, então nasce uma
+   linha de `agenda_filtros`. `DA`/`FP`/`CD` entram quando tiverem número
+   próprio — cada um é uma linha nova, sem código novo.
 4. **Registrar a ponte como ADR no `plauz-core`** (a ADR 0006 prevê: "a próxima
    decisão necessária é só o desenho de dado específico daquele par").
 

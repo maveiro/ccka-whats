@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { formatDistanceToNow } from "@/lib/utils";
-import { formatPhone, displayChatName } from "@/lib/chat-display";
+import { formatPhone, displayChatName, formatFullDateTime } from "@/lib/chat-display";
 import { createClient } from "@/lib/supabase/client";
 import SearchBar from "@/components/search-bar";
 import ChatAvatar from "@/components/chat-avatar";
@@ -267,7 +267,7 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
                   </p>
                   <div className="flex flex-col items-end shrink-0 gap-1">
                     {chat.last_message_at && (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500" title={formatFullDateTime(chat.last_message_at)}>
                         {formatDistanceToNow(chat.last_message_at)}
                       </span>
                     )}

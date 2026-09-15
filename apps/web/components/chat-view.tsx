@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { formatTime } from "@/lib/utils";
-import { displayChatName } from "@/lib/chat-display";
+import { displayChatName, dayKey, formatDateSeparator, formatFullDateTime } from "@/lib/chat-display";
 import MessageComposer from "@/components/message-composer";
 import ConversationSummary from "@/components/conversation-summary";
 import ChatAvatar from "@/components/chat-avatar";
@@ -287,10 +287,15 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
               reactionMap.set(msg.reaction_to, existing);
             }
           }
-          // Exibir apenas mensagens não-reação
-          return messages
-            .filter((msg) => msg.type !== "reaction")
-            .map((msg) => (
+          // Exibir apenas mensagens não-reação, com separador de dia entre
+          // mensagens de dias diferentes (a bolha mostra só a hora).
+          const visiveis = messages.filter((msg) => msg.type !== "reaction");
+          let diaAnterior: string | null = null;
+          return visiveis.flatMap((msg) => {
+            const dia = dayKey(msg.timestamp);
+            const novoDia = dia !== diaAnterior;
+            diaAnterior = dia;
+            const bolha = (
               <MessageBubble
                 key={msg.id}
                 message={msg}
@@ -303,7 +308,17 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
                   senderName: m.from_me ? "Você" : (m.contacts?.push_name ?? m.contacts?.name ?? null),
                 })}
               />
-            ));
+            );
+            if (!novoDia) return [bolha];
+            return [
+              <div key={`d-${dia}`} className="flex justify-center py-2">
+                <span className="text-xs text-gray-400 bg-gray-800/80 rounded-full px-3 py-1 capitalize">
+                  {formatDateSeparator(msg.timestamp)}
+                </span>
+              </div>,
+              bolha,
+            ];
+          });
         })()}
         <div ref={bottomRef} />
       </div>
@@ -377,7 +392,10 @@ function MessageBubble({ message, isGroup, reactions, onReply, highlighted }: { 
           />
         )}
 
-        <p className="text-right text-xs mt-1 opacity-60 flex items-center justify-end gap-0.5">
+        <p
+          className="text-right text-xs mt-1 opacity-60 flex items-center justify-end gap-0.5"
+          title={formatFullDateTime(timestamp)}
+        >
           {edited_at && <span className="italic opacity-70 mr-1">· editada</span>}
           {formatTime(timestamp)}
           {from_me && !deleted_at && <DeliveryTicks status={delivery_status} />}

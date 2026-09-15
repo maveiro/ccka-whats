@@ -15,6 +15,18 @@ interface TemplateButton {
   type?: string;
   text?: string;
   url?: string;
+  flow_id?: string;
+}
+
+// Flow abrível numa conversa, do mesmo número da campanha.
+interface Flow {
+  id: string;
+  cloud_credential_id: string;
+  nome: string;
+  artista: string | null;
+  tipo: string;
+  ativo: boolean;
+  meta_flow_id: string | null;
 }
 
 interface Template {
@@ -41,6 +53,17 @@ function dynamicUrlButton(components: Template["components"]): TemplateButton | 
     const found = component.buttons?.find(
       (b) => b.type?.toUpperCase() === "URL" && typeof b.url === "string" && b.url.includes("{{"),
     );
+    if (found) return found;
+  }
+  return null;
+}
+
+// Botão de Flow = a campanha abre a central. Precisa dizer QUAL central: é
+// de lá que sai a sessão que identifica cada pessoa dentro do Flow, e enviar
+// sem isso não dá erro — só faz a base inteira abrir como desconhecida.
+function flowButton(components: Template["components"]): TemplateButton | null {
+  for (const component of components) {
+    const found = component.buttons?.find((b) => b.type?.toUpperCase() === "FLOW");
     if (found) return found;
   }
   return null;
@@ -75,6 +98,8 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
   // Campanha
   const [name, setName] = useState("");
   const [clickTargetUrl, setClickTargetUrl] = useState("");
+  const [flows, setFlows] = useState<Flow[]>([]);
+  const [flowId, setFlowId] = useState("");
 
   // CSV
   const [recipients, setRecipients] = useState<ParsedRecipient[]>([]);
@@ -125,9 +150,20 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
     }
   }
 
+  async function loadFlows() {
+    try {
+      const res = await fetch("/api/flows");
+      if (!res.ok) return;
+      setFlows(await res.json() as Flow[]);
+    } catch {
+      // Lista vazia já bloqueia o disparo com mensagem própria abaixo.
+    }
+  }
+
   function handleSelectTemplate(t: Template) {
     setSelectedTemplate(t);
     setName(`${t.name} — ${new Date().toLocaleDateString("pt-BR")}`);
+    if (flowButton(t.components)) void loadFlows();
     setStep("csv");
   }
 
@@ -184,6 +220,7 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
           templateCategory: selectedTemplate.category,
           templateComponents: selectedTemplate.components,
           clickTargetUrl,
+          flowId: flowId || undefined,
           recipients,
         }),
       });
@@ -210,10 +247,27 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
     setCsvError(null);
     setName("");
     setClickTargetUrl("");
+    setFlowId("");
   }
 
   const trackedButton = selectedTemplate ? dynamicUrlButton(selectedTemplate.components) : null;
   const missingTargetUrl = trackedButton !== null && !clickTargetUrl.trim();
+
+  const templateFlowButton = selectedTemplate ? flowButton(selectedTemplate.components) : null;
+  // Só Flow publicado na Meta, ativo e DO MESMO número — abrir a central de
+  // outro artista entregaria a agenda errada para a base inteira, e a Graph
+  // API aceitaria sem reclamar.
+  const flowsDisponiveis = flows.filter(
+    (f) =>
+      f.cloud_credential_id === credentialId &&
+      f.ativo &&
+      f.meta_flow_id &&
+      ["central", "agenda_shows"].includes(f.tipo) &&
+      // O botão do template já carrega o Flow da Meta congelado: quando ele
+      // diz qual é, não há escolha a fazer — só conferir.
+      (!templateFlowButton?.flow_id || f.meta_flow_id === templateFlowButton.flow_id),
+  );
+  const missingFlow = templateFlowButton !== null && !flowId;
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4">
@@ -341,6 +395,35 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
               </p>
             </div>
           )}
+          {templateFlowButton && (
+            <div className="space-y-1">
+              <label className="block text-xs text-gray-400 mb-1">
+                Central aberta pelo botão &quot;{templateFlowButton.text}&quot;
+              </label>
+              <select
+                value={flowId}
+                onChange={(e) => setFlowId(e.target.value)}
+                className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+              >
+                <option value="">Escolher...</option>
+                {flowsDisponiveis.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.artista ? `${f.artista} — ${f.nome}` : f.nome}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500">
+                Cada destinatário recebe um token próprio, então quem já é cadastrado abre a
+                central direto no menu, sem se cadastrar de novo.
+              </p>
+              {flowsDisponiveis.length === 0 && (
+                <p className="text-xs text-amber-400">
+                  Nenhum Flow publicado na Meta para este número corresponde ao botão deste
+                  template. Publique a central em Flows antes de disparar.
+                </p>
+              )}
+            </div>
+          )}
           <p className="text-xs text-gray-400">
             {recipients.length} destinatário(s) válido(s) · template <b>{selectedTemplate.name}</b> ({selectedTemplate.category})
           </p>
@@ -368,7 +451,7 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
           <div className="flex gap-2">
             <button
               onClick={handleCreate}
-              disabled={creating || !name.trim() || missingTargetUrl}
+              disabled={creating || !name.trim() || missingTargetUrl || missingFlow}
               className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
             >
               {creating ? "Criando..." : "Criar campanha"}

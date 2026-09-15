@@ -253,10 +253,15 @@ esquecer um deles.
 - Gravação em `clientes` a partir do endpoint
 - Decisão sobre o gate conversacional aplicada (10/09/2026: mantidos os dois caminhos, ver seção acima)
 
-**C4 — Campanha que abre a central**
-- `campaign-sender` preenchendo botão de Flow com `flow_token`
-- UI de campanhas escolhendo qual Flow abrir
-- Template com botão de Flow aprovado na Meta
+**C4 — Campanha que abre a central** — código entregue em 15/09/2026
+- ✅ `campaign-sender` preenchendo botão de Flow com `flow_token` (sessões
+  criadas em lote, um insert por lote, idempotentes por token no reclaim)
+- ✅ UI de campanhas escolhendo qual Flow abrir (só central publicada, ativa e
+  do mesmo número)
+- ✅ `campaigns.flow_id` + `campaign_recipients.flow_token` + trigger
+  `valida_campanha_flow` (migration `campanha_abre_flow`)
+- ⏳ Template com botão de Flow aprovado na Meta — **bloqueio externo**, é o
+  único elo que não se testa daqui
 
 **C5 — Piloto**
 - Um artista, um número, uma campanha

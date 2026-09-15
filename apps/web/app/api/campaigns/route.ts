@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
     templateCategory?: unknown;
     templateComponents?: unknown;
     clickTargetUrl?: unknown;
+    flowId?: unknown;
     recipients?: unknown;
   };
 
@@ -83,6 +84,63 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "name, credentialId, templateName e templateLanguage são obrigatórios" }, { status: 400 });
     }
 
+    // Botão de Flow (Sprint C4): a campanha precisa dizer QUAL central o
+    // botão abre — é de onde saem o flow_id e a credencial da sessão que
+    // identifica cada pessoa dentro do Flow (regra 28). Barrar aqui, e não
+    // só no campaign-sender, é o que dá mensagem de erro para quem está
+    // montando a campanha; enviar sem token não falha, só faz a base
+    // inteira abrir a central como desconhecida.
+    const flowButton = findFlowButton(body.templateComponents);
+    const flowId = typeof body.flowId === "string" && body.flowId ? body.flowId : null;
+
+    if (flowButton && !flowId) {
+      return NextResponse.json(
+        { error: "Este template tem botão de Flow — escolha qual central ele abre" },
+        { status: 400 },
+      );
+    }
+    if (flowId && !flowButton) {
+      return NextResponse.json(
+        { error: "O template escolhido não tem botão de Flow, então não há central para abrir" },
+        { status: 400 },
+      );
+    }
+
+    if (flowId) {
+      // Client autenticado de propósito (regra 15): a RLS da 0025 já limita
+      // a Flows do tenant e dos números que este operador enxerga.
+      const { data: flow } = await supabase
+        .from("whatsapp_flows")
+        .select("id, nome, tipo, ativo, meta_flow_id, cloud_credential_id")
+        .eq("id", flowId)
+        .is("deleted_at", null)
+        .maybeSingle();
+
+      if (!flow || !flow.ativo) {
+        return NextResponse.json({ error: "Flow não encontrado ou inativo" }, { status: 400 });
+      }
+      if (flow.cloud_credential_id !== body.credentialId) {
+        return NextResponse.json(
+          { error: "O Flow escolhido pertence a outro número — a central aberta seria de outro artista" },
+          { status: 400 },
+        );
+      }
+      if (!flow.meta_flow_id) {
+        return NextResponse.json(
+          { error: `O Flow "${flow.nome}" ainda não foi publicado na Meta` },
+          { status: 400 },
+        );
+      }
+      // O Flow da Meta está congelado no botão do template; se apontar para
+      // outro, o fã abre uma central e a sessão diz outra.
+      if (flowButton?.flow_id && flowButton.flow_id !== flow.meta_flow_id) {
+        return NextResponse.json(
+          { error: `O botão deste template abre o Flow ${flowButton.flow_id} na Meta, que não é o "${flow.nome}"` },
+          { status: 400 },
+        );
+      }
+    }
+
     const { data: newCampaign, error: createError } = await admin
       .from("campaigns")
       .insert({
@@ -100,6 +158,7 @@ export async function POST(req: NextRequest) {
         click_target_url: typeof body.clickTargetUrl === "string" && body.clickTargetUrl.trim()
           ? body.clickTargetUrl.trim()
           : null,
+        flow_id: flowId,
         status: "draft",
       })
       .select("id")
@@ -176,4 +235,27 @@ export async function POST(req: NextRequest) {
     skippedDuplicate: duplicateCount,
     total: count ?? 0,
   }, { status: 201 });
+}
+
+interface TemplateButton {
+  type?: string;
+  flow_id?: string;
+}
+
+/**
+ * Botão de FLOW do template, se houver. Espelha findFlowButton do
+ * campaign-sender — as duas funções não podem divergir, mas Route Handler
+ * (Next) e Edge Function (Deno) não compartilham módulo.
+ */
+function findFlowButton(templateComponents: unknown): { flow_id?: string } | null {
+  if (!Array.isArray(templateComponents)) return null;
+
+  for (const component of templateComponents) {
+    const buttons = (component as { buttons?: TemplateButton[] })?.buttons;
+    if (!Array.isArray(buttons)) continue;
+    const found = buttons.find((b) => b?.type?.toUpperCase() === "FLOW");
+    if (found) return { flow_id: found.flow_id };
+  }
+
+  return null;
 }

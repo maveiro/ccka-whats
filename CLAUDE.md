@@ -404,7 +404,8 @@ arquivo — é reabertura consciente, não deriva para atendimento.
 **Tabelas:** `whatsapp_flows`, `flow_palavras_chave`, `clientes`,
 `flow_contato_estado`, `flow_sessoes`, `flow_mensagens_processadas`,
 `agenda_shows_sync`, `faq_itens`, `formularios_cadastro`, `formulario_envios`,
-`numeros_de_teste`. Migrations `0025`–`0040`.
+`numeros_de_teste`. Migrations `0025`–`0040` e `campanha_abre_flow` (Sprint C4,
+campanha que abre a central).
 
 ### Regras próprias deste módulo
 
@@ -460,6 +461,20 @@ arquivo — é reabertura consciente, não deriva para atendimento.
     (migration 0039). O balão que oferece um Flow usava o `nome` como corpo e
     chegava ao fã com o nome que o admin deu para se organizar no painel. O nome
     ficou como último recurso, só para o balão não ir vazio.
+
+37. **Template com botão de Flow disparado sem `flow_token` NÃO dá erro**
+    (migration `campanha_abre_flow`). A Graph API aceita, entrega, e todo
+    destinatário abre a central como desconhecido — numa base já cadastrada,
+    o pior resultado possível, e invisível nos contadores. Por isso a
+    campanha guarda `flow_id` (qual central o botão abre), o destinatário
+    nasce com `campaign_recipients.flow_token` vindo do default do banco
+    (mesma razão do `click_token`, regra 35), e a validação é em três
+    camadas: trigger `valida_campanha_flow` (mesmo número, tipo abrível,
+    ativo — espelha a `0031`), `POST /api/campaigns` (mensagem de erro para
+    quem monta) e `campaign-sender` (última porta, pega template editado na
+    Meta depois da criação). O índice do botão **nunca** é fixo em 0: é a
+    posição entre todos os botões, definida no editor da Meta, e reordenar
+    lá mandaria o token para o botão errado.
 
 ### Armadilhas já pagas
 
@@ -864,10 +879,14 @@ update numa linha, e o rótulo "estimativa" some sozinho da tela). Só BR está
 cadastrado: disparo para outro DDI entra com custo zero e é contado à parte.
 
 ### Pendente / próximos passos
-- **Central de shows — Sprint C4 (próxima):** `campaign-sender` preenchendo botão
-  de Flow com `flow_token`, UI de campanha escolhendo qual Flow abrir, template
-  com botão de Flow aprovado na Meta (tem fila de aprovação — submeter antes).
-  Depois, C5: piloto com um artista, um número, uma campanha.
+- **Central de shows — Sprint C4: código pronto (15/09/2026), falta a Meta.**
+  `campaign-sender` preenche o botão de Flow com o `flow_token` de cada
+  destinatário e cria as sessões em lote; a UI de campanha escolhe qual central
+  abrir; validação em três camadas (ver regra 37). Suíte local cobre o trigger,
+  o token e o `on delete restrict`. **O que falta é externo:** aprovar na Meta
+  um template com botão de Flow (tem fila) — até lá nada disso roda ponta a
+  ponta, exatamente como o rastreio de clique ficou esperando template
+  aprovado. Depois, C5: piloto com um artista, um número, uma campanha.
 - **Conteúdo da central ainda provisório:** `whatsapp_flows.mensagem_convite` da
   central está vazio (o balão chega com o rótulo interno), agenda e FAQ têm
   poucos itens, e os textos do gate seguem os provisórios em `gate.ts`.

@@ -56,6 +56,7 @@ interface Recipient {
   variables: Record<string, unknown>;
   attempts: number;
   click_token: string;
+  flow_token: string;
 }
 
 interface Campaign {
@@ -66,6 +67,7 @@ interface Campaign {
   template_language: string;
   template_components: unknown[] | null;
   credential_id: string;
+  flow_id: string | null;
 }
 
 interface Credential {
@@ -88,7 +90,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: campaign, error: campaignError } = await supabase
     .from("campaigns")
-    .select("id, tenant_id, status, template_name, template_language, template_components, credential_id")
+    .select("id, tenant_id, status, template_name, template_language, template_components, credential_id, flow_id")
     .eq("id", campaignId)
     .single<Campaign>();
 
@@ -135,6 +137,51 @@ Deno.serve(async (req: Request) => {
   // findDynamicUrlButtonIndex para por que não pode ser fixo.
   const urlButtonIndex = findDynamicUrlButtonIndex(campaign.template_components);
 
+  // Botão de FLOW (Sprint C4): abre a central já sabendo quem é a pessoa.
+  // Resolvido aqui, não por destinatário — e validado ANTES do primeiro
+  // envio, porque enviar sem o flow_token não dá erro nenhum na Graph API:
+  // a Meta manda a mensagem com um token vazio e todo mundo abre a central
+  // como desconhecido, caindo no cadastro. Numa base já cadastrada esse é o
+  // pior resultado possível, e ele é invisível nos contadores.
+  const flowButton = findFlowButton(campaign.template_components);
+  let flowSessionPlan: FlowSessionPlan | null = null;
+
+  if (flowButton) {
+    if (!campaign.flow_id) {
+      await failCampaign(
+        campaign,
+        `O template "${campaign.template_name}" tem botão de Flow, mas a campanha não diz qual central abrir. Recrie a campanha escolhendo o Flow.`,
+      );
+      return new Response("Campaign has flow button without flow_id", { status: 409 });
+    }
+
+    const { data: flow } = await supabase
+      .from("whatsapp_flows")
+      .select("id, nome, meta_flow_id, ativo, deleted_at")
+      .eq("tenant_id", campaign.tenant_id)
+      .eq("id", campaign.flow_id)
+      .maybeSingle<{ id: string; nome: string; meta_flow_id: string | null; ativo: boolean; deleted_at: string | null }>();
+
+    if (!flow || flow.ativo !== true || flow.deleted_at !== null) {
+      await failCampaign(campaign, "O Flow escolhido para esta campanha não está mais ativo");
+      return new Response("Flow not active", { status: 409 });
+    }
+
+    // O template carrega o Flow da Meta congelado no botão. Se ele foi
+    // editado lá depois da criação da campanha, a sessão diria uma central e
+    // o fã abriria outra — agenda do artista errado para a base inteira, sem
+    // erro nenhum no envio.
+    if (flowButton.flow_id && flow.meta_flow_id && flowButton.flow_id !== flow.meta_flow_id) {
+      await failCampaign(
+        campaign,
+        `O botão do template aponta para o Flow ${flowButton.flow_id} na Meta, mas a campanha está ligada a "${flow.nome}" (${flow.meta_flow_id})`,
+      );
+      return new Response("Flow mismatch between template and campaign", { status: 409 });
+    }
+
+    flowSessionPlan = { buttonIndex: flowButton.index, flowId: flow.id };
+  }
+
   for (let batchNum = 0; batchNum < MAX_BATCHES_PER_INVOCATION; batchNum++) {
     // Claim atômico do lote — SKIP LOCKED garante que esta invocação nunca
     // pega uma linha que outra invocação concorrente (próximo tick do cron
@@ -153,10 +200,27 @@ Deno.serve(async (req: Request) => {
     if (recipients.length === 0) break; // nada pendente/preso neste momento
     claimedIds.push(...recipients.map((r) => r.id));
 
+    // Sessões do lote ANTES do envio: sem sessão o Flow abre e o endpoint
+    // não sabe quem é a pessoa (regra 28). Mesma escolha do flow-engine —
+    // melhor não abrir do que abrir errado —, então falha aqui devolve o
+    // lote para pending e para a invocação, sem marcar tentativa: não é
+    // problema de destinatário, é nosso.
+    if (flowSessionPlan) {
+      const criadas = await criarSessoesDeFlow(campaign, flowSessionPlan.flowId, recipients);
+      if (!criadas) {
+        await supabase
+          .from("campaign_recipients")
+          .update({ status: "pending" })
+          .in("id", recipients.map((r) => r.id))
+          .eq("status", "sending");
+        break;
+      }
+    }
+
     for (let i = 0; i < recipients.length; i += CONCURRENCY) {
       if (messagingLimitHit || throughputLimitHit) break;
       const slice = recipients.slice(i, i + CONCURRENCY);
-      const results = await Promise.allSettled(slice.map((r) => sendOne(campaign, credential, r, urlButtonIndex)));
+      const results = await Promise.allSettled(slice.map((r) => sendOne(campaign, credential, r, urlButtonIndex, flowSessionPlan)));
 
       for (const result of results) {
         if (result.status !== "fulfilled") continue;
@@ -206,8 +270,9 @@ async function sendOne(
   credential: Credential,
   recipient: Recipient,
   urlButtonIndex: number | null,
+  flowSessionPlan: FlowSessionPlan | null,
 ): Promise<{ messagingLimitHit: boolean; throughputLimitHit: boolean }> {
-  const components = buildComponents(recipient, urlButtonIndex);
+  const components = buildComponents(recipient, urlButtonIndex, flowSessionPlan);
 
   try {
     const response = await fetchWithRetry(`${GRAPH_API_BASE}/${credential.phone_number_id}/messages`, {
@@ -320,6 +385,8 @@ async function sendOne(
  *   linha do CSV, não um valor estático da campanha.
  * - `button`: o click_token, quando o template tem botão de URL dinâmica.
  *   É o que faz cada pessoa receber um link único e rastreável (migration campanhas_clique_rastreado).
+ * - `button` (sub_type flow): o flow_token, quando o template tem botão de
+ *   Flow. É o que faz a central reconhecer quem abriu (regra 28).
  *
  * O click_token NUNCA entra em `variables`: aquele jsonb mapeia 1:1 os
  * placeholders do corpo, e um valor a mais ali deslocaria todas as
@@ -331,6 +398,7 @@ async function sendOne(
 function buildComponents(
   recipient: Recipient,
   urlButtonIndex: number | null,
+  flowSessionPlan: FlowSessionPlan | null,
 ): unknown[] | undefined {
   const components: unknown[] = [];
 
@@ -355,12 +423,103 @@ function buildComponents(
     });
   }
 
+  if (flowSessionPlan) {
+    components.push({
+      type: "button",
+      sub_type: "flow",
+      index: String(flowSessionPlan.buttonIndex),
+      // Diferente do botão de URL, aqui não é texto: a Cloud API espera um
+      // parâmetro `action` com o flow_token. Omitir este componente NÃO dá
+      // erro — a Meta envia com token vazio e o endpoint não identifica
+      // ninguém (ver a validação no início da invocação).
+      parameters: [{ type: "action", action: { flow_token: recipient.flow_token } }],
+    });
+  }
+
   return components.length > 0 ? components : undefined;
+}
+
+/**
+ * Cria em LOTE as sessões do Flow dos destinatários reivindicados.
+ *
+ * Um insert por lote, não um por destinatário: 50 round-trips por lote
+ * comeriam o orçamento de tempo da Edge Function (regra 11).
+ *
+ * `ignoreDuplicates` com conflito em `token`: o token vem da linha do
+ * destinatário, então um reclaim (crash no meio do lote, regra do
+ * reclaim_stuck_campaign_recipients) reenvia com o MESMO token e não pode
+ * estourar no unique nem criar uma segunda sessão para a mesma pessoa.
+ *
+ * Todas as linhas informam as mesmas chaves de propósito — num insert em
+ * lote o PostgREST monta as colunas pela união das chaves e manda NULL onde
+ * falta, ignorando o DEFAULT da coluna (armadilha já documentada no
+ * CLAUDE.md, custou `expira_em` de flow_sessoes uma vez).
+ */
+async function criarSessoesDeFlow(
+  campaign: Campaign,
+  flowId: string,
+  recipients: Recipient[],
+): Promise<boolean> {
+  const expiraEm = new Date(Date.now() + 30 * 86_400_000).toISOString();
+
+  const { error } = await supabase
+    .from("flow_sessoes")
+    .upsert(
+      recipients.map((r) => ({
+        tenant_id: campaign.tenant_id,
+        token: r.flow_token,
+        telefone: r.phone_e164,
+        flow_id: flowId,
+        cloud_credential_id: campaign.credential_id,
+        origem: "campanha",
+        expira_em: expiraEm,
+      })),
+      { onConflict: "token", ignoreDuplicates: true },
+    );
+
+  if (error) {
+    await logEvent(
+      campaign.tenant_id,
+      "error",
+      { campaignId: campaign.id, flowId, lote: recipients.length },
+      `criação de flow_sessoes da campanha falhou: ${error.message}`,
+    );
+    return false;
+  }
+
+  return true;
+}
+
+interface FlowSessionPlan {
+  buttonIndex: number;
+  flowId: string;
 }
 
 interface TemplateButton {
   type?: string;
   url?: string;
+  flow_id?: string;
+}
+
+/**
+ * Botão de FLOW do template (com a posição entre TODOS os botões) ou null.
+ *
+ * Mesma armadilha de índice do botão de URL: a posição é definida no editor
+ * da Meta, e reordenar os botões lá mandaria o flow_token para o botão
+ * errado — sem erro nenhum no envio.
+ */
+function findFlowButton(templateComponents: unknown[] | null): { index: number; flow_id?: string } | null {
+  if (!Array.isArray(templateComponents)) return null;
+
+  for (const component of templateComponents) {
+    const buttons = (component as { type?: string; buttons?: TemplateButton[] })?.buttons;
+    if (!Array.isArray(buttons)) continue;
+
+    const index = buttons.findIndex((b) => b?.type?.toUpperCase() === "FLOW");
+    if (index !== -1) return { index, flow_id: buttons[index].flow_id };
+  }
+
+  return null;
 }
 
 /**

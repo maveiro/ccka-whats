@@ -35,15 +35,27 @@ interface ItemLista {
 
 function formatarData(iso: string | null): string {
   if (!iso) return "data a confirmar";
+
+  const data = new Date(iso);
   // pt-BR com fuso de São Paulo: o servidor roda em UTC, e sem isso um show às
   // 21h aparece como 00h do dia seguinte.
-  return new Date(iso).toLocaleString("pt-BR", {
+  const dia = data.toLocaleString("pt-BR", {
     timeZone: "America/Sao_Paulo",
     day: "2-digit",
     month: "2-digit",
+  });
+  const hora = data.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  // Meia-noite exata em São Paulo significa "só a data" — é o que o
+  // agenda-sync grava quando o painel-shows não sabe a hora do show (ver
+  // resolverQuando em agenda-sync). Mostrar "00:00" faria o fã ler
+  // meia-noite para um show de noite; nesta operação os horários reais vão
+  // de 16h30 a 22h30, então show à meia-noite não existe.
+  return hora === "00:00" ? `${dia} · hora a confirmar` : `${dia} ${hora}`;
 }
 
 export function montarLista(shows: ShowRow[]): ItemLista[] {

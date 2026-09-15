@@ -300,6 +300,11 @@ verify_jwt = true
 [functions.flow-endpoint]
 verify_jwt = false
 
+# Sync da agenda a partir do painel-shows — chamada pelo pg_cron (segredo em
+# internal_secrets) e pelo botão "Sincronizar agora" do painel.
+[functions.agenda-sync]
+verify_jwt = true
+
 [analytics]
 enabled = true
 port = 54327

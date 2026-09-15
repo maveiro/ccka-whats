@@ -1,10 +1,14 @@
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import AgendaManager from "./agenda-manager";
+import AgendaFontes from "./agenda-fontes";
 
-// Agenda de shows — V1 do PRD: preenchida à mão aqui. Na V2 a mesma tabela
-// passa a ser espelho do painel-shows (job de sincronização), sem mudar o
-// endpoint do Flow que a lê.
+// Agenda de shows. Duas origens convivem na mesma tabela, de propósito (é o
+// que o índice único parcial de show_id_origem preserva):
+//   - sincronizada do board do Monday, pela ponte com o painel-shows
+//     (PRD docs/prd/prd-agenda-via-painel-shows.md) — o sync só mexe no que
+//     ele mesmo trouxe;
+//   - digitada aqui, para o que não está no board.
 //
 // Admin e operator: mesmo par que administra automações (a agenda é conteúdo
 // da automação, não credencial).
@@ -27,15 +31,29 @@ export default async function AgendaPage() {
     .select("id, show_id_origem, artista, cidade, teatro, data_show, status_venda, link_compra, updated_at")
     .order("data_show", { ascending: true, nullsFirst: false });
 
+  // Agendas sincronizadas (RLS acesso_por_numero filtra pelos números que
+  // este operador enxerga).
+  const { data: filtros } = await supabase
+    .from("agenda_filtros")
+    .select("id, cloud_credential_id, artista_origem, status_permitidos, espetaculos, janela_dias, ativo, ultima_sync_em, ultima_sync_resumo")
+    .order("created_at", { ascending: true });
+
   // Artistas já conhecidos do tenant, para o campo não virar texto livre puro:
   // divergência de grafia ("Índio Behn" vs "Indio Behn") quebra o filtro que o
   // endpoint do Flow usa para montar a agenda.
   const admin = createAdminClient();
   const { data: credenciais } = await admin
     .from("whatsapp_cloud_credentials")
-    .select("artista")
+    .select("id, display_phone_number, phone_number_id, artista")
+    .eq("tenant_id", operator.tenant_id);
+
+  // Só a existência da conexão chega ao client — o token é deny-all e não sai
+  // do servidor nem mascarado.
+  const { data: conexao } = await admin
+    .from("agenda_conexoes")
+    .select("ativo")
     .eq("tenant_id", operator.tenant_id)
-    .not("artista", "is", null);
+    .maybeSingle();
 
   const { data: flows } = await supabase
     .from("whatsapp_flows")
@@ -50,16 +68,38 @@ export default async function AgendaPage() {
     ]),
   ).filter(Boolean).sort();
 
+  const porCredencial = new Map((credenciais ?? []).map((c) => [c.id as string, c]));
+
+  const filtrosComNumero = (filtros ?? []).map((f) => {
+    const cred = porCredencial.get(f.cloud_credential_id as string);
+    return {
+      ...f,
+      numero: (cred?.display_phone_number ?? cred?.phone_number_id ?? null) as string | null,
+      artista_central: (cred?.artista ?? null) as string | null,
+    };
+  });
+
   return (
     <div className="p-6 max-w-4xl space-y-8">
       <div>
         <h1 className="text-lg font-semibold text-white">Agenda de shows</h1>
         <p className="text-sm text-gray-400 mt-1">
-          É esta lista que o Flow de agenda responde no WhatsApp. Preenchimento manual
-          nesta versão — quando a integração com o painel-shows entrar, ela passa a ser
-          sincronizada automaticamente e esta tela vira consulta.
+          É esta lista que o Flow de agenda responde no WhatsApp. Ela pode ser
+          sincronizada do board de shows do Monday (abaixo) e também editada à mão —
+          o sync só mexe nas linhas que ele mesmo trouxe.
         </p>
       </div>
+
+      <AgendaFontes
+        filtrosIniciais={filtrosComNumero}
+        credenciais={(credenciais ?? []).map((c) => ({
+          id: c.id as string,
+          numero: (c.display_phone_number ?? c.phone_number_id) as string,
+          artista: (c.artista ?? null) as string | null,
+        }))}
+        conexaoConfigurada={!!conexao}
+        isAdmin={operator.role === "admin"}
+      />
 
       <AgendaManager
         initial={shows ?? []}

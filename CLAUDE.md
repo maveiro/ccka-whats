@@ -151,6 +151,8 @@ wa-intelligence/
 │       │       │   └── [id]/fire, [id]/status
 │       │       ├── flows/                ← automação: CRUD + keywords + fallbacks
 │       │       ├── agenda/, faq/         ← conteúdo da central
+│       │       ├── agenda/filtros/       ← agendas sincronizadas do Monday (via painel-shows)
+│       │       ├── agenda/opcoes, sync, conexao
 │       │       ├── clientes/             ← busca por telefone + exclusão LGPD
 │       │       ├── numeros-teste/        ← lista que autoriza o "/reset"
 │       │       ├── formularios/          ← formulários de cadastro (painel)
@@ -477,6 +479,32 @@ campanha que abre a central).
     Meta depois da criação). O índice do botão **nunca** é fixo em 0: é a
     posição entre todos os botões, definida no editor da Meta, e reordenar
     lá mandaria o token para o botão errado.
+
+38. **A agenda da central vem do Monday pela ponte com o `painel-shows`, nunca
+    do Monday direto** (migration `agenda_do_painel_shows`, PRD
+    `docs/prd/prd-agenda-via-painel-shows.md`). O `painel-shows` (repo
+    `plauz-core`, outro projeto Supabase) é dono da integração; a ADR 0006 de
+    lá pré-decidiu a forma (registro de fonte + API interna, sincroniza-e-serve)
+    e **proíbe** copiar credencial de um app para outro ou cruzar schema com
+    `service_role`. Quatro coisas que não podem se perder:
+    (a) **o filtro de cada agenda é guardado por RÓTULO** (`IB`, `Vendendo`) e
+    aplicado sobre a cópia local — a API do Monday exige o **índice** do rótulo
+    em `query_params` (texto devolve zero itens **sem erro**), e índice depende
+    da ordem de criação dos rótulos no board;
+    (b) **o board é agenda de produção, não de fã** — em 15/09/2026, 123 dos 200
+    itens futuros eram bloqueio/corporativo/pauta/cancelado, então a allowlist
+    de status é obrigatória, e show que sai dela tem que **sair da tabela** (a
+    lista do Flow filtra só data futura e artista, não status);
+    (c) **o nome do artista na central sai de `whatsapp_cloud_credentials.artista`**,
+    nunca digitado na agenda — é o mesmo valor que o endpoint do Flow usa para
+    filtrar, e número sem artista faz o Flow servir a agenda inteira do tenant,
+    por isso `sincronizar_agenda_shows()` recusa;
+    (d) **falha de rede nunca vira "nenhum show"** — lista vazia apaga a agenda
+    daquele filtro (correto para artista sem datas, desastroso para um timeout),
+    então o `agenda-sync` aborta o tenant quando a API interna falha e deixa a
+    agenda anterior no ar.
+    Linha digitada à mão (`show_id_origem is null`) nunca é tocada pelo sync —
+    é para isso que o índice único de origem da `0025` é parcial.
 
 ### Armadilhas já pagas
 
@@ -879,6 +907,21 @@ Rate card BRL de jul/2026 semeado; a linha de mensagem de serviço a partir de
 01/10/2026 está marcada `estimated` até a Meta publicar o valor final (é um
 update numa linha, e o rótulo "estimativa" some sozinho da tela). Só BR está
 cadastrado: disparo para outro DDI entra com custo zero e é contado à parte.
+
+### Agenda do Monday — lado do whats pronto (15/09/2026), esperando o painel-shows
+
+Fase 3 do PRD `prd-agenda-via-painel-shows.md` implementada e testada
+localmente (`agenda_do_painel_shows.sql` + `agenda_sync.e2e.ts`, 14 cenários):
+`agenda_conexoes` (deny-all), `agenda_filtros` (um filtro por número),
+`sincronizar_agenda_shows()`, Edge Function `agenda-sync`, cron de hora em
+hora e a tela de cadastro com as opções vindas do board.
+
+**Não sincroniza nada ainda:** depende da API interna
+`GET /api/interno/agenda` no `painel-shows` (Fases 1 e 2, repo `plauz-core`),
+que também precisa aprender a **hora** do show — a coluna "Data" é mapeada lá
+e o campo dedicado é `date`, então o horário se perde, e é ele que separa duas
+sessões do mesmo dia. Cidade e estado já são capturados em
+`shows.dados_monday` a cada import.
 
 ### Pendente / próximos passos
 - **Central de shows — Sprint C4: código pronto (15/09/2026), falta a Meta.**

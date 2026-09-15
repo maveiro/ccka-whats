@@ -115,9 +115,24 @@ async function sincronizarTenant(conexao: Conexao, filtroId: string | null) {
     return { tenantId: conexao.tenant_id, agendas: 0, motivo: "nenhuma agenda ativa" };
   }
 
+  // Pede ao painel-shows que atualize o espelho do board ANTES de ler. O
+  // cron de lá é diário (limite do plano Hobby dele), e agenda de show muda
+  // mais que isso — então quem dita o ritmo é este sync. Falhar aqui não
+  // aborta nada: serve-se o espelho que existe, que é velho mas real, e o
+  // evento registra a idade.
+  const espelho = await pedirAtualizacaoDoEspelho(conexao);
+  if (espelho.erro) {
+    await logEvent(conexao.tenant_id, "agenda_espelho_nao_atualizado", {
+      baseUrl: conexao.base_url,
+    }, espelho.erro);
+  }
+
   let shows: ShowDoPainel[];
+  let sincronizadoEm: string | null = null;
   try {
-    shows = await buscarShows(conexao);
+    const resposta = await buscarShows(conexao);
+    shows = resposta.shows;
+    sincronizadoEm = resposta.sincronizado_em;
   } catch (err) {
     // Falha de rede NUNCA pode virar "nenhum show": sincronizar_agenda_shows
     // com lista vazia apaga a agenda daquele filtro (comportamento correto
@@ -165,6 +180,7 @@ async function sincronizarTenant(conexao: Conexao, filtroId: string | null) {
       filtroId: filtro.id,
       artistaOrigem: filtro.artista_origem,
       recebidosDoPainel: shows.length,
+      espelhoSincronizadoEm: sincronizadoEm,
       ignorados,
       ...(resumo as Record<string, unknown>),
     });
@@ -175,7 +191,30 @@ async function sincronizarTenant(conexao: Conexao, filtroId: string | null) {
   return { tenantId: conexao.tenant_id, agendas };
 }
 
-async function buscarShows(conexao: Conexao): Promise<ShowDoPainel[]> {
+/**
+ * POST /api/interno/agenda/sincronizar — o painel relê o board do Monday.
+ *
+ * Erro é devolvido, não lançado: o desfecho certo é seguir com o espelho
+ * atual, e não deixar a central sem agenda porque a atualização falhou.
+ */
+async function pedirAtualizacaoDoEspelho(conexao: Conexao): Promise<{ erro: string | null }> {
+  const url = `${conexao.base_url.replace(/\/+$/, "")}/api/interno/agenda/sincronizar`;
+  try {
+    const resposta = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${conexao.token}`, Accept: "application/json" },
+      // Ler o board inteiro lá demora mais que servir o espelho: teto próprio,
+      // maior que o da leitura.
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!resposta.ok) return { erro: `painel-shows respondeu ${resposta.status} ao atualizar o espelho` };
+    return { erro: null };
+  } catch (err) {
+    return { erro: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+async function buscarShows(conexao: Conexao): Promise<{ shows: ShowDoPainel[]; sincronizado_em: string | null }> {
   // `desde` = hoje: a central só mostra o que ainda não aconteceu, e o board
   // tem anos de histórico.
   const hoje = new Date().toISOString().slice(0, 10);
@@ -190,11 +229,11 @@ async function buscarShows(conexao: Conexao): Promise<ShowDoPainel[]> {
     throw new Error(`painel-shows respondeu ${resposta.status} em ${url}`);
   }
 
-  const json = await resposta.json() as { shows?: ShowDoPainel[] };
+  const json = await resposta.json() as { shows?: ShowDoPainel[]; sincronizado_em?: string | null };
   if (!Array.isArray(json.shows)) {
     throw new Error("resposta do painel-shows sem o array `shows`");
   }
-  return json.shows;
+  return { shows: json.shows, sincronizado_em: json.sincronizado_em ?? null };
 }
 
 /**

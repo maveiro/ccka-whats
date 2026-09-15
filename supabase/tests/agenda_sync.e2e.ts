@@ -36,14 +36,28 @@ interface ShowDoPainel {
 
 let servir: ShowDoPainel[] = [];
 let statusHttp = 200;
+let statusRefresh = 200;
 let tokensRecebidos: string[] = [];
 let desdeRecebido: string | null = null;
+let refreshPedido = 0;
 
 const stub = Deno.serve({ port: STUB_PORT, onListen: () => {} }, (req) => {
   tokensRecebidos.push(req.headers.get("Authorization") ?? "");
-  desdeRecebido = new URL(req.url).searchParams.get("desde");
+  const url = new URL(req.url);
+
+  // POST /api/interno/agenda/sincronizar: o painel relê o board antes de
+  // servir. O cron dele é diário, então é este pedido que dá o ritmo.
+  if (url.pathname.endsWith("/sincronizar")) {
+    refreshPedido++;
+    return new Response(JSON.stringify({ gravados: servir.length, removidos: 0, erros: [] }), {
+      status: statusRefresh,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  desdeRecebido = url.searchParams.get("desde");
   if (statusHttp !== 200) return new Response("nope", { status: statusHttp });
-  return new Response(JSON.stringify({ shows: servir }), {
+  return new Response(JSON.stringify({ shows: servir, sincronizado_em: new Date().toISOString() }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
@@ -101,6 +115,8 @@ function checar(condicao: boolean, mensagem: string): void {
 
 async function cenario(nome: string, fn: () => Promise<void>): Promise<void> {
   statusHttp = 200;
+  statusRefresh = 200;
+  refreshPedido = 0;
   tokensRecebidos = [];
   await db.from("agenda_shows_sync").delete().eq("tenant_id", TENANT);
   const antes = falhas;
@@ -337,6 +353,29 @@ await cenario("sem hora o show entra com a data, sem inventar horário", async (
     timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit",
   });
   checar(horaLocal === "00:00", `sem hora vira meia-noite local (lida como "a confirmar"), veio ${horaLocal}`);
+});
+
+await cenario("pede ao painel que releia o board antes de ler o espelho", async () => {
+  servir = [show()];
+  await sincronizar();
+  checar(refreshPedido === 1, `deveria pedir a atualização do espelho, pediu ${refreshPedido}`);
+});
+
+await cenario("espelho que não atualizou não impede a sincronização", async () => {
+  // O board pode estar inacessível (OAuth expirado lá, por exemplo) e o
+  // espelho anterior continuar válido. Ficar sem agenda seria pior.
+  servir = [show({ monday_item_id: "com-espelho-velho" })];
+  statusRefresh = 500;
+  const [ib] = await sincronizar();
+  checar(ib?.inseridos === 1, `deveria sincronizar com o espelho atual, veio ${ib?.inseridos}`);
+
+  const { data: eventos } = await db
+    .from("events_log")
+    .select("event_type")
+    .eq("tenant_id", TENANT)
+    .eq("event_type", "agenda_espelho_nao_atualizado")
+    .limit(1);
+  checar((eventos ?? []).length === 1, "a falha de atualização precisa ficar registrada");
 });
 
 // ─── Limpeza ─────────────────────────────────────────────────────────────────

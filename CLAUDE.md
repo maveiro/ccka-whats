@@ -454,8 +454,10 @@ campanha que abre a central).
     chat (campanha, link), onde não houve conversa. O custo aceito é ter duas
     portas — o que impede divergência é as duas passarem por `registrar_cliente`.
     O texto de consentimento, porém, vive em dois lugares: constante
-    `VERSAO_CONSENTIMENTO_GATE` em `gate.ts` (código, exige deploy) e banco, no
-    Flow. Revisar redação legal significa mexer nos dois.
+    `VERSAO_CONSENTIMENTO_GATE` em `gate.ts` (código, exige deploy — hoje
+    `gate-v2-2026-09`) e banco, no Flow (`central-v1-2026-09`). Revisar
+    redação legal significa mexer nos dois, e as versões andam separadas de
+    propósito: são dois aceites distintos, em dois momentos distintos.
 
 31. **`whatsapp_flows.nome` é rótulo interno; o fã lê `mensagem_convite`**
     (migration 0039). O balão que oferece um Flow usava o `nome` como corpo e
@@ -887,9 +889,20 @@ cadastrado: disparo para outro DDI entra com custo zero e é contado à parte.
   um template com botão de Flow (tem fila) — até lá nada disso roda ponta a
   ponta, exatamente como o rastreio de clique ficou esperando template
   aprovado. Depois, C5: piloto com um artista, um número, uma campanha.
-- **Conteúdo da central ainda provisório:** `whatsapp_flows.mensagem_convite` da
-  central está vazio (o balão chega com o rótulo interno), agenda e FAQ têm
-  poucos itens, e os textos do gate seguem os provisórios em `gate.ts`.
+- **Conteúdo da central (parcial, 15/09/2026):** `mensagem_convite` da central
+  e os textos do gate já são copy de verdade, na voz do espetáculo (decisão do
+  fundador) — o gate subiu para `VERSAO_CONSENTIMENTO_GATE = "gate-v2-2026-09"`
+  porque o trecho legal mudou (regra 26), e a apresentação nomeia o artista
+  **daquele número** (`whatsapp_flows.artista` interpolado; texto neutro quando
+  não há artista — nome fixo no motor saudaria o fã do próximo tenant com o
+  artista errado). **Falta dado de negócio:** os dois shows da agenda ainda têm
+  link de BUSCA DO GOOGLE como `link_compra` e data de teste (24/12/2026
+  23:59) — resto da validação de 09/09. Mantidos de propósito em 15/09/2026
+  (decisão do fundador: nenhum fã chega à central ainda, o template de Flow não
+  está aprovado e a keyword só responde no número de teste), mas **é bloqueio
+  do piloto C5**: quem tocar em "Abrir página de ingressos" hoje cai numa busca
+  do Google. FAQ tem 3 itens genéricos, plausíveis mas não revisados pelo
+  artista.
 - **Domínio próprio (`link.plauz.com.br`)** — bloqueia o template com botão
   rastreado: URL crua da Vercel num botão de marketing lê como phishing, derruba
   clique e chama atenção na revisão da Meta; trocar depois é outro ciclo de

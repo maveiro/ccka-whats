@@ -17,7 +17,7 @@ export const MAX_TENTATIVAS_POR_CAMPO = 2;
 // Identifica o texto de LGPD que a pessoa aceitou ao passar pelo gate. Trocar
 // o texto de TEXTOS.pedirNome sem trocar esta versão torna o consentimento
 // registrado uma informação falsa — é o par que dá sentido ao carimbo.
-export const VERSAO_CONSENTIMENTO_GATE = "gate-v1-2026-09";
+export const VERSAO_CONSENTIMENTO_GATE = "gate-v2-2026-09";
 
 export type CampoGate = "nome" | "email";
 
@@ -85,21 +85,53 @@ export function validarCampo(campo: CampoGate, texto: string): ValidacaoResultad
 
 // ─── Textos do gate ──────────────────────────────────────────────────────────
 //
-// Provisórios: o PRD determina que boas-vindas, fallback e a abertura do gate
-// são entregáveis de COPY (Sprint A2, voz do artista), não campo preenchido por
-// quem sobe o Flow. Ficam aqui porque o motor precisa de algo pra mandar antes
-// da A2 existir; a menção ao motivo do dado (LGPD) já está incorporada porque
-// é requisito, não estilo.
+// Copy da voz do espetáculo (decisão do fundador, 15/09/2026), substituindo os
+// provisórios da Sprint A2. Ficam em CÓDIGO, e não em coluna do Flow, porque o
+// gate roda antes de qualquer Flow ser escolhido — o preço é que revisar
+// redação aqui exige deploy, e revisar a do Flow exige mexer no banco (regra
+// 30 do CLAUDE.md: o texto de consentimento vive nos dois lugares).
+//
+// Limites que a redação NÃO pode perder:
+//
+//  - `pedirNome` carrega o texto legal (o que é guardado, para quê, e que dá
+//    para pedir remoção). É o momento do aceite, e é ele que dá sentido ao
+//    carimbo de VERSAO_CONSENTIMENTO_GATE — mexer aqui obriga a subir a
+//    versão, senão o consentimento já registrado vira informação falsa
+//    (regra 26).
+//  - `pedirNome` e `nomeInvalido` precisam deixar claro que se espera SÓ o
+//    nome: validarNome() reprova frase, pergunta e pedido ("quero ingresso"),
+//    então um convite ambíguo produz reprovação que parece bug para quem está
+//    do outro lado.
+//  - a graça é do personagem, o pedido é literal. Piada que deixa dúvida
+//    sobre o que responder custa uma tentativa das duas que existem antes de
+//    o campo ser pulado.
+//  - NENHUM texto nomeia um artista: o motor é o mesmo para todo tenant, e
+//    nome fixo aqui saudaria o fã do próximo cliente com o artista errado.
+//    Quem é o dono do número entra por `artista` (whatsapp_flows.artista),
+//    interpolado abaixo — ausente, a frase tem que continuar de pé sozinha.
 export const TEXTOS = {
-  pedirNome: "Oi! Antes de continuar, como você se chama? (guardamos seu nome e e-mail só para te atender e avisar sobre novidades — você pode pedir a remoção quando quiser)",
-  pedirEmail: "Obrigado! E qual seu e-mail?",
-  nomeInvalido: "Não consegui entender seu nome. Pode escrever só o nome, por favor?",
-  emailInvalido: "Esse e-mail parece incompleto. Pode conferir e mandar de novo?",
-  soTexto: "Consigo ler só mensagens de texto por aqui. Pode escrever, por favor?",
+  pedirNome: "Oi! Antes de te atender, como você se chama? (só o nome, por favor — guardamos seu nome e e-mail apenas para te atender e avisar sobre shows e novidades, e você pode pedir a remoção quando quiser)",
+  pedirNomeComArtista: (artista: string) =>
+    `Oi! Aqui é a central do ${artista} 😊 Antes de te atender, como você se chama? (só o nome, por favor — guardamos seu nome e e-mail apenas para te atender e avisar sobre shows e novidades, e você pode pedir a remoção quando quiser)`,
+  pedirEmail: "Anotado! E qual é o seu e-mail? É por ali que avisamos quando o show chega perto de você.",
+  nomeInvalido: "Hmm, isso não consegui anotar como nome 😅 Pode mandar só o nome, sem mais nada?",
+  emailInvalido: "Esse e-mail parece que ficou pela metade. Pode conferir e mandar de novo?",
+  soTexto: "Por aqui eu leio só texto — áudio e figurinha ainda não consigo decifrar 😅 Pode escrever?",
 } as const;
 
-export function perguntaDoCampo(campo: CampoGate): string {
-  return campo === "nome" ? TEXTOS.pedirNome : TEXTOS.pedirEmail;
+/**
+ * `artista` vem de whatsapp_flows.artista e é opcional de propósito: número
+ * sem artista cadastrado (ou automação que não é de show) recebe a versão
+ * neutra, nunca uma saudação com buraco no meio.
+ *
+ * Só o pedido de nome muda — é a primeira mensagem, e a única em que dizer de
+ * quem é a central ajuda. Repetir o nome do artista a cada campo viraria
+ * assinatura de robô.
+ */
+export function perguntaDoCampo(campo: CampoGate, artista?: string | null): string {
+  if (campo === "email") return TEXTOS.pedirEmail;
+  const nome = artista?.trim();
+  return nome ? TEXTOS.pedirNomeComArtista(nome) : TEXTOS.pedirNome;
 }
 
 export function reperguntaDoCampo(campo: CampoGate): string {

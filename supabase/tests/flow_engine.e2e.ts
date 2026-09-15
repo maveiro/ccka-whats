@@ -427,6 +427,26 @@ await cenario("gate degrada após 2 tentativas no mesmo campo", async () => {
   checar(c?.tentativas_campo_atual === 0, "o contador deveria zerar ao trocar de campo");
 });
 
+await cenario("o gate se apresenta com o artista DAQUELE número, nunca com outro", async () => {
+  // O motor é o mesmo para todo tenant: artista fixo no texto do gate
+  // saudaria o fã do próximo cliente com o nome errado.
+  await db.from("whatsapp_flows").update({ artista: "Índio Behn" }).eq("id", FLOW_A);
+  await chamarEngine(msg({ text: "oi" }));
+  checar(
+    enviadas[enviadas.length - 1].body.includes("Índio Behn"),
+    "o pedido de nome deveria nomear o artista do número",
+  );
+
+  // Sem artista cadastrado a frase tem que continuar de pé sozinha, sem
+  // buraco no meio ("central do  😊").
+  await db.from("whatsapp_flows").update({ artista: null }).eq("id", FLOW_A);
+  await db.from("clientes").delete().eq("tenant_id", TENANT_A).eq("telefone", TELEFONE);
+  await chamarEngine(msg({ text: "oi" }));
+  const neutra = enviadas[enviadas.length - 1].body;
+  checar(neutra.includes("como você se chama"), "sem artista ainda tem que pedir o nome");
+  checar(!neutra.includes("central do"), `sem artista não pode sobrar a apresentação: "${neutra}"`);
+});
+
 await cenario("mensagem não-texto durante o gate: reprompt, não vira resposta", async () => {
   await chamarEngine(msg({ text: "oi" }));
   const antes = enviadas.length;

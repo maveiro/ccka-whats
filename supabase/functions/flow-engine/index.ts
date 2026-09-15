@@ -63,6 +63,7 @@ interface Credencial {
 interface Flow {
   id: string;
   tenant_id: string;
+  artista: string | null;
   mensagem_boas_vindas: string | null;
   mensagem_fallback: string | null;
 }
@@ -227,7 +228,7 @@ async function processar(payload: FlowEngineRequest): Promise<string> {
   // a dar.
   const { data: flow } = await supabase
     .from("whatsapp_flows")
-    .select("id, tenant_id, mensagem_boas_vindas, mensagem_fallback")
+    .select("id, tenant_id, artista, mensagem_boas_vindas, mensagem_fallback")
     .eq("tenant_id", tenantId)
     .eq("cloud_credential_id", credencial.id)
     .eq("tipo", "keyword_automation")
@@ -406,7 +407,7 @@ async function conduzirGate(ctx: Contexto, cliente: Cliente): Promise<ResultadoG
       payload.text === cliente.mensagem_pendente;
 
     if (primeiraVez) {
-      await enviar(ctx, perguntaDoCampo(campo));
+      await enviar(ctx, perguntaDoCampo(campo, ctx.flow.artista));
       return { concluido: false, motivo: "gate_iniciado" };
     }
 
@@ -450,7 +451,7 @@ async function conduzirGate(ctx: Contexto, cliente: Cliente): Promise<ResultadoG
       .eq("id", cliente.id);
 
     if (seguinte) {
-      await enviar(ctx, perguntaDoCampo(seguinte));
+      await enviar(ctx, perguntaDoCampo(seguinte, ctx.flow.artista));
       return { concluido: false, motivo: "gate_em_andamento" };
     }
 
@@ -507,7 +508,7 @@ async function registrarTentativaFalha(
     .eq("id", cliente.id);
 
   if (seguinte) {
-    await enviar(ctx, perguntaDoCampo(seguinte));
+    await enviar(ctx, perguntaDoCampo(seguinte, ctx.flow.artista));
     return { concluido: false, motivo: "gate_degrade" };
   }
 
@@ -714,7 +715,9 @@ async function reabrirGate(ctx: Contexto, cliente: Cliente, texto: string | null
     .eq("tenant_id", tenantId)
     .eq("id", cliente.id);
 
-  await enviar(ctx, perguntaDoCampo(faltante));
+  // Reabertura por inatividade também se apresenta: quem voltou depois de
+  // semanas não tem por que lembrar de qual central é esta conversa.
+  await enviar(ctx, perguntaDoCampo(faltante, ctx.flow.artista));
   await logEvent(tenantId, payload.sessionId, "flow_gate_reaberto", {
     messageId: payload.messageId,
     telefone: cliente.telefone,

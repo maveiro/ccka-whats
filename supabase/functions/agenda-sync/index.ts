@@ -106,7 +106,11 @@ async function sincronizarTenant(conexao: Conexao, filtroId: string | null) {
     .from("agenda_filtros")
     .select("id, tenant_id, artista_origem, status_permitidos, espetaculos, janela_dias")
     .eq("tenant_id", conexao.tenant_id)
-    .eq("ativo", true);
+    .eq("ativo", true)
+    // Ordem explícita: sem ela o PostgREST devolve em ordem arbitrária, e a
+    // sequência das agendas processadas (e do que vai para o events_log)
+    // muda de uma rodada para outra sem motivo.
+    .order("created_at", { ascending: true });
 
   if (filtroId) filtrosQuery = filtrosQuery.eq("id", filtroId);
 
@@ -207,7 +211,9 @@ async function pedirAtualizacaoDoEspelho(conexao: Conexao): Promise<{ erro: stri
       // maior que o da leitura.
       signal: AbortSignal.timeout(60_000),
     });
-    if (!resposta.ok) return { erro: `painel-shows respondeu ${resposta.status} ao atualizar o espelho` };
+    if (!resposta.ok) {
+      return { erro: `painel-shows respondeu ${resposta.status} ao atualizar o espelho: ${await motivoDoErro(resposta)}` };
+    }
     return { erro: null };
   } catch (err) {
     return { erro: err instanceof Error ? err.message : String(err) };
@@ -226,7 +232,7 @@ async function buscarShows(conexao: Conexao): Promise<{ shows: ShowDoPainel[]; s
   });
 
   if (!resposta.ok) {
-    throw new Error(`painel-shows respondeu ${resposta.status} em ${url}`);
+    throw new Error(`painel-shows respondeu ${resposta.status} em ${url}: ${await motivoDoErro(resposta)}`);
   }
 
   const json = await resposta.json() as { shows?: ShowDoPainel[]; sincronizado_em?: string | null };
@@ -234,6 +240,17 @@ async function buscarShows(conexao: Conexao): Promise<{ shows: ShowDoPainel[]; s
     throw new Error("resposta do painel-shows sem o array `shows`");
   }
   return { shows: json.shows, sincronizado_em: json.sincronizado_em ?? null };
+}
+
+/**
+ * Motivo que o painel-shows dá no corpo ("AGENDA_API_TOKEN não configurado",
+ * "Não autorizado"). Sem isso, o events_log guarda um número de status e
+ * quem investiga não tem como saber se falta env var no outro app, se o
+ * token divergiu ou se o board está inacessível.
+ */
+async function motivoDoErro(resposta: Response): Promise<string> {
+  const corpo = await resposta.json().catch(() => null) as { error?: string } | null;
+  return corpo?.error ?? "sem detalhe no corpo";
 }
 
 /**

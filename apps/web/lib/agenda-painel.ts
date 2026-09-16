@@ -47,7 +47,18 @@ export async function buscarOpcoes(conexao: Conexao): Promise<OpcoesDoBoard> {
     signal: AbortSignal.timeout(TIMEOUT_MS),
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(`painel-shows respondeu ${res.status}`);
+  if (!res.ok) {
+    // O corpo do painel diz o motivo ("AGENDA_API_TOKEN não configurado",
+    // "Não autorizado"), e é a única pista que a tela tem: quem está aqui não
+    // enxerga os logs do outro app. Só o status transformaria "falta a env var
+    // na Vercel de lá" em "erro 500", que não é acionável.
+    const motivo = await res.json().catch(() => null) as { error?: string } | null;
+    throw new Error(
+      motivo?.error
+        ? `painel-shows respondeu ${res.status}: ${motivo.error}`
+        : `painel-shows respondeu ${res.status}`,
+    );
+  }
   const json = await res.json() as Partial<OpcoesDoBoard>;
   return {
     artistas: json.artistas ?? [],

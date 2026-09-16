@@ -103,6 +103,18 @@ async function sincronizar(body: Record<string, unknown> = {}): Promise<Resultad
   return json.tenants?.[0]?.agendas ?? [];
 }
 
+/**
+ * Resultado de UMA agenda, achado pelo id do filtro.
+ *
+ * Nunca por posição: o tenant tem duas agendas (IB e FP), e assumir que a
+ * primeira é a do IB fazia o teste passar por sorte — quebrou no dia em que o
+ * PostgREST devolveu na outra ordem.
+ */
+async function sincronizarAgenda(filtroId = FILTRO_IB, body: Record<string, unknown> = {}) {
+  const agendas = await sincronizar(body);
+  return agendas.find((a) => a.filtroId === filtroId);
+}
+
 // ─── Infra de asserção ───────────────────────────────────────────────────────
 
 let falhas = 0;
@@ -197,10 +209,10 @@ await cenario("o que o board tem de interno nunca chega ao fã", async () => {
     show({ monday_item_id: "outro-artista", artista: "DA" }),
   ];
 
-  const [ib] = await sincronizar();
-  checar(ib.inseridos === 1, `só o show Vendendo deveria entrar, inseridos=${ib.inseridos}`);
-  checar(ib.ignorados?.status === 5, `5 status fora da allowlist, veio ${ib.ignorados?.status}`);
-  checar(ib.ignorados?.artista === 1, `show de outro artista é ignorado, veio ${ib.ignorados?.artista}`);
+  const ib = await sincronizarAgenda();
+  checar(ib?.inseridos === 1, `só o show Vendendo deveria entrar, inseridos=${ib?.inseridos}`);
+  checar(ib?.ignorados?.status === 5, `5 status fora da allowlist, veio ${ib?.ignorados?.status}`);
+  checar(ib?.ignorados?.artista === 1, `show de outro artista é ignorado, veio ${ib?.ignorados?.artista}`);
 
   const rows = await linhas();
   checar(rows.length === 1 && rows[0].show_id_origem === "ib-1", "só ib-1 na agenda do fã");
@@ -240,8 +252,8 @@ await cenario("show que sai do board sai da agenda do fã", async () => {
   // Cancelou: deixa de ser elegível. A lista do Flow não filtra status, então
   // continuar aqui é continuar visível.
   servir = [show({ monday_item_id: "fica" }), show({ monday_item_id: "sai", status_monday: "Cancelado" })];
-  const [ib] = await sincronizar();
-  checar(ib.removidos === 1, `o cancelado deveria sair, removidos=${ib.removidos}`);
+  const ib = await sincronizarAgenda();
+  checar(ib?.removidos === 1, `o cancelado deveria sair, removidos=${ib?.removidos}`);
   const rows = await linhas();
   checar(rows.length === 1 && rows[0].show_id_origem === "fica", "só o que segue vendendo permanece");
 });
@@ -249,16 +261,16 @@ await cenario("show que sai do board sai da agenda do fã", async () => {
 await cenario("rodar duas vezes não duplica nem muda nada", async () => {
   servir = [show({ monday_item_id: "idem" })];
   await sincronizar();
-  const [segunda] = await sincronizar();
-  checar(segunda.inseridos === 0, `nada novo na segunda rodada, veio ${segunda.inseridos}`);
-  checar(segunda.atualizados === 1, `um atualizado, veio ${segunda.atualizados}`);
+  const segunda = await sincronizarAgenda();
+  checar(segunda?.inseridos === 0, `nada novo na segunda rodada, veio ${segunda?.inseridos}`);
+  checar(segunda?.atualizados === 1, `um atualizado, veio ${segunda?.atualizados}`);
   checar((await linhas()).length === 1, "segue com uma linha só");
 });
 
 await cenario("show que já passou não entra", async () => {
   servir = [show({ monday_item_id: "passado", data_hora: futuro(-3) }), show({ monday_item_id: "futuro" })];
-  const [ib] = await sincronizar();
-  checar(ib.ignorados?.passado === 1, `show passado é ignorado, veio ${ib.ignorados?.passado}`);
+  const ib = await sincronizarAgenda();
+  checar(ib?.ignorados?.passado === 1, `show passado é ignorado, veio ${ib?.ignorados?.passado}`);
   checar((await linhas()).length === 1, "só o futuro entra");
 });
 
@@ -268,27 +280,27 @@ await cenario("filtro de espetáculo, para central de um show só", async () => 
     show({ monday_item_id: "natal", elemento: "Especial de Natal" }),
     show({ monday_item_id: "toxica", elemento: "Como Ser Tóxica e Influenciar Pessoas" }),
   ];
-  const [ib] = await sincronizar();
+  const ib = await sincronizarAgenda();
   await db.from("agenda_filtros").update({ espetaculos: null }).eq("id", FILTRO_IB);
 
-  checar(ib.inseridos === 1, `só o espetáculo filtrado entra, veio ${ib.inseridos}`);
-  checar(ib.ignorados?.espetaculo === 1, "o outro é contado como ignorado");
+  checar(ib?.inseridos === 1, `só o espetáculo filtrado entra, veio ${ib?.inseridos}`);
+  checar(ib?.ignorados?.espetaculo === 1, "o outro é contado como ignorado");
 });
 
 await cenario("janela de dias limita o horizonte", async () => {
   await db.from("agenda_filtros").update({ janela_dias: 30 }).eq("id", FILTRO_IB);
   servir = [show({ monday_item_id: "perto", data_hora: futuro(10) }), show({ monday_item_id: "longe", data_hora: futuro(90) })];
-  const [ib] = await sincronizar();
+  const ib = await sincronizarAgenda();
   await db.from("agenda_filtros").update({ janela_dias: null }).eq("id", FILTRO_IB);
 
-  checar(ib.inseridos === 1, `só o show dentro da janela entra, veio ${ib.inseridos}`);
-  checar(ib.ignorados?.fora_da_janela === 1, "o de fora é contado");
+  checar(ib?.inseridos === 1, `só o show dentro da janela entra, veio ${ib?.inseridos}`);
+  checar(ib?.ignorados?.fora_da_janela === 1, "o de fora é contado");
 });
 
 await cenario("rótulo com acento/caixa diferente ainda casa", async () => {
   servir = [show({ monday_item_id: "caixa", status_monday: "VENDENDO", artista: "ib" })];
-  const [ib] = await sincronizar();
-  checar(ib.inseridos === 1, `comparação sem caixa/acento deveria casar, veio ${ib.inseridos}`);
+  const ib = await sincronizarAgenda();
+  checar(ib?.inseridos === 1, `comparação sem caixa/acento deveria casar, veio ${ib?.inseridos}`);
 });
 
 await cenario("painel fora do ar NÃO apaga a agenda que está no ar", async () => {
@@ -366,7 +378,7 @@ await cenario("espelho que não atualizou não impede a sincronização", async 
   // espelho anterior continuar válido. Ficar sem agenda seria pior.
   servir = [show({ monday_item_id: "com-espelho-velho" })];
   statusRefresh = 500;
-  const [ib] = await sincronizar();
+  const ib = await sincronizarAgenda();
   checar(ib?.inseridos === 1, `deveria sincronizar com o espelho atual, veio ${ib?.inseridos}`);
 
   const { data: eventos } = await db

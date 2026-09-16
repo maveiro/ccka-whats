@@ -908,20 +908,33 @@ Rate card BRL de jul/2026 semeado; a linha de mensagem de serviço a partir de
 update numa linha, e o rótulo "estimativa" some sozinho da tela). Só BR está
 cadastrado: disparo para outro DDI entra com custo zero e é contado à parte.
 
-### Agenda do Monday — lado do whats pronto (15/09/2026), esperando o painel-shows
+### Agenda do Monday — em produção e validada (16/09/2026)
 
-Fase 3 do PRD `prd-agenda-via-painel-shows.md` implementada e testada
-localmente (`agenda_do_painel_shows.sql` + `agenda_sync.e2e.ts`, 14 cenários):
-`agenda_conexoes` (deny-all), `agenda_filtros` (um filtro por número),
-`sincronizar_agenda_shows()`, Edge Function `agenda-sync`, cron de hora em
-hora e a tela de cadastro com as opções vindas do board.
+Ponte completa e rodando: o board **26 | SHOWS PLAUZ** alimenta a agenda da
+central. Primeira sincronização real trouxe **22 shows do IB**, todos com
+cidade, teatro, horário e link — nenhum campo vazio. As duas linhas manuais
+de teste de 09/09 ficaram intactas, como o índice único parcial prevê.
 
-**Não sincroniza nada ainda:** depende da API interna
-`GET /api/interno/agenda` no `painel-shows` (Fases 1 e 2, repo `plauz-core`),
-que também precisa aprender a **hora** do show — a coluna "Data" é mapeada lá
-e o campo dedicado é `date`, então o horário se perde, e é ele que separa duas
-sessões do mesmo dia. Cidade e estado já são capturados em
-`shows.dados_monday` a cada import.
+**A agenda é espelho: não há mais cadastro manual de show** (decisão do
+fundador, 16/09/2026 — `POST /api/agenda` removido). Linha sincronizada não é
+editável na tela de propósito: a rodada seguinte do sync desfaria a edição, e
+campo que volta ao valor antigo sozinho é pior que campo que não deixa editar.
+`PATCH`/`DELETE` de `/api/agenda/[id]` continuam existindo só para limpar o
+que sobrou da época do cadastro à mão, e a tela marca essas linhas como "fora
+do board".
+
+O filtro de cada agenda é editável em `/dashboard/admin/agenda`; os chips
+mostram a **união** das opções do board com o que está gravado, para que um
+rótulo renomeado no board apareça marcado como "fora do board" em vez de
+desaparecer da tela continuando gravado.
+
+**Dependências que ficaram no lado do `plauz-core`** (repo `plauz-core`, ADR
+0009): `painel_shows.shows_do_board` (espelho fiel do board),
+`app/api/interno/agenda` (bearer `AGENDA_API_TOKEN`) e o cron diário como
+piso — a cadência real é deste lado, de hora em hora. Achado no caminho e
+corrigido lá: **o `proxy.ts` do painel-shows bloqueava toda rota de máquina**
+com `307 → /login`, incluindo os dois crons dele e o webhook do monday, que
+nunca tinham executado.
 
 ### Pendente / próximos passos
 - **Central de shows — Sprint C4: código pronto (15/09/2026), falta a Meta.**

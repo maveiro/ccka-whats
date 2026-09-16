@@ -17,17 +17,14 @@ interface Show {
 
 const STATUS = ["à venda", "esgotado", "últimos ingressos", "em breve", "cancelado"];
 
-/** Dias desde a última edição — o PRD pede isso visível: a V1 é manual e pode
- *  ficar defasada em relação ao painel-shows, e esse é o risco operacional
- *  aceito conscientemente.
- *
- *  `agora` vem do servidor em vez de Date.now(): chamar relógio durante o
- *  render é impuro (o resultado muda a cada re-render sem o estado mudar), e o
- *  React 19 rejeita isso. Para "faz X dias" e "já passou", o instante em que a
- *  página carregou é precisão de sobra. */
-function diasDesde(iso: string, agora: number): number {
-  return Math.floor((agora - new Date(iso).getTime()) / 86_400_000);
-}
+// A agenda é ESPELHO do board do Monday (decisão do fundador, 16/09/2026):
+// não há mais cadastro manual de show aqui. O que a tela faz é mostrar o que
+// foi sincronizado e permitir limpar o que sobrou da época do cadastro à mão.
+//
+// Linha sincronizada não é editável de propósito: a próxima rodada do sync
+// (de hora em hora) desfaria a edição, e um campo que volta ao valor antigo
+// sozinho é pior que um campo que não deixa editar. Correção de show se faz
+// no board.
 
 /** ISO -> valor de <input type="datetime-local"> em horário de Brasília.
  *  Usar o fuso do navegador aqui faria a data mudar de valor ao editar de
@@ -56,14 +53,6 @@ export default function AgendaManager({
   const agora = new Date(agoraIso).getTime();
   const [shows, setShows] = useState(initial);
   const [filtroArtista, setFiltroArtista] = useState("");
-  const [salvando, setSalvando] = useState(false);
-
-  const [artista, setArtista] = useState(artistasSugeridos[0] ?? "");
-  const [cidade, setCidade] = useState("");
-  const [teatro, setTeatro] = useState("");
-  const [dataShow, setDataShow] = useState("");
-  const [statusVenda, setStatusVenda] = useState(STATUS[0]);
-  const [linkCompra, setLinkCompra] = useState("");
 
   const artistas = useMemo(
     () => Array.from(new Set([...artistasSugeridos, ...shows.map((s) => s.artista)])).filter(Boolean).sort(),
@@ -71,32 +60,8 @@ export default function AgendaManager({
   );
 
   const visiveis = filtroArtista ? shows.filter((s) => s.artista === filtroArtista) : shows;
-
-  const maisDesatualizado = shows.length > 0
-    ? Math.max(...shows.map((s) => diasDesde(s.updated_at, agora)))
-    : 0;
-
-  async function adicionar(e: React.FormEvent) {
-    e.preventDefault();
-    if (!artista.trim()) return;
-    setSalvando(true);
-    try {
-      const res = await fetch("/api/agenda", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ artista, cidade, teatro, dataShow, statusVenda, linkCompra }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Falha ao cadastrar");
-      setShows((s) => [...s, json].sort(ordenarPorData));
-      setCidade(""); setTeatro(""); setDataShow(""); setLinkCompra("");
-      toast.success("Show cadastrado");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao cadastrar show");
-    } finally {
-      setSalvando(false);
-    }
-  }
+  const manuais = shows.filter((s) => !s.show_id_origem);
+  const sincronizados = shows.length - manuais.length;
 
   async function atualizar(id: string, patch: Record<string, unknown>) {
     const res = await fetch(`/api/agenda/${id}`, {
@@ -125,67 +90,24 @@ export default function AgendaManager({
 
   return (
     <div className="space-y-8">
-      {shows.length > 0 && maisDesatualizado >= 7 && (
+      {manuais.length > 0 && (
         <p className="text-xs text-amber-400 bg-amber-900/20 border border-amber-900 rounded px-3 py-2">
-          Há shows sem atualização há {maisDesatualizado} dias. Esta agenda é preenchida
-          à mão (V1) — se o que está aqui divergir da fonte oficial, o Flow vai
-          responder o que está aqui.
+          {manuais.length} show(s) desta lista <b>não vêm do board</b> — sobraram da época
+          do cadastro à mão. O Flow responde eles junto dos sincronizados, então valem
+          uma conferida: se o show existe no board, remova a linha daqui para não
+          aparecer duas vezes.
         </p>
       )}
-
-      <form onSubmit={adicionar} className="border border-gray-800 rounded p-4 space-y-3">
-        <h2 className="text-sm font-semibold text-white">Adicionar show</h2>
-        <div className="grid grid-cols-3 gap-3">
-          <label className="text-xs text-gray-400 space-y-1">
-            <span>Artista</span>
-            <input
-              list="artistas-conhecidos"
-              value={artista}
-              onChange={(e) => setArtista(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
-            />
-            <datalist id="artistas-conhecidos">
-              {artistas.map((a) => <option key={a} value={a} />)}
-            </datalist>
-          </label>
-          <label className="text-xs text-gray-400 space-y-1">
-            <span>Cidade</span>
-            <input value={cidade} onChange={(e) => setCidade(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white" />
-          </label>
-          <label className="text-xs text-gray-400 space-y-1">
-            <span>Teatro / casa</span>
-            <input value={teatro} onChange={(e) => setTeatro(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white" />
-          </label>
-          <label className="text-xs text-gray-400 space-y-1">
-            <span>Data e hora</span>
-            <input type="datetime-local" value={dataShow} onChange={(e) => setDataShow(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white" />
-          </label>
-          <label className="text-xs text-gray-400 space-y-1">
-            <span>Status</span>
-            <select value={statusVenda} onChange={(e) => setStatusVenda(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white">
-              {STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </label>
-          <label className="text-xs text-gray-400 space-y-1">
-            <span>Link de compra</span>
-            <input value={linkCompra} onChange={(e) => setLinkCompra(e.target.value)} placeholder="https://…"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white" />
-          </label>
-        </div>
-        <button type="submit" disabled={salvando || !artista.trim()}
-          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm rounded px-3 py-1.5">
-          {salvando ? "Salvando…" : "Adicionar"}
-        </button>
-      </form>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-white">
-            Shows cadastrados <span className="text-gray-500 font-normal">({visiveis.length})</span>
+            Shows na agenda <span className="text-gray-500 font-normal">({visiveis.length})</span>
+            {sincronizados > 0 && (
+              <span className="text-gray-500 font-normal text-xs ml-2">
+                {sincronizados} do Monday{manuais.length > 0 && `, ${manuais.length} fora do board`}
+              </span>
+            )}
           </h2>
           {artistas.length > 1 && (
             <select value={filtroArtista} onChange={(e) => setFiltroArtista(e.target.value)}
@@ -197,7 +119,10 @@ export default function AgendaManager({
         </div>
 
         {visiveis.length === 0 && (
-          <p className="text-sm text-gray-500">Nenhum show cadastrado.</p>
+          <p className="text-sm text-gray-500">
+            Nenhum show na agenda. Crie uma agenda sincronizada acima e clique em
+            &quot;sincronizar agora&quot;.
+          </p>
         )}
 
         {visiveis.map((show) => (
@@ -236,6 +161,7 @@ function ShowLinha({
   const [linkCompra, setLinkCompra] = useState(show.link_compra ?? "");
 
   const passado = show.data_show ? new Date(show.data_show).getTime() < agora : false;
+  const doBoard = !!show.show_id_origem;
 
   if (!editando) {
     return (
@@ -245,6 +171,9 @@ function ShowLinha({
             {show.cidade ?? "—"}
             {show.teatro ? <span className="text-gray-400"> · {show.teatro}</span> : null}
             {passado && <span className="text-[11px] text-gray-500 ml-2">(já passou)</span>}
+            {!doBoard && (
+              <span className="text-[11px] text-amber-400/80 ml-2">fora do board</span>
+            )}
           </p>
           <p className="text-xs text-gray-500 mt-0.5">
             {show.artista} ·{" "}
@@ -252,13 +181,22 @@ function ShowLinha({
               ? new Date(show.data_show).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })
               : "sem data"}
             {show.status_venda ? ` · ${show.status_venda}` : ""}
-            {show.show_id_origem ? " · sincronizado" : ""}
+
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button onClick={() => setEditando(true)} className="text-xs text-gray-400 hover:text-white">editar</button>
-          {isAdmin && (
-            <button onClick={onRemover} className="text-xs text-gray-500 hover:text-red-400">remover</button>
+          {doBoard ? (
+            // Sem ações: a próxima rodada do sync desfaria qualquer edição, e
+            // remover aqui só faria o show voltar na hora seguinte. Correção
+            // de show sincronizado se faz no board.
+            <span className="text-[11px] text-gray-600">vem do Monday</span>
+          ) : (
+            <>
+              <button onClick={() => setEditando(true)} className="text-xs text-gray-400 hover:text-white">editar</button>
+              {isAdmin && (
+                <button onClick={onRemover} className="text-xs text-gray-500 hover:text-red-400">remover</button>
+              )}
+            </>
           )}
         </div>
       </div>

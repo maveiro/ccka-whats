@@ -60,6 +60,7 @@ export default function AgendaFontes({
   const [carregandoOpcoes, setCarregandoOpcoes] = useState(false);
   const [sincronizando, setSincronizando] = useState<string | null>(null);
   const [criando, setCriando] = useState(false);
+  const [editando, setEditando] = useState<string | null>(null);
 
   // Conexão
   const [baseUrl, setBaseUrl] = useState("");
@@ -185,6 +186,42 @@ export default function AgendaFontes({
     }
   }
 
+  async function salvarEdicao(filtro: Filtro, patch: {
+    artistaOrigem: string;
+    statusPermitidos: string[];
+    espetaculos: string[];
+    janelaDias: number | null;
+  }) {
+    const res = await fetch(`/api/agenda/filtros/${filtro.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        artistaOrigem: patch.artistaOrigem,
+        statusPermitidos: patch.statusPermitidos,
+        espetaculos: patch.espetaculos,
+        janelaDias: patch.janelaDias ?? null,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error((json as { error?: string }).error ?? `Erro ${res.status}`);
+      return;
+    }
+
+    setFiltros((prev) => prev.map((f) => f.id === filtro.id ? {
+      ...f,
+      artista_origem: patch.artistaOrigem,
+      status_permitidos: patch.statusPermitidos,
+      espetaculos: patch.espetaculos.length > 0 ? patch.espetaculos : null,
+      janela_dias: patch.janelaDias,
+    } : f));
+    setEditando(null);
+    // O filtro mudou, então o que está na agenda do fã é de outro filtro:
+    // sincronizar é o passo que reconcilia, e deixar isso implícito seria
+    // deixar a agenda divergente da configuração que a tela mostra.
+    toast.success("Filtro salvo — sincronize para aplicar à agenda");
+  }
+
   async function alternar(filtro: Filtro) {
     const res = await fetch(`/api/agenda/filtros/${filtro.id}`, {
       method: "PATCH",
@@ -285,6 +322,12 @@ export default function AgendaFontes({
                     >
                       {sincronizando === f.id ? "sincronizando..." : "sincronizar agora"}
                     </button>
+                    <button
+                      onClick={() => { setEditando(editando === f.id ? null : f.id); if (!opcoes) void carregarOpcoes(); }}
+                      className="text-xs text-gray-400 hover:text-white"
+                    >
+                      {editando === f.id ? "fechar" : "editar"}
+                    </button>
                     <button onClick={() => alternar(f)} className="text-xs text-gray-400 hover:text-white">
                       {f.ativo ? "pausar" : "retomar"}
                     </button>
@@ -314,6 +357,17 @@ export default function AgendaFontes({
                 )}
                 {!f.ativo && (
                   <p className="text-xs text-gray-500">Pausada: o cron não atualiza esta agenda.</p>
+                )}
+
+                {editando === f.id && (
+                  <FiltroEditor
+                    filtro={f}
+                    opcoes={opcoes}
+                    carregando={carregandoOpcoes}
+                    onCarregarOpcoes={carregarOpcoes}
+                    onSalvar={(patch) => salvarEdicao(f, patch)}
+                    onCancelar={() => setEditando(null)}
+                  />
                 )}
               </div>
             );
@@ -427,6 +481,138 @@ export default function AgendaFontes({
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * Edição do filtro de uma agenda já criada.
+ *
+ * Os chips mostram a UNIÃO das opções do board com o que o filtro já tem
+ * selecionado. Não é detalhe: se alguém renomear um rótulo no board, o valor
+ * antigo deixa de vir nas opções — mostrando só as opções, ele desapareceria
+ * da tela continuando gravado, e a agenda vazia não teria explicação
+ * visível. Assim o rótulo órfão aparece marcado e dá para removê-lo.
+ */
+function FiltroEditor({
+  filtro, opcoes, carregando, onCarregarOpcoes, onSalvar, onCancelar,
+}: {
+  filtro: Filtro;
+  opcoes: Opcoes | null;
+  carregando: boolean;
+  onCarregarOpcoes: () => void;
+  onSalvar: (patch: { artistaOrigem: string; statusPermitidos: string[]; espetaculos: string[]; janelaDias: number | null }) => void;
+  onCancelar: () => void;
+}) {
+  const [artistaOrigem, setArtistaOrigem] = useState(filtro.artista_origem);
+  const [status, setStatus] = useState<string[]>(filtro.status_permitidos);
+  const [espetaculos, setEspetaculos] = useState<string[]>(filtro.espetaculos ?? []);
+  const [janela, setJanela] = useState(filtro.janela_dias ? String(filtro.janela_dias) : "");
+  const [salvando, setSalvando] = useState(false);
+
+  const uniao = (doBoard: string[] | undefined, selecionados: string[]) =>
+    Array.from(new Set([...(doBoard ?? []), ...selecionados]));
+
+  const artistasDisponiveis = uniao(opcoes?.artistas, [filtro.artista_origem]);
+  const statusDisponiveis = uniao(opcoes?.status, filtro.status_permitidos);
+  const espetaculosDisponiveis = uniao(opcoes?.espetaculos, filtro.espetaculos ?? []);
+
+  const foraDoBoard = (valor: string, doBoard: string[] | undefined) =>
+    !!opcoes && !(doBoard ?? []).includes(valor);
+
+  return (
+    <div className="border-t border-gray-800 pt-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-white">Editar filtro</p>
+        {!opcoes && (
+          <button onClick={onCarregarOpcoes} className="text-xs text-green-400 hover:text-green-300">
+            {carregando ? "carregando..." : "carregar opções do board"}
+          </button>
+        )}
+      </div>
+
+      <label className="text-xs text-gray-400 space-y-1 block max-w-[280px]">
+        <span>Artista no board</span>
+        <select
+          value={artistaOrigem}
+          onChange={(e) => setArtistaOrigem(e.target.value)}
+          className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+        >
+          {artistasDisponiveis.map((a) => (
+            <option key={a} value={a}>
+              {a}{foraDoBoard(a, opcoes?.artistas) ? " (não está mais no board)" : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <div className="space-y-1">
+        <p className="text-xs text-gray-400">Status que o fã pode ver</p>
+        <div className="flex flex-wrap gap-2">
+          {statusDisponiveis.map((s) => (
+            <Chip
+              key={s}
+              label={foraDoBoard(s, opcoes?.status) ? `${s} (fora do board)` : s}
+              ativo={status.includes(s)}
+              onToggle={() => setStatus((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s])}
+            />
+          ))}
+        </div>
+      </div>
+
+      {espetaculosDisponiveis.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs text-gray-400">Espetáculo (nenhum marcado = todos)</p>
+          <div className="flex flex-wrap gap-2">
+            {espetaculosDisponiveis.map((e) => (
+              <Chip
+                key={e}
+                label={foraDoBoard(e, opcoes?.espetaculos) ? `${e} (fora do board)` : e}
+                ativo={espetaculos.includes(e)}
+                onToggle={() => setEspetaculos((prev) => prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e])}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <label className="text-xs text-gray-400 space-y-1 block max-w-[220px]">
+        <span>Horizonte em dias (vazio = todo o futuro)</span>
+        <input
+          type="number"
+          min={1}
+          value={janela}
+          onChange={(e) => setJanela(e.target.value)}
+          className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+        />
+      </label>
+
+      <div className="flex gap-2">
+        <button
+          onClick={async () => {
+            setSalvando(true);
+            await onSalvar({
+              artistaOrigem,
+              statusPermitidos: status,
+              espetaculos,
+              janelaDias: janela ? Number(janela) : null,
+            });
+            setSalvando(false);
+          }}
+          disabled={salvando || status.length === 0 || !artistaOrigem}
+          className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm rounded-md"
+        >
+          {salvando ? "Salvando..." : "Salvar filtro"}
+        </button>
+        <button onClick={onCancelar} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-md">
+          Cancelar
+        </button>
+      </div>
+      {status.length === 0 && (
+        <p className="text-xs text-amber-400">
+          Sem nenhum status marcado a agenda fica vazia — por isso o banco recusa.
+        </p>
+      )}
+    </div>
   );
 }
 

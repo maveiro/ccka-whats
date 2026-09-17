@@ -348,6 +348,10 @@ await cenario("detalhe mostra arte e sinopse do espetáculo quando o tema existe
     nome: "como ser tóxica e influenciar PESSOAS",
     sinopse: "Uma comédia sobre convivência.",
     imagem_base64: "aGVsbG8=",
+    // Dimensões do banner real depois da redução (1080x461): é daqui que sai
+    // o aspect-ratio da tela.
+    imagem_largura: 1080,
+    imagem_altura: 461,
   }, { onConflict: "tenant_id,nome_chave" });
 
   const { res, chaveAes, iv } = await pedir(publicaPem, {
@@ -362,6 +366,9 @@ await cenario("detalhe mostra arte e sinopse do espetáculo quando o tema existe
   checar(String(corpo.data.sinopse).includes("convivência"), "a sinopse deveria chegar");
   // O Flow JSON não tem negação, então o par tem/sem precisa ser coerente.
   checar(corpo.data.sem_imagem === false && corpo.data.sem_sinopse === false, "os pares tem/sem precisam ser opostos");
+  // Sem a proporção, o Flow usa aspect-ratio 1 e um banner 2.34:1 aparece
+  // esticado ou com sobra — foi o que aconteceu com a primeira arte real.
+  checar(corpo.data.imagem_proporcao === 2.34, `proporção deveria ser 2.34, veio ${corpo.data.imagem_proporcao}`);
 
   await db.from("agenda_temas").delete().eq("tenant_id", TENANT);
 });
@@ -382,6 +389,7 @@ await cenario("espetáculo sem tema cadastrado não quebra o detalhe", async () 
   checar(corpo.screen === "DETALHE", "o detalhe precisa abrir mesmo sem tema");
   checar(corpo.data.tem_imagem === false && corpo.data.sem_imagem === true, "sem tema, sem imagem");
   checar(corpo.data.tem_sinopse === false, "sem tema, sem sinopse");
+  checar(corpo.data.imagem_proporcao === 1, "sem dimensão conhecida, cai no default 1 da Meta");
   // O nome do espetáculo ainda aparece: vem do próprio show.
   checar(corpo.data.tem_espetaculo === true, "o nome do espetáculo vem do show, mesmo sem tema");
 

@@ -488,6 +488,10 @@
         "sem_imagem": {
           "type": "boolean",
           "__example__": false
+        },
+        "imagem_proporcao": {
+          "type": "number",
+          "__example__": 2.34
         }
       },
       "layout": {
@@ -498,8 +502,8 @@
             "src": "${data.imagem}",
             "visible": "${data.tem_imagem}",
             "scale-type": "contain",
-            "height": 220,
-            "alt-text": "Arte do espetáculo"
+            "alt-text": "Arte do espetáculo",
+            "aspect-ratio": "${data.imagem_proporcao}"
           },
           {
             "type": "TextHeading",

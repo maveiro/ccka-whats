@@ -11,6 +11,7 @@
 // pelo botão "Sincronizar agora" do painel, ambos com service role.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { dimensoesDaImagem } from "./imagem.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -87,8 +88,8 @@ interface EspetaculoDoPainel {
 // payload total no data endpoint. Pedimos 800px de largura e qualidade 70 ao
 // Storage, e recusamos o que ainda passar de 300KB — melhor tela sem imagem
 // que Flow que não abre.
-const LARGURA_ARTE = 800;
-const QUALIDADE_ARTE = 70;
+const LARGURA_ARTE = 1080;
+const QUALIDADE_ARTE = 75;
 const TETO_ARTE_BYTES = 300 * 1024;
 
 Deno.serve(async (req: Request) => {
@@ -258,15 +259,27 @@ async function sincronizarTemas(conexao: Conexao) {
   for (const esp of espetaculos) {
     const { data: atual } = await supabase
       .from("agenda_temas")
-      .select("id, arte_asset_id, imagem_base64")
+      .select("id, arte_asset_id, imagem_base64, imagem_bytes, imagem_largura, imagem_altura")
       .eq("tenant_id", conexao.tenant_id)
       .eq("nome_chave", chaveTexto(esp.nome))
-      .maybeSingle<{ id: string; arte_asset_id: string | null; imagem_base64: string | null }>();
+      .maybeSingle<{
+        id: string;
+        arte_asset_id: string | null;
+        imagem_base64: string | null;
+        imagem_bytes: number | null;
+        imagem_largura: number | null;
+        imagem_altura: number | null;
+      }>();
 
     const arteMudou = (esp.arte_asset_id ?? null) !== (atual?.arte_asset_id ?? null);
-    let imagem: { base64: string | null; bytes: number | null; erro: string | null } = {
+    let imagem: {
+      base64: string | null; bytes: number | null;
+      largura: number | null; altura: number | null; erro: string | null;
+    } = {
       base64: atual?.imagem_base64 ?? null,
-      bytes: null,
+      bytes: atual?.imagem_bytes ?? null,
+      largura: atual?.imagem_largura ?? null,
+      altura: atual?.imagem_altura ?? null,
       erro: null,
     };
 
@@ -274,7 +287,7 @@ async function sincronizarTemas(conexao: Conexao) {
       imagem = await prepararArte(conexao.tenant_id, esp);
       if (imagem.erro) recusadas++;
     } else if (!esp.arte_asset_id) {
-      imagem = { base64: null, bytes: null, erro: null };
+      imagem = { base64: null, bytes: null, largura: null, altura: null, erro: null };
     }
 
     if (imagem.base64) comArte++;
@@ -289,6 +302,8 @@ async function sincronizarTemas(conexao: Conexao) {
       arte_asset_id: esp.arte_asset_id,
       imagem_base64: imagem.base64,
       imagem_bytes: imagem.bytes,
+      imagem_largura: imagem.largura,
+      imagem_altura: imagem.altura,
       imagem_atualizada_em: imagem.base64 ? new Date().toISOString() : null,
       imagem_erro: imagem.erro,
       updated_at: new Date().toISOString(),
@@ -322,16 +337,16 @@ async function sincronizarTemas(conexao: Conexao) {
 async function prepararArte(
   tenantId: string,
   esp: EspetaculoDoPainel,
-): Promise<{ base64: string | null; bytes: number | null; erro: string | null }> {
+): Promise<{ base64: string | null; bytes: number | null; largura: number | null; altura: number | null; erro: string | null }> {
   if (!esp.arte_url) {
-    return { base64: null, bytes: null, erro: "o painel-shows não devolveu URL de download da arte" };
+    return { base64: null, bytes: null, largura: null, altura: null, erro: "o painel-shows não devolveu URL de download da arte" };
   }
 
   const extensao = (esp.arte_nome?.split(".").pop() ?? "jpg").toLowerCase();
   if (!["jpg", "jpeg", "png"].includes(extensao)) {
     // O Flow aceita só JPEG e PNG. Converter aqui exigiria biblioteca de
     // imagem; recusar com motivo visível é melhor que imagem que não abre.
-    return { base64: null, bytes: null, erro: `formato .${extensao} não é aceito pelo Flow (use JPEG ou PNG)` };
+    return { base64: null, bytes: null, largura: null, altura: null, erro: `formato .${extensao} não é aceito pelo Flow (use JPEG ou PNG)` };
   }
 
   const caminho = `${tenantId}/${esp.monday_item_id}.${extensao === "png" ? "png" : "jpg"}`;
@@ -339,7 +354,7 @@ async function prepararArte(
   try {
     const original = await fetch(esp.arte_url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!original.ok) {
-      return { base64: null, bytes: null, erro: `download da arte respondeu ${original.status}` };
+      return { base64: null, bytes: null, largura: null, altura: null, erro: `download da arte respondeu ${original.status}` };
     }
     const bytes = new Uint8Array(await original.arrayBuffer());
 
@@ -349,15 +364,23 @@ async function prepararArte(
         contentType: extensao === "png" ? "image/png" : "image/jpeg",
         upsert: true,
       });
-    if (erroUpload) return { base64: null, bytes: null, erro: `Storage: ${erroUpload.message}` };
+    if (erroUpload) return { base64: null, bytes: null, largura: null, altura: null, erro: `Storage: ${erroUpload.message}` };
 
     const { data: reduzida, error: erroTransform } = await supabase.storage
       .from("temas")
       .download(caminho, {
-        transform: { width: LARGURA_ARTE, quality: QUALIDADE_ARTE },
+        transform: {
+          width: LARGURA_ARTE,
+          quality: QUALIDADE_ARTE,
+          // `contain` NÃO é detalhe: sem ele o Storage faz recorte central
+          // para preencher a caixa pedida. Achado com a primeira arte real
+          // (17/09/2026) — um banner 1919x819 virou 800x819, cortando o logo,
+          // metade do título e o rosto da personagem, e o fã viu isso.
+          resize: "contain",
+        },
       });
     if (erroTransform || !reduzida) {
-      return { base64: null, bytes: null, erro: `redução falhou: ${erroTransform?.message ?? "sem resposta"}` };
+      return { base64: null, bytes: null, largura: null, altura: null, erro: `redução falhou: ${erroTransform?.message ?? "sem resposta"}` };
     }
 
     const reduzidaBytes = new Uint8Array(await reduzida.arrayBuffer());
@@ -365,13 +388,25 @@ async function prepararArte(
       return {
         base64: null,
         bytes: reduzidaBytes.byteLength,
+        largura: null,
+        altura: null,
         erro: `arte reduzida ainda tem ${Math.round(reduzidaBytes.byteLength / 1024)}KB (teto do Flow é 300KB)`,
       };
     }
 
-    return { base64: paraBase64(reduzidaBytes), bytes: reduzidaBytes.byteLength, erro: null };
+    // As dimensões vão para o Flow como `aspect-ratio`: é o que faz a arte
+    // ocupar a tela na proporção certa, seja banner, quadrada ou vertical.
+    const medida = dimensoesDaImagem(reduzidaBytes);
+
+    return {
+      base64: paraBase64(reduzidaBytes),
+      bytes: reduzidaBytes.byteLength,
+      largura: medida?.largura ?? null,
+      altura: medida?.altura ?? null,
+      erro: null,
+    };
   } catch (err) {
-    return { base64: null, bytes: null, erro: err instanceof Error ? err.message : String(err) };
+    return { base64: null, bytes: null, largura: null, altura: null, erro: err instanceof Error ? err.message : String(err) };
   }
 }
 

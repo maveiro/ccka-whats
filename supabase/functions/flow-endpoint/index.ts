@@ -502,7 +502,7 @@ async function buscarTema(tenantId: string, espetaculo: string | null): Promise<
 
   const { data } = await supabase
     .from("agenda_temas")
-    .select("nome, sinopse, imagem_base64")
+    .select("nome, sinopse, imagem_base64, imagem_largura, imagem_altura")
     .eq("tenant_id", tenantId)
     .eq("nome_chave", chave)
     .maybeSingle<TemaRow>();

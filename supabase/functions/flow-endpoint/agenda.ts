@@ -33,6 +33,8 @@ export interface TemaRow {
   nome: string;
   sinopse: string | null;
   imagem_base64: string | null;
+  imagem_largura?: number | null;
+  imagem_altura?: number | null;
 }
 
 interface ItemLista {
@@ -103,10 +105,21 @@ export function telaAgenda(shows: ShowRow[], artista: string | null) {
  * do Flow espera. Espetáculo sem arte (ou com arte recusada por tamanho)
  * manda string vazia e `tem_imagem: false` — a tela some o componente em vez
  * de tentar desenhar nada.
+ *
+ * `imagem_proporcao` é largura/altura da arte, e vai para o `aspect-ratio` do
+ * componente: é o que faz um banner 2.34:1 aparecer como faixa larga e uma
+ * arte quadrada aparecer quadrada, sem corte e sem sobra. Sem dimensão
+ * conhecida, cai em 1 (o default da Meta) — pior enquadramento, nunca tela
+ * quebrada.
  */
 export function telaDetalhe(show: ShowRow, tema?: TemaRow | null) {
   const sinopse = tema?.sinopse?.trim() ?? "";
   const imagem = tema?.imagem_base64 ?? "";
+  const largura = tema?.imagem_largura ?? 0;
+  const altura = tema?.imagem_altura ?? 0;
+  const proporcao = largura > 0 && altura > 0
+    ? Math.round((largura / altura) * 100) / 100
+    : 1;
 
   return {
     screen: TELA_DETALHE,
@@ -123,6 +136,7 @@ export function telaDetalhe(show: ShowRow, tema?: TemaRow | null) {
       tem_sinopse: sinopse.length > 0,
       sem_sinopse: sinopse.length === 0,
       imagem,
+      imagem_proporcao: proporcao,
       tem_imagem: imagem.length > 0,
       sem_imagem: imagem.length === 0,
       tem_link: Boolean(show.link_compra),

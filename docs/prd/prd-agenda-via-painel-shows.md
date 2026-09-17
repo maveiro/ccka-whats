@@ -283,3 +283,61 @@ aparecer como **aviso na tela**, não só no log — é o defeito mais provável
   (`shows.elemento`), mas `agenda_shows_sync` não tem o campo e o Flow
   publicado não tem onde mostrá-lo — entra junto de uma revisão do Flow.
 - Vendas/capacidade. É dado de gestão; a central não mostra lotação.
+
+
+## Imagem do show no Flow (levantamento de 17/09/2026)
+
+Pedido: a tela de detalhe do show mostrar a arte do tema ("Espetáculo"), com a
+imagem vindo do Monday. Tudo abaixo foi **verificado**, não suposto.
+
+### O que o Flow aceita
+
+- O componente `Image` do Flow JSON aceita **só base64** — URL não funciona.
+- Teto recomendado de **300KB por imagem**, **JPEG ou PNG**, no máximo **3
+  imagens por tela**, e **1MB** de payload total do data endpoint.
+- `src` aceita valor dinâmico (`${data.imagem}`), então a imagem pode vir do
+  nosso endpoint por show.
+- A tela `DETALHE` hoje só tem texto e link: ganhar um `Image` exige
+  **republicar o Flow na Meta** (Flow publicado é imutável). O `meta_flow_id`
+  continua o mesmo — é ciclo de publicação, não de aprovação como template.
+- Tema sem arte não pode quebrar a tela: manda-se o par
+  `tem_imagem`/`sem_imagem`, porque a linguagem do Flow JSON não tem negação.
+
+### O que o board tem hoje — e o que falta
+
+- **`lookup_mm1rjveg` "Artes" não é imagem**: é link de **pasta do Google
+  Drive** por show (`drive.google.com/drive/folders/...`). Exige auth do
+  Drive, é pasta (não se sabe qual arquivo é a arte) e arte de divulgação tem
+  tamanho de impressão, muito acima de 300KB.
+- **A única coluna de arquivo é "Contrato"** (`file_mm09g9kp`), com PDFs.
+- **Falta uma coluna com a arte em si.** É o único bloqueio: o mecanismo todo
+  já está provado abaixo.
+
+### Mecanismo provado (cada passo testado contra produção)
+
+1. **Ler os arquivos de UMA coluna**: o `value` da coluna de arquivo devolve
+   `{"files":[{"name","assetId","isImage","fileType"}]}` — o `isImage`
+   permite pegar só imagem, e o `assetId` liga ao asset. Ler `item.assets`
+   traria também os contratos, então é pela coluna.
+2. **Baixar sem autenticação**: `assets(ids:[...]) { public_url }` devolve URL
+   assinada da S3 (`files-monday-com.s3.amazonaws.com`). Testado:
+   `200`, bytes corretos, **sem nenhum header de auth**.
+3. **Redimensionar sem dependência nova**: a transformação de imagem do
+   Supabase Storage está ativa neste projeto —
+   `/storage/v1/render/image/authenticated/{bucket}/{path}?width=800&quality=70`
+   respondeu `200` e reduziu de verdade (teste: 7.288 → 2.897 bytes com
+   `width=100`). **Não** pedir `format=jpeg` (responde erro em JSON); e não
+   mandar `Accept: image/webp`, senão volta webp, que o Flow não aceita.
+4. Base64 do resultado fica **cacheado** na linha: reconverter a cada abertura
+   de detalhe gastaria o orçamento de latência do endpoint a cada clique.
+
+### Decisão pendente
+
+**Qual coluna do board guarda a arte.** Duas formas servem: coluna de
+**arquivo** com o JPEG/PNG anexado, ou coluna de **link** apontando direto
+para um JPEG (não pasta). Vale notar o custo operacional: arte por show
+significa alguém anexar o arquivo em cada show novo — show sem arte cai no
+`sem_imagem` e a tela funciona, mas sem imagem. Arte por **tema** seria 14
+arquivos em vez de 68 e mudaria muito menos, mas hoje não existe lugar no
+board para guardá-la (a coluna "Espetáculo" é um status, não um board
+ligado).

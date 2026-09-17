@@ -200,6 +200,61 @@ begin
 end $$;
 
 -- ============================================================
+-- 7b. Despublicar sobrevive ao sync
+-- É o ponto inteiro da coluna `publicado`: o show continua elegível no board,
+-- então toda rodada de hora em hora o encontra e faz upsert. Se `publicado`
+-- entrasse no `do update set`, a despublicação duraria até o próximo tick e
+-- voltaria sozinha, sem ninguém saber por quê.
+-- ============================================================
+do $$
+declare r jsonb;
+begin
+  perform pg_temp.assert(
+    (select bool_and(publicado) from agenda_shows_sync
+      where filtro_id = (select valor from _ids where chave='filtro_ib')),
+    'show sincronizado nasce publicado (é o comportamento que já existia)');
+
+  update agenda_shows_sync set publicado = false where show_id_origem = 'm-1';
+
+  r := sincronizar_agenda_shows(
+    (select valor from _ids where chave='filtro_ib'),
+    '[{"show_id_origem":"m-1","cidade":"Curitiba/PR","teatro":"Teatro Bom Jesus","data_hora":"2026-09-20T21:00:00Z","status_venda":"à venda","link_compra":"https://exemplo.invalido/1"},
+      {"show_id_origem":"m-2","cidade":"Curitiba/PR","teatro":"Teatro Bom Jesus","data_hora":"2026-09-20T23:15:00Z","status_venda":"à venda","link_compra":"https://exemplo.invalido/2"}]'::jsonb);
+
+  perform pg_temp.assert(
+    (select publicado is false from agenda_shows_sync where show_id_origem='m-1'),
+    'o sync NÃO pode republicar o que foi despublicado à mão');
+  perform pg_temp.assert(
+    (select publicado from agenda_shows_sync where show_id_origem='m-2'),
+    'os outros continuam publicados');
+  perform pg_temp.assert(
+    (r->>'despublicados')::int = 1,
+    format('o resumo da rodada deveria contar 1 despublicado, veio %s', r->>'despublicados'));
+  perform pg_temp.assert(
+    (select (ultima_sync_resumo->>'despublicados')::int from agenda_filtros
+      where id = (select valor from _ids where chave='filtro_ib')) = 1,
+    'a contagem de despublicados fica visível no resumo do filtro');
+end $$;
+
+-- ============================================================
+-- 7c. Show despublicado que sai do board sai da tabela
+-- Despublicar não é arquivar: se deixou de ser elegível, a linha vai embora
+-- como qualquer outra — senão a tabela acumularia show invisível para sempre.
+-- ============================================================
+do $$
+declare r jsonb;
+begin
+  r := sincronizar_agenda_shows(
+    (select valor from _ids where chave='filtro_ib'),
+    '[{"show_id_origem":"m-2","cidade":"Curitiba/PR","teatro":"Teatro Bom Jesus","data_hora":"2026-09-20T23:15:00Z","status_venda":"à venda"}]'::jsonb);
+
+  perform pg_temp.assert(
+    not exists (select 1 from agenda_shows_sync where show_id_origem='m-1'),
+    'show despublicado que saiu do board precisa sair da tabela também');
+  perform pg_temp.assert((r->>'removidos')::int = 1, 'e ser contado como removido');
+end $$;
+
+-- ============================================================
 -- 8. Allowlist vazia é recusada pelo banco
 -- Agenda com zero status permitidos devolve lista vazia sem erro nenhum.
 -- ============================================================

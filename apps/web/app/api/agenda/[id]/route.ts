@@ -29,6 +29,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       patch[coluna] = (body[campoApi] as string).trim() || null;
     }
   }
+  // Escolha editorial: pode ser aplicada a show sincronizado, ao contrário
+  // dos campos que vêm do board — é justamente o caso de uso (migration
+  // agenda_publicado), e o sync não a desfaz.
+  if (typeof body.publicado === "boolean") patch.publicado = body.publicado;
+
   if (typeof body.dataShow === "string") {
     if (!body.dataShow) {
       patch.data_show = null;
@@ -49,7 +54,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     .from("agenda_shows_sync")
     .update(patch)
     .eq("id", id)
-    .select("id, show_id_origem, artista, cidade, teatro, data_show, status_venda, link_compra, updated_at")
+    .select("id, show_id_origem, artista, cidade, teatro, data_show, status_venda, link_compra, publicado, updated_at")
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

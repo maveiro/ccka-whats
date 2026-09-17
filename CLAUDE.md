@@ -915,6 +915,18 @@ central. Primeira sincronização real trouxe **22 shows do IB**, todos com
 cidade, teatro, horário e link — nenhum campo vazio. As duas linhas manuais
 de teste de 09/09 ficaram intactas, como o índice único parcial prevê.
 
+**Publicação é escolha nossa, não do board** (migration `agenda_publicado`,
+17/09/2026): `agenda_shows_sync.publicado` esconde um show do fã sem mexer no
+Monday — show à venda que ainda não deve ser divulgado existe. A coluna
+**fica fora do `do update set`** de `sincronizar_agenda_shows()`: se entrasse,
+a despublicação duraria até o próximo tick do cron e voltaria sozinha, sem
+ninguém saber por quê. Regra para qualquer coluna nova ali: o que vem do board
+é sobrescrito, o que é decisão nossa fica fora. O `flow-endpoint` filtra
+`publicado` na lista **e** no detalhe — Flow aberto há dez minutos tem a lista
+antiga na tela, e o clique não pode abrir o que saiu do ar nesse intervalo.
+Despublicar não é arquivar: se o show deixa de ser elegível no board, a linha
+vai embora como qualquer outra.
+
 **A agenda é espelho: não há mais cadastro manual de show** (decisão do
 fundador, 16/09/2026 — `POST /api/agenda` removido). Linha sincronizada não é
 editável na tela de propósito: a rodada seguinte do sync desfaria a edição, e

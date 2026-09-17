@@ -28,7 +28,7 @@ export default async function AgendaPage() {
   // RLS filtra por tenant (regra 15).
   const { data: shows } = await supabase
     .from("agenda_shows_sync")
-    .select("id, show_id_origem, artista, cidade, teatro, data_show, status_venda, link_compra, updated_at")
+    .select("id, show_id_origem, artista, cidade, teatro, data_show, status_venda, link_compra, publicado, updated_at")
     .order("data_show", { ascending: true, nullsFirst: false });
 
   // Agendas sincronizadas (RLS acesso_por_numero filtra pelos números que

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 interface Show {
   id: string;
   show_id_origem: string | null;
+  publicado: boolean;
   artista: string;
   cidade: string | null;
   teatro: string | null;
@@ -25,6 +26,11 @@ const STATUS = ["à venda", "esgotado", "últimos ingressos", "em breve", "cance
 // (de hora em hora) desfaria a edição, e um campo que volta ao valor antigo
 // sozinho é pior que um campo que não deixa editar. Correção de show se faz
 // no board.
+//
+// A EXCEÇÃO é `publicado` (migration agenda_publicado): não é dado do board,
+// é escolha de quem cuida da central — o board diz o que está à venda, isto
+// diz o que vai ao ar. O sync não a desfaz, então é a única ação que faz
+// sentido numa linha sincronizada.
 
 /** ISO -> valor de <input type="datetime-local"> em horário de Brasília.
  *  Usar o fuso do navegador aqui faria a data mudar de valor ao editar de
@@ -62,6 +68,7 @@ export default function AgendaManager({
   const visiveis = filtroArtista ? shows.filter((s) => s.artista === filtroArtista) : shows;
   const manuais = shows.filter((s) => !s.show_id_origem);
   const sincronizados = shows.length - manuais.length;
+  const despublicados = shows.filter((s) => !s.publicado).length;
 
   async function atualizar(id: string, patch: Record<string, unknown>) {
     const res = await fetch(`/api/agenda/${id}`, {
@@ -106,6 +113,7 @@ export default function AgendaManager({
             {sincronizados > 0 && (
               <span className="text-gray-500 font-normal text-xs ml-2">
                 {sincronizados} do Monday{manuais.length > 0 && `, ${manuais.length} fora do board`}
+                {despublicados > 0 && `, ${despublicados} não publicado(s)`}
               </span>
             )}
           </h2>
@@ -165,7 +173,7 @@ function ShowLinha({
 
   if (!editando) {
     return (
-      <div className={`border border-gray-800 rounded px-4 py-3 flex items-start justify-between gap-3 ${passado ? "opacity-60" : ""}`}>
+      <div className={`border rounded px-4 py-3 flex items-start justify-between gap-3 ${passado ? "opacity-60" : ""} ${show.publicado ? "border-gray-800" : "border-amber-900/60 bg-amber-950/10"}`}>
         <div className="min-w-0">
           <p className="text-sm text-white">
             {show.cidade ?? "—"}
@@ -173,6 +181,9 @@ function ShowLinha({
             {passado && <span className="text-[11px] text-gray-500 ml-2">(já passou)</span>}
             {!doBoard && (
               <span className="text-[11px] text-amber-400/80 ml-2">fora do board</span>
+            )}
+            {!show.publicado && (
+              <span className="text-[11px] text-amber-400 ml-2">não publicado</span>
             )}
           </p>
           <p className="text-xs text-gray-500 mt-0.5">
@@ -185,10 +196,19 @@ function ShowLinha({
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => onAtualizar({ publicado: !show.publicado })}
+            className={`text-xs ${show.publicado ? "text-gray-400 hover:text-amber-400" : "text-amber-400 hover:text-amber-300"}`}
+            title={show.publicado
+              ? "Esconder este show da central, sem mexer no board"
+              : "Voltar a mostrar este show na central"}
+          >
+            {show.publicado ? "despublicar" : "publicar"}
+          </button>
           {doBoard ? (
-            // Sem ações: a próxima rodada do sync desfaria qualquer edição, e
-            // remover aqui só faria o show voltar na hora seguinte. Correção
-            // de show sincronizado se faz no board.
+            // Fora de `publicado`, sem ações: a próxima rodada do sync
+            // desfaria qualquer edição, e remover aqui só faria o show voltar
+            // na hora seguinte. Correção de show sincronizado se faz no board.
             <span className="text-[11px] text-gray-600">vem do Monday</span>
           ) : (
             <>

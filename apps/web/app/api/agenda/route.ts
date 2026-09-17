@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("agenda_shows_sync")
-    .select("id, show_id_origem, artista, cidade, teatro, data_show, status_venda, link_compra, updated_at")
+    .select("id, show_id_origem, artista, cidade, teatro, data_show, status_venda, link_compra, publicado, updated_at")
     .order("data_show", { ascending: true, nullsFirst: false });
 
   if (artista) query = query.eq("artista", artista);

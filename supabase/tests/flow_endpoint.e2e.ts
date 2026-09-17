@@ -331,6 +331,36 @@ await cenario("show removido entre a lista e o clique volta para a lista, sem er
   checar(corpo.screen === "AGENDA", `deveria cair na lista, veio "${corpo.screen}"`);
 });
 
+await cenario("show despublicado não aparece para o fã, mesmo estando à venda", async () => {
+  // O board diz que está Vendendo; quem cuida da central disse que não vai ao
+  // ar (migration agenda_publicado). Quem manda para o fã é a segunda.
+  const curitiba = (showsCriados ?? []).find((s) => s.cidade === "Curitiba");
+  await db.from("agenda_shows_sync").update({ publicado: false }).eq("id", curitiba!.id);
+
+  const { res, chaveAes, iv } = await pedir(publicaPem, { version: "3.0", action: "INIT" });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { data: { shows: { title: string }[]; tem_shows: boolean } };
+  const titulos = corpo.data.shows.map((s) => s.title).join(" | ");
+  checar(!titulos.includes("Curitiba"), `show despublicado não pode aparecer: ${titulos}`);
+  checar(corpo.data.tem_shows === false, "sem show publicado, a agenda responde como vazia");
+
+  await db.from("agenda_shows_sync").update({ publicado: true }).eq("id", curitiba!.id);
+});
+
+await cenario("clique num show despublicado no meio do caminho volta para a lista", async () => {
+  // Flow aberto há dez minutos tem a lista antiga na tela; o clique não pode
+  // abrir o que saiu do ar nesse intervalo.
+  const curitiba = (showsCriados ?? []).find((s) => s.cidade === "Curitiba");
+  await db.from("agenda_shows_sync").update({ publicado: false }).eq("id", curitiba!.id);
+
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "3.0", action: "data_exchange", screen: "AGENDA", data: { show_id: curitiba!.id },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string };
+  checar(corpo.screen === "AGENDA", `deveria cair na lista, veio "${corpo.screen}"`);
+
+  await db.from("agenda_shows_sync").update({ publicado: true }).eq("id", curitiba!.id);
+});
+
 await cenario("agenda vazia responde texto explicativo, não tela quebrada", async () => {
   await db.from("agenda_shows_sync").delete().eq("tenant_id", TENANT);
   const { res, chaveAes, iv } = await pedir(publicaPem, { version: "3.0", action: "INIT" });

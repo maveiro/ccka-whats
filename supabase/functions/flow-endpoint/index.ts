@@ -523,10 +523,15 @@ async function responderAgenda(
       .select("id, artista, cidade, teatro, data_show, status_venda, link_compra")
       .eq("tenant_id", credencial.tenant_id)
       .eq("id", escolhido)
+      // Mesmo filtro da lista: um Flow aberto há dez minutos pode ter a lista
+      // antiga na tela, e o clique não pode abrir o que foi despublicado no
+      // meio. O desfecho já existia para show removido — despublicado entra
+      // no mesmo caminho.
+      .eq("publicado", true)
       .maybeSingle<ShowRow>();
 
-    // Show removido entre a listagem e o clique: volta para a lista em vez de
-    // tela de erro.
+    // Show removido (ou despublicado) entre a listagem e o clique: volta para
+    // a lista em vez de tela de erro.
     if (show) {
       await registrarTela(phoneNumberId, acao, "DETALHE", { showId: show.id });
       return telaDetalhe(show);
@@ -552,10 +557,15 @@ async function responderAgenda(
 
   // Lista: só o que ainda não aconteceu, em ordem cronológica. Show sem data
   // entra no fim (a query ordena com nulls por último).
+  //
+  // `publicado` é a escolha editorial de quem cuida da central (migration
+  // agenda_publicado): o board diz o que está à venda, e isto diz o que vai
+  // ao ar. Show à venda mas não publicado não existe para o fã.
   let query = supabase
     .from("agenda_shows_sync")
     .select("id, artista, cidade, teatro, data_show, status_venda, link_compra")
     .eq("tenant_id", credencial.tenant_id)
+    .eq("publicado", true)
     .or(`data_show.gte.${new Date().toISOString()},data_show.is.null`)
     .order("data_show", { ascending: true, nullsFirst: false })
     .limit(20);

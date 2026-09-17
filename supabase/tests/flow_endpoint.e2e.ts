@@ -335,6 +335,63 @@ await cenario("show removido entre a lista e o clique volta para a lista, sem er
   checar(corpo.screen === "AGENDA", `deveria cair na lista, veio "${corpo.screen}"`);
 });
 
+await cenario("detalhe mostra arte e sinopse do espetáculo quando o tema existe", async () => {
+  const curitiba = (showsCriados ?? []).find((s) => s.cidade === "Curitiba");
+  await db.from("agenda_shows_sync")
+    .update({ espetaculo: "Como Ser Tóxica e Influenciar Pessoas" })
+    .eq("id", curitiba!.id);
+  // Casamento por NOME: o rótulo no show vem com acento e caixa do board, o
+  // tema é gravado como o board de espetáculos escreve. A chave normalizada é
+  // o que faz os dois casarem.
+  await db.from("agenda_temas").upsert({
+    tenant_id: TENANT,
+    nome: "como ser tóxica e influenciar PESSOAS",
+    sinopse: "Uma comédia sobre convivência.",
+    imagem_base64: "aGVsbG8=",
+  }, { onConflict: "tenant_id,nome_chave" });
+
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "3.0", action: "data_exchange", screen: "AGENDA", data: { show_id: curitiba!.id },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string; data: Record<string, unknown> };
+
+  checar(corpo.screen === "DETALHE", `deveria abrir o detalhe, veio "${corpo.screen}"`);
+  checar(corpo.data.tem_imagem === true, "deveria marcar tem_imagem");
+  checar(corpo.data.imagem === "aGVsbG8=", "a imagem vai em base64 puro, sem prefixo data:");
+  checar(corpo.data.tem_sinopse === true, "deveria marcar tem_sinopse");
+  checar(String(corpo.data.sinopse).includes("convivência"), "a sinopse deveria chegar");
+  // O Flow JSON não tem negação, então o par tem/sem precisa ser coerente.
+  checar(corpo.data.sem_imagem === false && corpo.data.sem_sinopse === false, "os pares tem/sem precisam ser opostos");
+
+  await db.from("agenda_temas").delete().eq("tenant_id", TENANT);
+});
+
+await cenario("espetáculo sem tema cadastrado não quebra o detalhe", async () => {
+  // Board novo tem 5 espetáculos e o de shows tem 14 rótulos: show de tema
+  // não cadastrado é situação normal, não erro.
+  const curitiba = (showsCriados ?? []).find((s) => s.cidade === "Curitiba");
+  await db.from("agenda_shows_sync")
+    .update({ espetaculo: "Espetáculo Que Ninguém Cadastrou" })
+    .eq("id", curitiba!.id);
+
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "3.0", action: "data_exchange", screen: "AGENDA", data: { show_id: curitiba!.id },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { screen: string; data: Record<string, unknown> };
+
+  checar(corpo.screen === "DETALHE", "o detalhe precisa abrir mesmo sem tema");
+  checar(corpo.data.tem_imagem === false && corpo.data.sem_imagem === true, "sem tema, sem imagem");
+  checar(corpo.data.tem_sinopse === false, "sem tema, sem sinopse");
+  // O nome do espetáculo ainda aparece: vem do próprio show.
+  checar(corpo.data.tem_espetaculo === true, "o nome do espetáculo vem do show, mesmo sem tema");
+
+  const { data: eventos } = await db.from("events_log").select("payload")
+    .eq("tenant_id", TENANT).eq("event_type", "flow_endpoint_tela")
+    .order("created_at", { ascending: false }).limit(1);
+  const p = (eventos?.[0]?.payload ?? {}) as Record<string, unknown>;
+  checar(p.temaEncontrado === false, "o log precisa dizer que o nome não casou com nenhum tema");
+});
+
 await cenario("show fora do ar não aparece para o fã, mesmo estando à venda", async () => {
   // O board diz que está Vendendo; quem cuida da central não aprovou. Quem
   // manda para o fã é a aprovação.

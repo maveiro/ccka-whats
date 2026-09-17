@@ -28,7 +28,7 @@ import {
   importarChavePrivada,
   type RequisicaoCriptografada,
 } from "./crypto.ts";
-import { type ShowRow, telaAgenda, telaDetalhe } from "./agenda.ts";
+import { type ShowRow, telaAgenda, telaDetalhe, type TemaRow } from "./agenda.ts";
 import {
   type FaqItem,
   telaApresentacao,
@@ -488,6 +488,29 @@ async function clienteDaSessao(
 }
 
 /**
+ * Conteúdo do espetáculo do show, casando por nome normalizado.
+ *
+ * `chave_texto()` no banco e a normalização aqui precisam concordar — é o
+ * preço de ligar show e espetáculo por nome, em vez de por id (decisão do
+ * fundador, 17/09/2026). Não achar tema é resultado esperado (espetáculo
+ * ainda não cadastrado no board novo), não erro: a tela funciona sem arte.
+ */
+async function buscarTema(tenantId: string, espetaculo: string | null): Promise<TemaRow | null> {
+  if (!espetaculo?.trim()) return null;
+
+  const chave = espetaculo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+
+  const { data } = await supabase
+    .from("agenda_temas")
+    .select("nome, sinopse, imagem_base64")
+    .eq("tenant_id", tenantId)
+    .eq("nome_chave", chave)
+    .maybeSingle<TemaRow>();
+
+  return data ?? null;
+}
+
+/**
  * Monta a tela pedida a partir de agenda_shows_sync.
  *
  * O artista sai da CREDENCIAL do número (whatsapp_cloud_credentials.artista),
@@ -520,7 +543,7 @@ async function responderAgenda(
   if (acao === "data_exchange" && escolhido) {
     const { data: show } = await supabase
       .from("agenda_shows_sync")
-      .select("id, artista, cidade, teatro, data_show, status_venda, link_compra")
+      .select("id, artista, cidade, teatro, data_show, status_venda, link_compra, espetaculo")
       .eq("tenant_id", credencial.tenant_id)
       .eq("id", escolhido)
       // Mesmo filtro da lista: um Flow aberto há dez minutos pode ter a lista
@@ -533,8 +556,17 @@ async function responderAgenda(
     // Show removido (ou despublicado) entre a listagem e o clique: volta para
     // a lista em vez de tela de erro.
     if (show) {
-      await registrarTela(phoneNumberId, acao, "DETALHE", { showId: show.id });
-      return telaDetalhe(show);
+      const tema = await buscarTema(credencial.tenant_id, show.espetaculo ?? null);
+      await registrarTela(phoneNumberId, acao, "DETALHE", {
+        showId: show.id,
+        // Sem isto, "o espetáculo não tem arte" e "o nome não casou com
+        // nenhum tema" são indistinguíveis — e o segundo é o defeito real do
+        // casamento por nome.
+        espetaculo: show.espetaculo,
+        temaEncontrado: Boolean(tema),
+        temImagem: Boolean(tema?.imagem_base64),
+      });
+      return telaDetalhe(show, tema);
     }
   }
 

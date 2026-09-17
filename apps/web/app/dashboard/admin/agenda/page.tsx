@@ -28,7 +28,7 @@ export default async function AgendaPage() {
   // RLS filtra por tenant (regra 15).
   const { data: shows } = await supabase
     .from("agenda_shows_sync")
-    .select("id, show_id_origem, artista, cidade, teatro, data_show, status_venda, link_compra, publicado, updated_at")
+    .select("id, show_id_origem, artista, cidade, teatro, data_show, status_venda, link_compra, publicado, espetaculo, updated_at")
     .order("data_show", { ascending: true, nullsFirst: false });
 
   // Agendas sincronizadas (RLS acesso_por_numero filtra pelos números que
@@ -68,6 +68,26 @@ export default async function AgendaPage() {
     ]),
   ).filter(Boolean).sort();
 
+  // Conteúdo dos espetáculos (arte e sinopse) que veio do board novo, e os
+  // espetáculos de shows que NÃO casaram com nenhum tema — o casamento é por
+  // nome, e sem essa lista um rename no board vira arte que desapareceu sem
+  // explicação.
+  const { data: temas } = await supabase
+    .from("agenda_temas")
+    .select("nome, artista_nome, sinopse, arte_asset_id, imagem_bytes, imagem_erro, imagem_atualizada_em")
+    .order("nome");
+
+  const chave = (t: string) =>
+    t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  const chavesComTema = new Set((temas ?? []).map((t) => chave(t.nome as string)));
+  const espetaculosSemTema = Array.from(
+    new Set(
+      (shows ?? [])
+        .map((s) => s.espetaculo as string | null)
+        .filter((e): e is string => !!e && !chavesComTema.has(chave(e))),
+    ),
+  ).sort();
+
   const porCredencial = new Map((credenciais ?? []).map((c) => [c.id as string, c]));
 
   const filtrosComNumero = (filtros ?? []).map((f) => {
@@ -99,6 +119,15 @@ export default async function AgendaPage() {
         }))}
         conexaoConfigurada={!!conexao}
         isAdmin={operator.role === "admin"}
+        temas={(temas ?? []).map((t) => ({
+          nome: t.nome as string,
+          artista_nome: (t.artista_nome ?? null) as string | null,
+          tem_sinopse: !!t.sinopse,
+          tem_arte: !!t.arte_asset_id,
+          imagem_bytes: (t.imagem_bytes ?? null) as number | null,
+          imagem_erro: (t.imagem_erro ?? null) as string | null,
+        }))}
+        espetaculosSemTema={espetaculosSemTema}
       />
 
       <AgendaManager

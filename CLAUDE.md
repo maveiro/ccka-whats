@@ -941,6 +941,36 @@ Três coisas que sustentam isso e não podem se perder:
 Despublicado não é arquivado: show que deixa de ser elegível no board sai da
 tabela como qualquer outro.
 
+**Arte e sinopse do espetáculo na tela do show** (migration `agenda_temas` +
+board "Espetáculos" no Monday, 17/09/2026). Hierarquia:
+`Artista > Espetáculo > Show > Cidade > Teatro` — o show diz QUAL é o
+espetáculo, o espetáculo carrega a arte e o texto. Cinco coisas que custaram
+verificação e não devem ser redescobertas:
+
+- **O componente `Image` do Flow aceita SÓ base64** — URL não funciona. Teto
+  recomendado de 300KB por imagem, 3 por tela, 1MB de payload do endpoint.
+  Por isso `agenda_temas.imagem_base64` guarda o resultado pronto: converter
+  a cada abertura de detalhe gastaria o orçamento de latência por clique.
+- **A redução é feita pelo Storage** (`transform: { width, quality }`), que
+  evita biblioteca de imagem na Edge Function. **Não** pedir `format=jpeg`
+  (responde erro) e **não** deixar `Accept` pedir webp — o Flow não aceita
+  webp. Arte que continue acima de 300KB depois da redução é **recusada com
+  motivo** em `imagem_erro`, e a tela mostra o motivo: "sem arte" e "arte
+  recusada" são coisas diferentes.
+- **A arte sai do `value` da coluna de arquivo, nunca de `item.assets`** —
+  assets traz todo arquivo do item (contrato, planilha). O `isImage` vem do
+  Monday; com duas artes anexadas vale a última.
+- **A tabela guarda o `arte_asset_id`, não a URL.** A `public_url` do Monday é
+  assinada e muda a cada request: comparar URL faria baixar tudo de hora em
+  hora, para sempre. É o asset id que diz se a arte mudou.
+- **A ligação show → espetáculo é por NOME** (decisão do fundador: sem coluna
+  de conexão no board de shows). `chave_texto()` normaliza os dois lados
+  (minúsculo, sem acento) e é coluna gerada com o índice único, mesmo padrão
+  de `chave_telefone()` (regra 25). O preço é que rename desfaz o casamento,
+  então a tela **lista os espetáculos de shows que não acharam tema** e o
+  `flow_endpoint_tela` registra `temaEncontrado` — sem isso, arte que
+  desaparece não tem explicação visível.
+
 **A agenda é espelho: não há mais cadastro manual de show** (decisão do
 fundador, 16/09/2026 — `POST /api/agenda` removido). Linha sincronizada não é
 editável na tela de propósito: a rodada seguinte do sync desfaria a edição, e

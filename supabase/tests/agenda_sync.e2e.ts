@@ -35,6 +35,7 @@ interface ShowDoPainel {
 }
 
 let servir: ShowDoPainel[] = [];
+let servirEspetaculos: Record<string, unknown>[] = [];
 let statusHttp = 200;
 let statusRefresh = 200;
 let tokensRecebidos: string[] = [];
@@ -55,6 +56,16 @@ const stub = Deno.serve({ port: STUB_PORT, onListen: () => {} }, (req) => {
     });
   }
 
+  // Conteúdo dos espetáculos (arte/sinopse) — rota separada da agenda.
+  if (url.pathname.endsWith("/espetaculos")) {
+    return new Response(JSON.stringify({ espetaculos: servirEspetaculos }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // `desde` é registrado só aqui: a rota de espetáculos não recebe o
+  // parâmetro, e registrar nela apagava o valor que este cenário verifica.
   desdeRecebido = url.searchParams.get("desde");
   if (statusHttp !== 200) return new Response("nope", { status: statusHttp });
   return new Response(JSON.stringify({ shows: servir, sincronizado_em: new Date().toISOString() }), {
@@ -130,6 +141,7 @@ async function cenario(nome: string, fn: () => Promise<void>): Promise<void> {
   statusHttp = 200;
   statusRefresh = 200;
   refreshPedido = 0;
+  servirEspetaculos = [];
   tokensRecebidos = [];
   await db.from("agenda_shows_sync").delete().eq("tenant_id", TENANT);
   const antes = falhas;
@@ -226,10 +238,15 @@ await cenario("show novo do board chega fora do ar, esperando aprovação", asyn
 
   const { data } = await db
     .from("agenda_shows_sync")
-    .select("publicado")
+    .select("publicado, espetaculo")
     .eq("show_id_origem", "novo")
     .maybeSingle();
   checar(data?.publicado === false, "curadoria: nada vai ao ar sem aprovação no painel");
+  // O rótulo do espetáculo é o que liga o show à arte e à sinopse do tema.
+  checar(
+    data?.espetaculo === "Como Ser Tóxica e Influenciar Pessoas",
+    `o espetáculo do show precisa ser gravado, veio ${data?.espetaculo}`,
+  );
 });
 
 await cenario("o fã recebe cidade/UF, teatro, horário e link", async () => {
@@ -379,6 +396,73 @@ await cenario("sem hora o show entra com a data, sem inventar horário", async (
     timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit",
   });
   checar(horaLocal === "00:00", `sem hora vira meia-noite local (lida como "a confirmar"), veio ${horaLocal}`);
+});
+
+await cenario("espetáculo sem arte entra com a sinopse", async () => {
+  servir = [show()];
+  servirEspetaculos = [{
+    monday_item_id: "esp-1",
+    nome: "Como Ser Tóxica e Influenciar Pessoas",
+    artista_codigo: "IB",
+    artista_nome: "Índio Behn",
+    sinopse: "Uma comédia sobre convivência.",
+    arte_asset_id: null,
+    arte_nome: null,
+    arte_bytes: null,
+    arte_url: null,
+  }];
+
+  await sincronizar();
+  const { data } = await db
+    .from("agenda_temas")
+    .select("nome, nome_chave, sinopse, artista_nome, imagem_base64, imagem_erro")
+    .eq("tenant_id", TENANT)
+    .maybeSingle();
+
+  checar(data?.sinopse === "Uma comédia sobre convivência.", "a sinopse deveria ser gravada");
+  checar(data?.artista_nome === "Índio Behn", "o nome completo do artista vem do board de espetáculos");
+  checar(data?.imagem_base64 === null, "sem arte anexada, sem imagem");
+  checar(data?.imagem_erro === null, "não ter arte não é erro — erro é arte que foi recusada");
+  // A chave normalizada é o que casa com o rótulo do show, que vem com
+  // acento e caixa do board.
+  checar(
+    data?.nome_chave === "como ser toxica e influenciar pessoas",
+    `chave normalizada errada: ${data?.nome_chave}`,
+  );
+  await db.from("agenda_temas").delete().eq("tenant_id", TENANT);
+});
+
+await cenario("arte em formato que o Flow não aceita é recusada com motivo", async () => {
+  // O Flow aceita só JPEG e PNG. Converter exigiria biblioteca de imagem na
+  // Edge Function; recusar com motivo visível é melhor que imagem que não
+  // abre no aparelho do fã.
+  servir = [show()];
+  servirEspetaculos = [{
+    monday_item_id: "esp-2",
+    nome: "Especial de Natal",
+    artista_codigo: "IB",
+    artista_nome: "Índio Behn",
+    sinopse: null,
+    arte_asset_id: "999",
+    arte_nome: "arte-final.webp",
+    arte_bytes: 120000,
+    arte_url: "http://127.0.0.1:1/nao-sera-baixada",
+  }];
+
+  await sincronizar();
+  const { data } = await db
+    .from("agenda_temas")
+    .select("imagem_base64, imagem_erro")
+    .eq("tenant_id", TENANT)
+    .eq("nome", "Especial de Natal")
+    .maybeSingle();
+
+  checar(data?.imagem_base64 === null, "arte recusada não pode virar imagem");
+  checar(
+    (data?.imagem_erro ?? "").includes("webp"),
+    `o motivo deveria nomear o formato, veio "${data?.imagem_erro}"`,
+  );
+  await db.from("agenda_temas").delete().eq("tenant_id", TENANT);
 });
 
 await cenario("pede ao painel que releia o board antes de ler o espelho", async () => {

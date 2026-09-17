@@ -44,16 +44,29 @@ interface Opcoes {
   espetaculos: string[];
 }
 
+interface Tema {
+  nome: string;
+  artista_nome: string | null;
+  tem_sinopse: boolean;
+  tem_arte: boolean;
+  imagem_bytes: number | null;
+  imagem_erro: string | null;
+}
+
 export default function AgendaFontes({
   filtrosIniciais,
   credenciais,
   conexaoConfigurada,
   isAdmin,
+  temas,
+  espetaculosSemTema,
 }: {
   filtrosIniciais: Filtro[];
   credenciais: Credencial[];
   conexaoConfigurada: boolean;
   isAdmin: boolean;
+  temas: Tema[];
+  espetaculosSemTema: string[];
 }) {
   const [filtros, setFiltros] = useState(filtrosIniciais);
   const [opcoes, setOpcoes] = useState<Opcoes | null>(null);
@@ -372,6 +385,53 @@ export default function AgendaFontes({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {(temas.length > 0 || espetaculosSemTema.length > 0) && (
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
+          <div>
+            <p className="text-xs font-medium text-white">Espetáculos (arte e sinopse na tela do show)</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Vêm do board de espetáculos. O show diz qual é o espetáculo; o espetáculo
+              carrega a arte e o texto. A arte precisa ser JPEG ou PNG anexado na coluna de
+              arquivo — reduzimos para caber no limite do WhatsApp.
+            </p>
+          </div>
+
+          {temas.map((t) => (
+            <div key={t.nome} className="text-xs flex items-start justify-between gap-3 border-t border-gray-800 pt-2">
+              <div>
+                <p className="text-gray-200">
+                  {t.nome}
+                  {t.artista_nome && <span className="text-gray-500"> · {t.artista_nome}</span>}
+                </p>
+                {t.imagem_erro && (
+                  <p className="text-amber-400 mt-0.5">arte recusada: {t.imagem_erro}</p>
+                )}
+              </div>
+              <div className="shrink-0 flex items-center gap-2">
+                <span className={t.tem_arte ? "text-green-400" : "text-gray-600"}>
+                  {t.tem_arte
+                    ? `arte${t.imagem_bytes ? ` (${Math.round(t.imagem_bytes / 1024)}KB)` : ""}`
+                    : "sem arte"}
+                </span>
+                <span className={t.tem_sinopse ? "text-green-400" : "text-gray-600"}>
+                  {t.tem_sinopse ? "sinopse" : "sem sinopse"}
+                </span>
+              </div>
+            </div>
+          ))}
+
+          {/* O defeito silencioso do casamento por nome: rótulo renomeado de
+              um lado, ou espetáculo que ninguém cadastrou no board novo. */}
+          {espetaculosSemTema.length > 0 && (
+            <p className="text-xs text-amber-400 bg-amber-900/20 border border-amber-900 rounded-md px-3 py-2">
+              Estes espetáculos aparecem em shows da agenda e <b>não têm item no board de
+              espetáculos</b> (ou o nome não casa): {espetaculosSemTema.join(", ")}. Esses
+              shows abrem sem arte e sem sinopse.
+            </p>
+          )}
         </div>
       )}
 

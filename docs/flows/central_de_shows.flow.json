@@ -452,14 +452,63 @@
         "link_compra": {
           "type": "string",
           "__example__": "https://exemplo.com/ingressos"
+        },
+        "espetaculo": {
+          "type": "string",
+          "__example__": "Como Ser Tóxica e Influenciar Pessoas"
+        },
+        "tem_espetaculo": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "sem_espetaculo": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "sinopse": {
+          "type": "string",
+          "__example__": "Uma comédia sobre convivência."
+        },
+        "tem_sinopse": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "sem_sinopse": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "imagem": {
+          "type": "string",
+          "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/6A1GAAAAABJRU5ErkJggg=="
+        },
+        "tem_imagem": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "sem_imagem": {
+          "type": "boolean",
+          "__example__": false
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
           {
+            "type": "Image",
+            "src": "${data.imagem}",
+            "visible": "${data.tem_imagem}",
+            "scale-type": "contain",
+            "height": 220,
+            "alt-text": "Arte do espetáculo"
+          },
+          {
             "type": "TextHeading",
             "text": "${data.titulo}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.espetaculo}",
+            "visible": "${data.tem_espetaculo}"
           },
           {
             "type": "TextSubheading",
@@ -468,6 +517,11 @@
           {
             "type": "TextBody",
             "text": "${data.status}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.sinopse}",
+            "visible": "${data.tem_sinopse}"
           },
           {
             "type": "EmbeddedLink",

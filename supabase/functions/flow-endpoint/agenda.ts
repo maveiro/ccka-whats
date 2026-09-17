@@ -25,6 +25,14 @@ export interface ShowRow {
   data_show: string | null;
   status_venda: string | null;
   link_compra: string | null;
+  espetaculo?: string | null;
+}
+
+/** Conteúdo do espetáculo (agenda_temas), quando o show casa com um. */
+export interface TemaRow {
+  nome: string;
+  sinopse: string | null;
+  imagem_base64: string | null;
 }
 
 interface ItemLista {
@@ -84,13 +92,39 @@ export function telaAgenda(shows: ShowRow[], artista: string | null) {
 }
 
 /** Tela de detalhe de um show. */
-export function telaDetalhe(show: ShowRow) {
+/**
+ * Detalhe do show, com a arte e a sinopse do espetáculo quando existirem.
+ *
+ * Cada campo opcional vai com seu par `tem_x`/`sem_x` porque a linguagem de
+ * expressão do Flow JSON não tem negação (`${!data.x}` é recusado na
+ * validação da Meta) — mesmo motivo do `tem_shows`/`sem_shows` da lista.
+ *
+ * `imagem` é base64 puro, sem prefixo `data:`: é o que o componente `Image`
+ * do Flow espera. Espetáculo sem arte (ou com arte recusada por tamanho)
+ * manda string vazia e `tem_imagem: false` — a tela some o componente em vez
+ * de tentar desenhar nada.
+ */
+export function telaDetalhe(show: ShowRow, tema?: TemaRow | null) {
+  const sinopse = tema?.sinopse?.trim() ?? "";
+  const imagem = tema?.imagem_base64 ?? "";
+
   return {
     screen: TELA_DETALHE,
     data: {
       titulo: [show.cidade, show.teatro].filter(Boolean).join(" · ") || "Show",
       quando: formatarData(show.data_show),
       status: show.status_venda ?? "",
+      // Nome do espetáculo: é o que dá contexto à arte, e o fã de um artista
+      // com dois espetáculos em cartaz precisa saber qual é qual.
+      espetaculo: tema?.nome ?? show.espetaculo ?? "",
+      tem_espetaculo: Boolean(tema?.nome ?? show.espetaculo),
+      sem_espetaculo: !(tema?.nome ?? show.espetaculo),
+      sinopse,
+      tem_sinopse: sinopse.length > 0,
+      sem_sinopse: sinopse.length === 0,
+      imagem,
+      tem_imagem: imagem.length > 0,
+      sem_imagem: imagem.length === 0,
       tem_link: Boolean(show.link_compra),
       link_compra: show.link_compra ?? "",
     },

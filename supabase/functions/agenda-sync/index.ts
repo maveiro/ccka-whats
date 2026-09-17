@@ -66,7 +66,30 @@ interface LinhaAgenda {
   data_hora: string | null;
   status_venda: string | null;
   link_compra: string | null;
+  espetaculo: string | null;
 }
+
+/** Contrato de GET /api/interno/agenda/espetaculos do painel-shows. */
+interface EspetaculoDoPainel {
+  monday_item_id: string;
+  nome: string;
+  artista_codigo: string | null;
+  artista_nome: string | null;
+  sinopse: string | null;
+  arte_asset_id: string | null;
+  arte_nome: string | null;
+  arte_bytes: number | null;
+  /** URL assinada e de vida curta — usar agora ou perder. */
+  arte_url: string | null;
+}
+
+// Teto do componente Image do Flow: 300KB recomendado por imagem, 1MB de
+// payload total no data endpoint. Pedimos 800px de largura e qualidade 70 ao
+// Storage, e recusamos o que ainda passar de 300KB — melhor tela sem imagem
+// que Flow que não abre.
+const LARGURA_ARTE = 800;
+const QUALIDADE_ARTE = 70;
+const TETO_ARTE_BYTES = 300 * 1024;
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
@@ -148,6 +171,11 @@ async function sincronizarTenant(conexao: Conexao, filtroId: string | null) {
     return { tenantId: conexao.tenant_id, erro: String(err) };
   }
 
+  // Temas antes das agendas: a tela de detalhe do show lê o tema, e trazer
+  // shows novos sem o tema correspondente deixaria a primeira abertura sem
+  // arte por uma hora inteira.
+  const temas = await sincronizarTemas(conexao);
+
   const agendas: unknown[] = [];
 
   for (const filtro of filtros as Filtro[]) {
@@ -192,7 +220,174 @@ async function sincronizarTenant(conexao: Conexao, filtroId: string | null) {
     agendas.push({ filtroId: filtro.id, artistaOrigem: filtro.artista_origem, ignorados, ...(resumo as Record<string, unknown>) });
   }
 
-  return { tenantId: conexao.tenant_id, agendas };
+  return { tenantId: conexao.tenant_id, temas, agendas };
+}
+
+/**
+ * Espelha os espetáculos e a arte de cada um.
+ *
+ * A arte só é baixada quando o `arte_asset_id` mudou: a URL do painel é
+ * assinada e diferente a cada request, então comparar URL significaria
+ * baixar tudo de hora em hora, para sempre.
+ *
+ * Nada aqui pode derrubar a sincronização da agenda — arte é enfeite, agenda
+ * é a informação. Todo erro vira evento e segue.
+ */
+async function sincronizarTemas(conexao: Conexao) {
+  let espetaculos: EspetaculoDoPainel[];
+  try {
+    const url = `${conexao.base_url.replace(/\/+$/, "")}/api/interno/agenda/espetaculos`;
+    const resposta = await fetch(url, {
+      headers: { Authorization: `Bearer ${conexao.token}`, Accept: "application/json" },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (!resposta.ok) {
+      throw new Error(`painel-shows respondeu ${resposta.status}: ${await motivoDoErro(resposta)}`);
+    }
+    const json = await resposta.json() as { espetaculos?: EspetaculoDoPainel[] };
+    espetaculos = json.espetaculos ?? [];
+  } catch (err) {
+    await logEvent(conexao.tenant_id, "agenda_temas_erro", { baseUrl: conexao.base_url },
+      err instanceof Error ? err.message : String(err));
+    return { erro: "não foi possível ler os espetáculos" };
+  }
+
+  let comArte = 0;
+  let recusadas = 0;
+
+  for (const esp of espetaculos) {
+    const { data: atual } = await supabase
+      .from("agenda_temas")
+      .select("id, arte_asset_id, imagem_base64")
+      .eq("tenant_id", conexao.tenant_id)
+      .eq("nome_chave", chaveTexto(esp.nome))
+      .maybeSingle<{ id: string; arte_asset_id: string | null; imagem_base64: string | null }>();
+
+    const arteMudou = (esp.arte_asset_id ?? null) !== (atual?.arte_asset_id ?? null);
+    let imagem: { base64: string | null; bytes: number | null; erro: string | null } = {
+      base64: atual?.imagem_base64 ?? null,
+      bytes: null,
+      erro: null,
+    };
+
+    if (esp.arte_asset_id && (arteMudou || !atual?.imagem_base64)) {
+      imagem = await prepararArte(conexao.tenant_id, esp);
+      if (imagem.erro) recusadas++;
+    } else if (!esp.arte_asset_id) {
+      imagem = { base64: null, bytes: null, erro: null };
+    }
+
+    if (imagem.base64) comArte++;
+
+    const { error } = await supabase.from("agenda_temas").upsert({
+      tenant_id: conexao.tenant_id,
+      nome: esp.nome,
+      monday_item_id: esp.monday_item_id,
+      artista_codigo: esp.artista_codigo,
+      artista_nome: esp.artista_nome,
+      sinopse: esp.sinopse,
+      arte_asset_id: esp.arte_asset_id,
+      imagem_base64: imagem.base64,
+      imagem_bytes: imagem.bytes,
+      imagem_atualizada_em: imagem.base64 ? new Date().toISOString() : null,
+      imagem_erro: imagem.erro,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "tenant_id,nome_chave" });
+
+    if (error) {
+      await logEvent(conexao.tenant_id, "agenda_temas_erro", { espetaculo: esp.nome }, error.message);
+    }
+  }
+
+  await logEvent(conexao.tenant_id, "agenda_temas", {
+    recebidos: espetaculos.length,
+    comArte,
+    recusadas,
+  });
+
+  return { recebidos: espetaculos.length, com_arte: comArte, recusadas };
+}
+
+/**
+ * Baixa a arte do Monday, reduz pelo Storage e devolve base64.
+ *
+ * O caminho é longo por uma razão: o Flow só aceita base64 com teto de
+ * 300KB, e arte de divulgação vem em tamanho de impressão. O Storage faz a
+ * redução (a transformação de imagem está ativa neste projeto), o que evita
+ * uma biblioteca de imagem dentro da Edge Function.
+ *
+ * `Accept: image/jpeg` de propósito: sem isso o Storage devolve **webp** para
+ * quem aceita webp, e o Flow não aceita webp (verificado em 17/09/2026).
+ */
+async function prepararArte(
+  tenantId: string,
+  esp: EspetaculoDoPainel,
+): Promise<{ base64: string | null; bytes: number | null; erro: string | null }> {
+  if (!esp.arte_url) {
+    return { base64: null, bytes: null, erro: "o painel-shows não devolveu URL de download da arte" };
+  }
+
+  const extensao = (esp.arte_nome?.split(".").pop() ?? "jpg").toLowerCase();
+  if (!["jpg", "jpeg", "png"].includes(extensao)) {
+    // O Flow aceita só JPEG e PNG. Converter aqui exigiria biblioteca de
+    // imagem; recusar com motivo visível é melhor que imagem que não abre.
+    return { base64: null, bytes: null, erro: `formato .${extensao} não é aceito pelo Flow (use JPEG ou PNG)` };
+  }
+
+  const caminho = `${tenantId}/${esp.monday_item_id}.${extensao === "png" ? "png" : "jpg"}`;
+
+  try {
+    const original = await fetch(esp.arte_url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    if (!original.ok) {
+      return { base64: null, bytes: null, erro: `download da arte respondeu ${original.status}` };
+    }
+    const bytes = new Uint8Array(await original.arrayBuffer());
+
+    const { error: erroUpload } = await supabase.storage
+      .from("temas")
+      .upload(caminho, bytes, {
+        contentType: extensao === "png" ? "image/png" : "image/jpeg",
+        upsert: true,
+      });
+    if (erroUpload) return { base64: null, bytes: null, erro: `Storage: ${erroUpload.message}` };
+
+    const { data: reduzida, error: erroTransform } = await supabase.storage
+      .from("temas")
+      .download(caminho, {
+        transform: { width: LARGURA_ARTE, quality: QUALIDADE_ARTE },
+      });
+    if (erroTransform || !reduzida) {
+      return { base64: null, bytes: null, erro: `redução falhou: ${erroTransform?.message ?? "sem resposta"}` };
+    }
+
+    const reduzidaBytes = new Uint8Array(await reduzida.arrayBuffer());
+    if (reduzidaBytes.byteLength > TETO_ARTE_BYTES) {
+      return {
+        base64: null,
+        bytes: reduzidaBytes.byteLength,
+        erro: `arte reduzida ainda tem ${Math.round(reduzidaBytes.byteLength / 1024)}KB (teto do Flow é 300KB)`,
+      };
+    }
+
+    return { base64: paraBase64(reduzidaBytes), bytes: reduzidaBytes.byteLength, erro: null };
+  } catch (err) {
+    return { base64: null, bytes: null, erro: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** btoa direto estoura a pilha em imagem grande — vai em blocos. */
+function paraBase64(bytes: Uint8Array): string {
+  let binario = "";
+  const bloco = 8192;
+  for (let i = 0; i < bytes.length; i += bloco) {
+    binario += String.fromCharCode(...bytes.subarray(i, i + bloco));
+  }
+  return btoa(binario);
+}
+
+/** Espelha chave_texto() do banco: minúsculo, sem acento, sem borda. */
+function chaveTexto(texto: string): string {
+  return texto.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
 }
 
 /**
@@ -296,6 +491,9 @@ export function aplicarFiltro(
       data_hora: quando.toISOString(),
       status_venda: STATUS_PARA_FA[normalizar(show.status_monday)] ?? (show.status_monday?.toLowerCase() ?? null),
       link_compra: show.link_vendas,
+      // Rótulo cru: é o que casa com agenda_temas.nome pela chave
+      // normalizada, e é o que a tela mostra quando um show não acha tema.
+      espetaculo: show.elemento,
     });
   }
 

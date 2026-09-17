@@ -37,7 +37,10 @@ export async function proxy(request: NextRequest) {
   // em sites de terceiros e, por definição, não tem sessão de usuário.
   // "/c/" é o redirect rastreado do botão de campanha: quem abre é um cliente
   // com o link que recebeu no WhatsApp, também sem sessão.
-  const publicPaths = ["/register", "/forgot-password", "/reset-password", "/auth/", "/api/", "/f/", "/c/"];
+  // "/a/" é a página pública do artista (a que substitui o Linktree) e "/l/" o
+  // redirect rastreado dos botões dela — é o endereço que vai em story e em
+  // bio de Instagram, então é o caminho MAIS público do app.
+  const publicPaths = ["/register", "/forgot-password", "/reset-password", "/auth/", "/api/", "/f/", "/c/", "/a/", "/l/"];
   if (publicPaths.some((p) => pathname.startsWith(p))) {
     return supabaseResponse;
   }

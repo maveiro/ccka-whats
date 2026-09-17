@@ -125,6 +125,7 @@ wa-intelligence/
 │       │   │   ├── admin/faq/           ← perguntas da central
 │       │   │   ├── admin/clientes/      ← busca, LGPD e números de teste
 │       │   │   ├── admin/formularios/   ← cria formulário + embed da landing
+│       │   │   ├── admin/paginas/       ← páginas públicas do artista (substitui Linktree)
 │       │   │   ├── analytics/
 │       │   │   ├── settings/
 │       │   │   └── chat/[id]/
@@ -157,6 +158,7 @@ wa-intelligence/
 │       │       ├── numeros-teste/        ← lista que autoriza o "/reset"
 │       │       ├── formularios/          ← formulários de cadastro (painel)
 │       │       ├── public/cadastro/[slug]← recebe o formulário público (sem auth)
+│       │       ├── paginas/             ← CRUD de página, blocos, upload de imagem
 │       │       └── register/
 │       ├── lib/whatsapp-cloud/       ← graphClient.ts, getCloudCredential.ts (módulo de campanhas)
 │       └── components/
@@ -536,6 +538,48 @@ campanha que abre a central).
   `whatsapp_flows` (o dono e o destino) — nomear o FK no embed é obrigatório.
 
 ---
+
+## Página pública do artista (substitui o Linktree) — 17/09/2026
+
+Pedido do fundador olhando `linktr.ee/indiobehn`, onde ~25 botões de show eram
+mantidos **à mão**. Esses shows já estavam em `agenda_shows_sync`, vindos do
+board do Monday: o bloco de agenda desta página é **gerado**, e "Esgotou!" sai
+de `status_venda` em vez de alguém editar o rótulo.
+
+`/a/{slug}` (público, fora do `/dashboard`, em `publicPaths` do `proxy.ts`,
+`revalidate = 60`), `/l/{bloco}` (redirect rastreado), painel em
+`/dashboard/admin/paginas`. Tabelas `paginas_publicas`, `pagina_blocos`,
+`pagina_cliques` + `registrar_clique_pagina()`.
+
+Quatro tipos de bloco cobrem o Linktree inteiro: `texto`, `link`, `imagem` e
+`agenda` (com filtro opcional por espetáculo — é o que reproduz os grupos
+"NOVO SHOW!" e "ESPECIAL DE NATAL"). Regras próprias:
+
+39. **A curadoria é UMA, não duas.** A página mostra o mesmo recorte da
+    central: `publicado = true`, do artista, e só o futuro. Show despublicado
+    para de redirecionar mesmo por link já copiado — `registrar_clique_pagina`
+    confere `publicado` antes de devolver destino.
+40. **`/l/{bloco}` nunca devolve erro** — bloco inexistente, RPC falhando,
+    destino vazio: tudo cai em redirect para a página. Mesma regra 34 do
+    `/c/{token}`, e o mesmo filtro conservador de user-agent. A diferença é
+    que aqui o preview **acontece** (o link vai em story e em bio), então sem
+    o filtro a contagem viraria número de previews.
+41. **`pagina_cliques` não guarda nada pessoal** — sem IP, sem user-agent, sem
+    identificador de visitante. Só "qual botão, quando", e `show_id` quando foi
+    numa data. Numa página pública, mais que isso é coleta que ninguém
+    consentiu. Há teste que falha se alguém adicionar coluna desse tipo.
+42. **`slug` é único GLOBALMENTE, não por tenant** (é URL pública), com `check`
+    de formato no banco: minúsculo, sem espaço, sem acento. Slug com maiúscula
+    gera link que funciona num app e quebra em outro.
+43. **Tema é por página** (`paginas_publicas.tema` jsonb — personalização pedida
+    "por linktree") e **validado na LEITURA** (`lib/pagina-tema.ts`): cor
+    inválida no banco não pode virar CSS quebrado numa página que qualquer
+    pessoa abre. O painel avisa quando o contraste fica abaixo de 4,5:1 —
+    avisa, não proíbe: é a página do artista.
+44. **Buckets `paginas` e `temas` são PÚBLICOS** (arte de divulgação servida por
+    CDN), ao contrário de `media` (conversa de WhatsApp, privado por natureza).
+    O upload passa pelo servidor para validar tipo e tamanho antes de o arquivo
+    existir.
 
 ## Módulo de cliques e custos de disparo (Cloud API) — 10/09/2026
 

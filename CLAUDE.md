@@ -517,7 +517,21 @@ campanha que abre a central).
 - **Flow JSON**: `version` fora das suportadas é recusado na publicação; não há
   negação em expressão; `visible` não vale em `Form`; referência de campo é
   `${form.campo}`, não `${nome_do_form.campo}`; e o `INIT` **precisa** devolver a
-  tela de entrada, não uma tela interna.
+  tela de entrada, não uma tela interna. A chave `_comentario` do arquivo de
+  referência é **recusada** pela Graph API (`INVALID_PROPERTY_KEY`) — publicar
+  significa subir o JSON sem as chaves `_*`.
+- **Flow publicado NÃO pode ser atualizado** (doc da Meta: "This Flow cannot be
+  deleted or updated afterwards"). Mudar uma tela significa **criar um Flow
+  novo**, publicar, apontar `whatsapp_flows.meta_flow_id` para ele e
+  descontinuar o antigo (`POST /{id}/deprecate`, irreversível e bloqueia abrir
+  os balões já enviados). Feito em 17/09/2026 para levar arte e sinopse à tela
+  `DETALHE`: `2031915787497246` → `1600957048078093`. As palavras-chave não
+  precisaram de nada — apontam para a linha de `whatsapp_flows`, não para o id
+  da Meta. **Consequência para o C4:** o botão de FLOW de um template carrega o
+  `flow_id` **congelado**, então republicar a central invalida qualquer template
+  já aprovado que aponte para o id antigo — é exatamente o que a checagem de
+  `flowButton.flow_id !== flow.meta_flow_id` no `campaign-sender` pega antes de
+  disparar para a base.
 - **`PGRST201` ao embutir `flow_palavras_chave`**: há dois FKs para
   `whatsapp_flows` (o dono e o destino) — nomear o FK no embed é obrigatório.
 

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { createAdminClient } from "@/lib/supabase/server";
 import { lerTema, RAIO_DO_ESTILO } from "@/lib/pagina-tema";
 import { env } from "@/lib/env";
+import RegistraVisita from "./registra-visita";
 
 // Página pública do artista — a que substitui o Linktree.
 //
@@ -137,6 +138,7 @@ export default async function PaginaPublica({ params }: { params: Promise<{ slug
         minHeight: "100vh",
       }}
     >
+      <RegistraVisita slug={pagina.slug} />
       <div className="mx-auto w-full max-w-lg px-5 py-10 space-y-6">
         <header className="text-center space-y-3">
           {pagina.avatar_path && (

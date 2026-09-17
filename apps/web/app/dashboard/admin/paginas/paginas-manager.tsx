@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { contraste, lerTema, type Tema } from "@/lib/pagina-tema";
+import MetricasPagina from "./metricas-pagina";
 
 // Editor das páginas públicas. Cada página tem tema próprio (pedido do
 // fundador: personalização "por linktree"), e por isso a tela avisa quando a
@@ -324,6 +325,8 @@ export default function PaginasManager({
               Página no ar
             </label>
           </section>
+
+          <MetricasPagina paginaId={pagina.id} slug={pagina.slug} />
 
           {/* ─── Tema ─── */}
           <section className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">

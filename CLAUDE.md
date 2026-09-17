@@ -576,7 +576,18 @@ Quatro tipos de bloco cobrem o Linktree inteiro: `texto`, `link`, `imagem` e
     inválida no banco não pode virar CSS quebrado numa página que qualquer
     pessoa abre. O painel avisa quando o contraste fica abaixo de 4,5:1 —
     avisa, não proíbe: é a página do artista.
-44. **Buckets `paginas` e `temas` são PÚBLICOS** (arte de divulgação servida por
+44. **Visualização de página é contada por BEACON do navegador**, não no
+    servidor (migration `pagina_metricas`): a página tem `revalidate = 60`, e
+    contar no componente contaria uma vez por minuto, não uma por pessoa. De
+    graça, o beacon exclui robô — buscador de preview não roda JavaScript, e é
+    em preview que esse link mais circula. O número é de **aberturas**, não de
+    visitantes únicos: único exigiria identificador, que é o que a regra 41
+    recusa. Uma vez por aba via `sessionStorage` (o valor nunca sai do
+    navegador). `metricas_pagina()` agrega **no banco** — trazer dezenas de
+    milhares de cliques para o Node é o erro que o Analytics de mensagens já
+    paga com scan paginado — e confere `my_tenant_id()` internamente, porque
+    `security definer` não pode confiar no id recebido.
+45. **Buckets `paginas` e `temas` são PÚBLICOS** (arte de divulgação servida por
     CDN), ao contrário de `media` (conversa de WhatsApp, privado por natureza).
     O upload passa pelo servidor para validar tipo e tamanho antes de o arquivo
     existir.

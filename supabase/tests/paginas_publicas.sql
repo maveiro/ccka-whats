@@ -195,4 +195,54 @@ begin
     'remover um botão não pode apagar o histórico de quem clicou nele');
 end $$;
 
+-- ============================================================
+-- 10. Visitas e métricas (migration pagina_metricas)
+-- ============================================================
+do $$
+declare ok boolean;
+begin
+  ok := registrar_visita_pagina('indiobehn');
+  perform pg_temp.assert(ok, 'visita em página no ar deveria contar');
+  perform pg_temp.assert(
+    (select count(*) from pagina_visitas where pagina_id = (select valor from _ids where chave='pagina')) = 1,
+    'a visita deveria estar gravada');
+
+  -- Página fora do ar não conta visita, e slug inexistente não estoura: a
+  -- rota que chama isso é pública, e erro ali seria 500 na aba de quem está
+  -- lendo a página.
+  update paginas_publicas set ativo = false where slug = 'indiobehn';
+  perform pg_temp.assert(registrar_visita_pagina('indiobehn') is false, 'página fora do ar não conta visita');
+  perform pg_temp.assert(registrar_visita_pagina('nao-existe') is false, 'slug inexistente devolve false, não estoura');
+  update paginas_publicas set ativo = true where slug = 'indiobehn';
+end $$;
+
+-- ============================================================
+-- 11. Nada de pessoal nas visitas — mesma disciplina dos cliques
+-- ============================================================
+do $$
+declare proibidas int;
+begin
+  select count(*) into proibidas
+    from information_schema.columns
+   where table_name = 'pagina_visitas'
+     and column_name in ('ip', 'ip_address', 'user_agent', 'visitante_id', 'sessao', 'referer');
+  perform pg_temp.assert(proibidas = 0, 'pagina_visitas não pode ganhar coluna de dado pessoal');
+end $$;
+
+-- ============================================================
+-- 12. metricas_pagina só responde para o tenant dono
+-- A função é security definer: confiar no id recebido deixaria qualquer
+-- operador ler a métrica da página de outro cliente.
+-- ============================================================
+do $$
+declare resultado jsonb;
+begin
+  -- Sem my_tenant_id() (papel de serviço no teste), a função não devolve nada
+  -- para a página de um tenant qualquer.
+  select metricas_pagina((select valor from _ids where chave='pagina')) into resultado;
+  perform pg_temp.assert(
+    resultado is null,
+    'sem tenant correspondente, metricas_pagina não pode devolver dados');
+end $$;
+
 rollback;

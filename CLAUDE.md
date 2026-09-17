@@ -608,7 +608,43 @@ Quatro tipos de bloco cobrem o Linktree inteiro: `texto`, `link`, `imagem` e
     primeira sincronização: show confirmado costuma **não ter teatro ligado**
     no board, logo não tem cidade — e card sem cidade não serve ao fã. Quem
     segura isso é a curadoria (`publicado = false` por padrão), não a página.
-48. **Buckets `paginas` e `temas` são PÚBLICOS** (arte de divulgação servida por
+### Orçamento de tempo da ponte (medido em 17/09/2026)
+
+O espelho pedia **todas as colunas de todos os 1.022 itens** do board: **57s**,
+no teto exato dos 60s da rota do `painel-shows`. Do lado de cá isso apareceu
+como `agenda_espelho_nao_atualizado: Signal timed out` e, quando a rota morria
+devolvendo HTML, como **"erro de JSON"** na tela de quem clicou em sincronizar
+(`res.json()` engasgando no `<`).
+
+Números reais, para não refazer a medição: 100 itens com todas as colunas =
+665KB/7s; com as 10 colunas do espelho = 153KB/3,5s; página de 500 **não**
+acelera sozinha (24s, porque a resposta cresce igual). O que resolveu foi
+**pedir menos**: 10 colunas + recorte de data (30 dias para trás) = 376 itens,
+uma página, **8,6s**; a cadeia inteira do `agenda-sync` (refresh + leitura +
+temas + 3 agendas) caiu para **24s**.
+
+Três consequências que ficam:
+
+- o espelho **não guarda histórico** do board (a reconciliação limpa o que sai
+  da janela) — ele serve a agenda do público, e show do ano passado não serve;
+- item **sem data** fica fora do recorte (`greater_than` não casa vazio), o
+  que é indiferente para agenda;
+- o refresh do `agenda-sync` tem teto de **35s**, menor que os 60s da rota que
+  o chama pelo painel — se o refresh comer o orçamento inteiro, a rota morre e
+  o erro chega ao usuário como JSON inválido. A tela também passou a tratar
+  resposta não-JSON com mensagem legível.
+
+49. **Resolução de coluna por tipo precisa de fallback por título.** A arte do
+    espetáculo era achada só pelo TIPO (`file`), e os tipos vêm de uma chamada
+    separada cujo erro estava num `catch {}` vazio. Quando ela falhou (limite
+    do monday, depois de a consulta ficar maior), **a arte desapareceu e a
+    sinopse continuou vindo** — porque só a sinopse tinha fallback. Nada em log
+    nenhum. Hoje as duas caem para a pista de título e o erro dos tipos entra
+    em `erros` do resultado.
+50. **Emoji no rótulo do Monday atravessa tudo** — `🔥 Quase Esgotado` chega
+    intacto no chip do card (verificado ponta a ponta em 17/09/2026). É texto,
+    e nenhuma camada normaliza.
+51. **Buckets `paginas` e `temas` são PÚBLICOS** (arte de divulgação servida por
     CDN), ao contrário de `media` (conversa de WhatsApp, privado por natureza).
     O upload passa pelo servidor para validar tipo e tamanho antes de o arquivo
     existir.

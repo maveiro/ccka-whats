@@ -445,9 +445,12 @@ async function pedirAtualizacaoDoEspelho(conexao: Conexao): Promise<{ erro: stri
     const resposta = await fetch(url, {
       method: "POST",
       headers: { Authorization: `Bearer ${conexao.token}`, Accept: "application/json" },
-      // Ler o board inteiro lá demora mais que servir o espelho: teto próprio,
-      // maior que o da leitura.
-      signal: AbortSignal.timeout(60_000),
+      // Teto próprio, maior que o da leitura (ler o board demora mais que
+      // servir o espelho) mas MENOR que os 60s da rota que chama esta função
+      // pelo painel: se o refresh consumir o orçamento inteiro, a rota morre
+      // devolvendo HTML e quem clicou vê "erro de JSON" (17/09/2026). Com o
+      // recorte de colunas e janela no painel-shows, a rodada real leva ~9s.
+      signal: AbortSignal.timeout(35_000),
     });
     if (!resposta.ok) {
       return { erro: `painel-shows respondeu ${resposta.status} ao atualizar o espelho: ${await motivoDoErro(resposta)}` };

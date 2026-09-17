@@ -177,7 +177,24 @@ export default function AgendaFontes({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(filtroId ? { filtroId } : {}),
       });
-      const json = await res.json();
+
+      // A resposta pode NÃO ser JSON: quando a rota estoura o tempo limite da
+      // Vercel, o que volta é uma página de erro em HTML, e `res.json()`
+      // quebrava com "Unexpected token '<'" — erro que não diz nada a quem
+      // está na tela (aconteceu em 17/09/2026, com a sincronização levando
+      // 57s do lado do painel-shows).
+      const bruto = await res.text();
+      let json: { error?: string; tenants?: { agendas?: (Resumo & { filtroId: string; erro?: string })[] }[] };
+      try {
+        json = JSON.parse(bruto);
+      } catch {
+        throw new Error(
+          res.ok
+            ? "resposta inesperada do servidor"
+            : `a sincronização não respondeu a tempo (${res.status}). O board pode estar grande demais para uma rodada só — tente de novo em instantes.`,
+        );
+      }
+
       if (!res.ok) throw new Error(json.error ?? `Erro ${res.status}`);
 
       const agendas = (json.tenants?.[0]?.agendas ?? []) as (Resumo & { filtroId: string; erro?: string })[];

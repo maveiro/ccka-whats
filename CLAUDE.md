@@ -1118,6 +1118,17 @@ corrigido lá: **o `proxy.ts` do painel-shows bloqueava toda rota de máquina**
 com `307 → /login`, incluindo os dois crons dele e o webhook do monday, que
 nunca tinham executado.
 
+### Página pública do artista — em produção (17/09/2026)
+
+`/a/{slug}` com perfil, blocos editoriais e blocos de agenda **gerados** da
+agenda sincronizada; `/l/{bloco}` contando clique; métricas com aberturas,
+cliques, taxa, série de 30 dias, ranking por botão e **datas mais clicadas**.
+Duas páginas no ar (`drarosangela`, `diogoalmeida`), com tema por página.
+
+Card de show no formato de agenda de ticketeira, com selos vindos do board
+(`🔥 Quase Esgotado` chega intacto — emoji atravessa tudo) e período
+**derivado da data**. `Confirmado` vira "Lista de espera".
+
 ### Pendente / próximos passos
 - **Central de shows — Sprint C4: código pronto (15/09/2026), falta a Meta.**
   `campaign-sender` preenche o botão de Flow com o `flow_token` de cada
@@ -1146,15 +1157,29 @@ nunca tinham executado.
   clique e chama atenção na revisão da Meta; trocar depois é outro ciclo de
   aprovação. Também resolve a landing, que hoje usa a URL do projeto. Parado em
   11/09/2026 por falta de acesso ao DNS.
-- **Dívidas menores abertas em 11/09/2026:** erro de ESLint em
-  `costs-dashboard.tsx` (`react-hooks/set-state-in-effect` — não quebra o build
-  do Next 16, quebra `npx eslint`); `handleReport` engole falha em silêncio (o
-  botão "Baixar relatório" só não faz nada); status de entrega de mensagem fora
-  de campanha não é guardado (o ledger registra que saiu e quanto custou, mas
-  `delivered`/`read` passam); custo por template das campanhas daqui, que já dá
-  com `campaigns.template_name`; e conferir por que o app `Business Agent` da
-  Meta está inscrito na WABA, dado que o uso dele é decisão explicitamente
-  recusada no topo deste arquivo.
+- **Dívidas menores, revistas em 17/09/2026** (ver
+  `docs/revisao-17-09-2026.md`): o ESLint tem **8 erros**, não um — seis são o
+  mesmo `react-hooks/set-state-in-effect` (`chat-view` ×2, `search-bar`,
+  `session-card`, `sidebar`, `reset-password`, `costs-dashboard`) mais um
+  `react-hooks/immutability`. Com oito presentes, `npx eslint` deixou de servir
+  como sinal. Seguem abertos: `handleReport` engole falha em silêncio; status
+  de entrega de mensagem fora de campanha não é guardado; custo por template
+  (já dá com `campaigns.template_name`). E **respondido**: os apps inscritos na
+  WABA são três — `Business Agent` (da Meta, inscrito e recebendo tudo),
+  `Plauz - Disparo Interno` e `Plauz Disparo`; a documentação ainda não diz
+  qual é o nosso.
+- **Nada vigia o `events_log`** — o gap sistêmico apontado na revisão. Em
+  12–14/09 houve um surto de 86 `Gateway Timeout` no caminho do webhook de
+  custo/status (pico de 71 erros em 13/09) que passou sozinho e **ninguém
+  soube**. E 33 eventos de custo do número do DA foram descartados entre 11 e
+  14/09, antes de a credencial existir aqui — sem recuperação retroativa,
+  porque a Meta manda o `pricing` uma vez só.
+- **A ponte só está completa para o IB.** O DA tem 43 shows publicados e página
+  no ar, mas **nenhuma central** no WhatsApp; a CD tem agenda sincronizando e
+  **0 de 7 shows publicados** (fila de curadoria nunca olhada); e o número
+  `+55 12 3199-2996` está cadastrado sem artista e sem uso.
+- **A suíte (300+ asserções) roda só localmente.** O CI só deploya — e até
+  17/09 deployava 11 das 12 Edge Functions, sem o `agenda-sync`.
 - **Roadmap de inteligência** (wedge defensável, reordenável) — próximo é alertas semânticos:
   - Alertas semânticos (evoluir os alertas por palavra-chave para detecção de risco por
     significado). Colunas em `alerts` (`type` keyword|semantic, `semantic_query`,

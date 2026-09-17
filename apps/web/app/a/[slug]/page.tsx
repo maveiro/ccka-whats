@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { lerTema, RAIO_DO_ESTILO } from "@/lib/pagina-tema";
 import { env } from "@/lib/env";
 import RegistraVisita from "./registra-visita";
+import { acaoDoShow, dataDoCard, selosDoShow } from "@/lib/show-card";
 
 // Página pública do artista — a que substitui o Linktree.
 //
@@ -36,6 +37,8 @@ interface Show {
   status_venda: string | null;
   espetaculo: string | null;
   link_compra: string | null;
+  label_ingressos: string | null;
+  label_periodo: string | null;
 }
 
 async function carregar(slug: string) {
@@ -65,7 +68,7 @@ async function carregar(slug: string) {
     // sai daqui — é a mesma curadoria, não duas.
     const { data } = await admin
       .from("agenda_shows_sync")
-      .select("id, cidade, teatro, data_show, status_venda, espetaculo, link_compra")
+      .select("id, cidade, teatro, data_show, status_venda, espetaculo, link_compra, label_ingressos, label_periodo")
       .eq("tenant_id", pagina.tenant_id)
       .eq("artista", pagina.artista)
       .eq("publicado", true)
@@ -104,15 +107,6 @@ function chave(t: string): string {
   return t.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
 }
 
-/** "20 SET · QUI" — formato curto, que é o que cabe num botão no celular. */
-function dataCurta(iso: string): string {
-  const d = new Date(iso);
-  const dia = d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit" });
-  const mes = d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", month: "short" })
-    .replace(".", "").toUpperCase();
-  return `${dia} ${mes}`;
-}
-
 export default async function PaginaPublica({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const dados = await carregar(slug);
@@ -120,6 +114,9 @@ export default async function PaginaPublica({ params }: { params: Promise<{ slug
 
   const { pagina, blocos, shows } = dados;
   const tema = lerTema(pagina.tema);
+  // Um único instante para todo o render: chamar o relógio por card faria
+  // dois shows da mesma página calcularem "hoje" em momentos diferentes.
+  const agora = new Date();
   const raio = RAIO_DO_ESTILO[tema.estilo_botao];
 
   const estiloBotao = {
@@ -200,6 +197,9 @@ export default async function PaginaPublica({ params }: { params: Promise<{ slug
           // agenda
           const filtro = typeof bloco.conteudo.espetaculo === "string" ? bloco.conteudo.espetaculo : null;
           const titulo = typeof bloco.conteudo.titulo === "string" ? bloco.conteudo.titulo : null;
+          const urlListaEspera = typeof bloco.conteudo.url_lista_espera === "string"
+            ? bloco.conteudo.url_lista_espera
+            : null;
           const doBloco = filtro
             ? shows.filter((s) => s.espetaculo && chave(s.espetaculo) === chave(filtro))
             : shows;
@@ -211,28 +211,82 @@ export default async function PaginaPublica({ params }: { params: Promise<{ slug
               {titulo && <h2 className="text-sm font-semibold tracking-wide uppercase text-center opacity-90">{titulo}</h2>}
               <div className="space-y-2">
                 {doBloco.map((show) => {
-                  const esgotado = (show.status_venda ?? "").toLowerCase().includes("esgotad");
-                  return (
+                  const data = dataDoCard(show.data_show);
+                  const selos = selosDoShow(show, agora);
+                  const acao = acaoDoShow(show, urlListaEspera);
+                  const apagado = acao.tipo === "esgotado" || acao.tipo === "sem_acao";
+
+                  // O card inteiro é clicável quando há ação — num celular,
+                  // exigir acerto no botão pequeno perde toque.
+                  const conteudoCard = (
+                    <>
+                      {/* Bloco de data, como na referência: mês, dia e dia da
+                          semana, que é o que a pessoa procura primeiro. */}
+                      <span
+                        className="shrink-0 w-14 text-center rounded-lg py-1.5"
+                        style={{ background: `${tema.cor_texto}14` }}
+                      >
+                        <span className="block text-[10px] uppercase opacity-70">{data?.mes ?? ""}</span>
+                        <span className="block text-xl font-semibold leading-tight">{data?.dia ?? "—"}</span>
+                        <span className="block text-[10px] uppercase opacity-70">{data?.semana ?? ""}</span>
+                      </span>
+
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold truncate">{show.cidade ?? "Show"}</span>
+                        <span className="block text-xs opacity-70 truncate">
+                          {[data?.hora, show.teatro].filter(Boolean).join(" · ")}
+                        </span>
+                        {selos.length > 0 && (
+                          <span className="mt-1.5 flex flex-wrap gap-1">
+                            {selos.map((selo) => (
+                              <span
+                                key={selo}
+                                className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded"
+                                style={{ background: `${tema.cor_texto}1f` }}
+                              >
+                                {selo}
+                              </span>
+                            ))}
+                          </span>
+                        )}
+                      </span>
+
+                      {acao.tipo !== "sem_acao" && (
+                        <span
+                          className="shrink-0 text-xs font-medium px-3 py-2 rounded-lg border"
+                          style={{
+                            borderColor: `${tema.cor_texto_botao}59`,
+                            // Esgotado não convida ao clique: fica com a cara
+                            // de estado, não de ação.
+                            background: acao.tipo === "esgotado" ? "transparent" : tema.cor_texto_botao,
+                            color: acao.tipo === "esgotado" ? tema.cor_texto_botao : tema.cor_botao,
+                          }}
+                        >
+                          {acao.rotulo}
+                        </span>
+                      )}
+                    </>
+                  );
+
+                  const estilo = { ...estiloBotao, opacity: apagado ? 0.65 : 1 };
+                  const classes = "flex items-center gap-3 px-3 py-3 transition-transform";
+
+                  return acao.tipo === "ingressos" || acao.tipo === "lista_espera" ? (
                     <a
                       key={show.id}
                       href={`/l/${bloco.id}?s=${show.id}`}
                       rel="noopener noreferrer nofollow"
-                      style={{ ...estiloBotao, opacity: esgotado ? 0.6 : 1 }}
-                      className="flex items-center justify-between gap-3 px-4 py-3 transition-transform active:scale-[.99]"
+                      style={estilo}
+                      className={`${classes} active:scale-[.99]`}
                     >
-                      <span className="min-w-0">
-                        <span className="block text-sm font-medium truncate">{show.cidade ?? "Show"}</span>
-                        {show.teatro && <span className="block text-xs opacity-70 truncate">{show.teatro}</span>}
-                      </span>
-                      <span className="shrink-0 text-right">
-                        <span className="block text-sm font-semibold">{show.data_show ? dataCurta(show.data_show) : ""}</span>
-                        {/* O status vem do board: "Esgotou!" deixa de ser
-                            rótulo editado à mão. */}
-                        {show.status_venda && (
-                          <span className="block text-[11px] uppercase opacity-70">{show.status_venda}</span>
-                        )}
-                      </span>
+                      {conteudoCard}
                     </a>
+                  ) : (
+                    // Sem ação, não é link: o card mostra o estado (esgotado,
+                    // ou confirmado sem onde captar) e não finge ser clicável.
+                    <div key={show.id} style={estilo} className={classes}>
+                      {conteudoCard}
+                    </div>
                   );
                 })}
               </div>

@@ -587,7 +587,28 @@ Quatro tipos de bloco cobrem o Linktree inteiro: `texto`, `link`, `imagem` e
     milhares de cliques para o Node é o erro que o Analytics de mensagens já
     paga com scan paginado — e confere `my_tenant_id()` internamente, porque
     `security definer` não pode confiar no id recebido.
-45. **Buckets `paginas` e `temas` são PÚBLICOS** (arte de divulgação servida por
+45. **O card de show segue o formato de agenda de ticketeira** (referência do
+    fundador, 17/09/2026): data à esquerda (mês/dia/dia-da-semana), cidade,
+    hora·teatro, chips de selo e ação à direita. A regra de **qual ação** vive
+    em `lib/show-card.ts`, pura e testada, porque é negócio e não formatação:
+    `esgotado` ganha de tudo (mandar alguém para página de compra sem ingresso
+    é pior que não ter botão); `Confirmado` — ou qualquer show sem link — vira
+    **"Lista de espera"**, e só se o bloco tiver `url_lista_espera`, senão
+    **nenhum botão**; o resto é "Ver ingressos". Card sem ação não é `<a>`:
+    não finge ser clicável.
+46. **Período é DERIVADO da data, não lido do board.** "Amanhã" e "Neste fim
+    de semana" existem como dropdown no Monday (`Label Período`), mas rótulo
+    que descreve a data e é mantido à mão envelhece — um show ficaria "Amanhã"
+    para sempre. A página deriva, e o rótulo do board só entra se disser
+    outra coisa (comparado sem acento e sem caixa, para não duplicar o chip).
+    Já **`Label Ingressos`** ("Em Alta", "Quase Esgotado") é editorial de
+    verdade e vem do board.
+47. **`Confirmado` entra na agenda** (allowlist das três agendas, 17/09/2026):
+    é show que existe e ainda não vende. Consequência prática vista na
+    primeira sincronização: show confirmado costuma **não ter teatro ligado**
+    no board, logo não tem cidade — e card sem cidade não serve ao fã. Quem
+    segura isso é a curadoria (`publicado = false` por padrão), não a página.
+48. **Buckets `paginas` e `temas` são PÚBLICOS** (arte de divulgação servida por
     CDN), ao contrário de `media` (conversa de WhatsApp, privado por natureza).
     O upload passa pelo servidor para validar tipo e tamanho antes de o arquivo
     existir.

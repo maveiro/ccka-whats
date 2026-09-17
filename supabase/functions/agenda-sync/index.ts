@@ -26,6 +26,10 @@ const FETCH_TIMEOUT_MS = 20_000;
 const STATUS_PARA_FA: Record<string, string> = {
   "vendendo": "à venda",
   "esgotado": "esgotado",
+  // Show que existe mas ainda não vende: entra na agenda com este status, e é
+  // a página que troca o botão por lista de espera (migration
+  // agenda_labels_e_confirmado).
+  "confirmado": "confirmado",
 };
 
 interface Conexao {
@@ -58,6 +62,8 @@ interface ShowDoPainel {
   data_show: string | null;
   status_monday: string | null;
   link_vendas: string | null;
+  label_ingressos: string | null;
+  label_periodo: string | null;
 }
 
 interface LinhaAgenda {
@@ -68,6 +74,8 @@ interface LinhaAgenda {
   status_venda: string | null;
   link_compra: string | null;
   espetaculo: string | null;
+  label_ingressos: string | null;
+  label_periodo: string | null;
 }
 
 /** Contrato de GET /api/interno/agenda/espetaculos do painel-shows. */
@@ -529,6 +537,8 @@ export function aplicarFiltro(
       // Rótulo cru: é o que casa com agenda_temas.nome pela chave
       // normalizada, e é o que a tela mostra quando um show não acha tema.
       espetaculo: show.elemento,
+      label_ingressos: show.label_ingressos,
+      label_periodo: show.label_periodo,
     });
   }
 

@@ -528,6 +528,21 @@ function BlocoEditor({
               {espetaculos.map((e) => <option key={e.nome} value={e.nome}>{e.nome}</option>)}
             </select>
           </label>
+          <Campo
+            label="Link da lista de espera (para show confirmado que ainda não vende)"
+            valor={texto("url_lista_espera")}
+            onSalvar={(v) => salvarCampo("url_lista_espera", v)}
+          />
+          {/* Sem este link, show confirmado aparece no card sem botão — é
+              deliberado (botão que não leva a nada é pior), mas quem edita
+              precisa saber que é isso que está acontecendo. */}
+          {!texto("url_lista_espera") && (
+            <p className="text-xs text-gray-600">
+              Sem este link, show <b>confirmado</b> aparece sem botão. Costuma apontar para
+              um formulário de interesse.
+            </p>
+          )}
+
           {/* Bloco de agenda que não casa com nenhum show é invisível na
               página e não dá erro nenhum — então a contagem aparece aqui. */}
           <p className={`text-xs ${quantos > 0 ? "text-gray-500" : "text-amber-400"}`}>

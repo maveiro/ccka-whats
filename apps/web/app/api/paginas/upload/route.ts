@@ -54,3 +54,30 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ path: caminho }, { status: 201 });
 }
+
+/**
+ * Remove uma imagem do bucket.
+ *
+ * Existe porque trocar ou tirar a imagem de um bloco deixaria o arquivo
+ * antigo pendurado para sempre — e esse erro já custou caro neste projeto:
+ * ~960MB de mídia órfã em produção quando a exclusão de sessão apagava a
+ * linha e não o objeto (ver regra 18 do CLAUDE.md).
+ *
+ * O caminho é validado contra o tenant de quem chama: sem isso, a rota
+ * apagaria imagem de página de outro cliente com um path adivinhado.
+ */
+export async function DELETE(req: NextRequest) {
+  const auth = await autorizarPagina();
+  if ("erro" in auth) return auth.erro;
+
+  const body = await req.json().catch(() => ({})) as { path?: unknown };
+  const caminho = typeof body.path === "string" ? body.path : "";
+
+  if (!caminho.startsWith(`${auth.tenantId}/`) || caminho.includes("..")) {
+    return NextResponse.json({ error: "Caminho inválido" }, { status: 400 });
+  }
+
+  const { error } = await createAdminClient().storage.from("paginas").remove([caminho]);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}

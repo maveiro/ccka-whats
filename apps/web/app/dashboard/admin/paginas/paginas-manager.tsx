@@ -109,6 +109,23 @@ export default function PaginasManager({
     return out;
   }
 
+  /**
+   * Apaga o arquivo no Storage. Chamado ao remover, ao trocar e ao apagar
+   * bloco/página: o objeto não vai embora junto com a linha, e arquivo órfão
+   * é o que já encheu quase 1GB neste projeto (regra 18).
+   *
+   * Falha aqui não interrompe nada — a imagem já saiu da página, que é o que
+   * a pessoa pediu; sobrar um arquivo é menos grave que a tela travar.
+   */
+  async function apagarImagem(path: string | null | undefined) {
+    if (!path) return;
+    await fetch("/api/paginas/upload", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    }).catch(() => {});
+  }
+
   async function subirImagem(file: File): Promise<string | null> {
     const form = new FormData();
     form.append("file", file);
@@ -147,9 +164,12 @@ export default function PaginasManager({
 
   async function removerBloco(id: string) {
     if (!confirm("Remover este bloco da página?")) return;
+    const bloco = blocos.find((b) => b.id === id);
     try {
       await chamar(`/api/paginas/blocos/${id}`, "DELETE");
       setBlocos((bs) => bs.filter((b) => b.id !== id));
+      // A linha some; o arquivo tem de ir com ela.
+      await apagarImagem(typeof bloco?.conteudo.imagem_path === "string" ? bloco.conteudo.imagem_path : null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     }
@@ -261,15 +281,34 @@ export default function PaginasManager({
                 <img src={`${bucket}/${pagina.avatar_path}`} alt="" className="h-12 w-12 rounded-full object-cover" />
               )}
               <label className="text-xs text-gray-400">
-                <span className="block mb-1">Avatar</span>
+                <span className="block mb-1">
+                  Avatar
+                  {pagina.avatar_path && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const antigo = pagina.avatar_path;
+                        await salvarPagina({ avatarPath: "" });
+                        await apagarImagem(antigo);
+                      }}
+                      className="ml-2 text-gray-500 hover:text-red-400"
+                    >
+                      remover
+                    </button>
+                  )}
+                </span>
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={async (e) => {
                     const f = e.target.files?.[0];
                     if (!f) return;
+                    const antigo = pagina.avatar_path;
                     const path = await subirImagem(f);
-                    if (path) await salvarPagina({ avatarPath: path });
+                    if (path) {
+                      await salvarPagina({ avatarPath: path });
+                      await apagarImagem(antigo);
+                    }
                   }}
                   className="text-xs text-gray-300"
                 />
@@ -362,6 +401,7 @@ export default function PaginasManager({
                 onRemover={() => removerBloco(bloco.id)}
                 onMover={(d) => mover(bloco.id, d)}
                 onSubirImagem={subirImagem}
+                onApagarImagem={apagarImagem}
               />
             ))}
 
@@ -377,10 +417,17 @@ export default function PaginasManager({
             <button
               onClick={async () => {
                 if (!confirm(`Remover a página /a/${pagina.slug}? O endereço deixa de funcionar.`)) return;
+                const paraApagar = [
+                  pagina.avatar_path,
+                  tema.imagem_fundo_path,
+                  ...daPagina.map((b) => (typeof b.conteudo.imagem_path === "string" ? b.conteudo.imagem_path : null)),
+                ];
                 try {
                   await chamar(`/api/paginas/${pagina.id}`, "DELETE");
                   setPaginas((ps) => ps.filter((p) => p.id !== pagina.id));
                   setAberta(null);
+                  // Os blocos vão em cascade no banco; os arquivos, não.
+                  for (const path of paraApagar) await apagarImagem(path);
                 } catch (err) {
                   toast.error(err instanceof Error ? err.message : String(err));
                 }
@@ -398,7 +445,7 @@ export default function PaginasManager({
 
 function BlocoEditor({
   bloco, primeiro, ultimo, espetaculos, contagemShows, artistaDaPagina, bucket,
-  onSalvar, onRemover, onMover, onSubirImagem,
+  onSalvar, onRemover, onMover, onSubirImagem, onApagarImagem,
 }: {
   bloco: Bloco;
   primeiro: boolean;
@@ -411,6 +458,7 @@ function BlocoEditor({
   onRemover: () => void;
   onMover: (d: -1 | 1) => void;
   onSubirImagem: (f: File) => Promise<string | null>;
+  onApagarImagem: (p: string | null | undefined) => Promise<void>;
 }) {
   const c = bloco.conteudo;
   const texto = (k: string) => (typeof c[k] === "string" ? c[k] as string : "");
@@ -452,13 +500,13 @@ function BlocoEditor({
         <>
           <Campo label="Rótulo do botão" valor={texto("rotulo")} onSalvar={(v) => salvarCampo("rotulo", v)} />
           <Campo label="Destino (URL)" valor={texto("url")} onSalvar={(v) => salvarCampo("url", v)} />
-          <ImagemDoBloco bucket={bucket} path={texto("imagem_path")} onSubir={onSubirImagem} onSalvar={(p) => salvarCampo("imagem_path", p)} />
+          <ImagemDoBloco bucket={bucket} path={texto("imagem_path")} onSubir={onSubirImagem} onSalvar={(p) => salvarCampo("imagem_path", p)} onApagar={onApagarImagem} />
         </>
       )}
 
       {bloco.tipo === "imagem" && (
         <>
-          <ImagemDoBloco bucket={bucket} path={texto("imagem_path")} onSubir={onSubirImagem} onSalvar={(p) => salvarCampo("imagem_path", p)} />
+          <ImagemDoBloco bucket={bucket} path={texto("imagem_path")} onSubir={onSubirImagem} onSalvar={(p) => salvarCampo("imagem_path", p)} onApagar={onApagarImagem} />
           <Campo label="Descrição (acessibilidade)" valor={texto("alt")} onSalvar={(v) => salvarCampo("alt", v)} />
         </>
       )}
@@ -493,28 +541,58 @@ function BlocoEditor({
 }
 
 function ImagemDoBloco({
-  bucket, path, onSubir, onSalvar,
-}: { bucket: string; path: string; onSubir: (f: File) => Promise<string | null>; onSalvar: (p: string) => void }) {
+  bucket, path, onSubir, onSalvar, onApagar,
+}: {
+  bucket: string;
+  path: string;
+  onSubir: (f: File) => Promise<string | null>;
+  onSalvar: (p: string) => void;
+  onApagar: (p: string | null | undefined) => Promise<void>;
+}) {
   return (
     <div className="flex items-center gap-3">
       {path && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={`${bucket}/${path}`} alt="" className="h-12 w-20 rounded object-cover" />
       )}
-      <label className="text-xs text-gray-400">
-        <span className="block mb-1">Imagem (JPEG, PNG ou WebP, até 5MB)</span>
+      <div className="text-xs text-gray-400 space-y-1">
+        <span className="block">
+          Imagem (JPEG, PNG ou WebP, até 5MB)
+          {path && (
+            <button
+              type="button"
+              onClick={async () => {
+                // Some da página primeiro, apaga o arquivo depois: o que a
+                // pessoa pediu foi tirar a imagem do botão.
+                onSalvar("");
+                await onApagar(path);
+              }}
+              className="ml-2 text-gray-500 hover:text-red-400"
+            >
+              remover imagem
+            </button>
+          )}
+        </span>
         <input
+          // `key` pelo path: sem isso o input guarda o nome do arquivo antigo
+          // depois de remover, e a tela mostra um arquivo que não está mais lá.
+          key={path || "vazio"}
           type="file"
           accept="image/jpeg,image/png,image/webp"
           onChange={async (e) => {
             const f = e.target.files?.[0];
             if (!f) return;
+            const anterior = path;
             const p = await onSubir(f);
-            if (p) onSalvar(p);
+            if (p) {
+              onSalvar(p);
+              // Trocar a imagem também deixa órfão o arquivo anterior.
+              await onApagar(anterior);
+            }
           }}
-          className="text-xs text-gray-300"
+          className="block text-xs text-gray-300"
         />
-      </label>
+      </div>
     </div>
   );
 }

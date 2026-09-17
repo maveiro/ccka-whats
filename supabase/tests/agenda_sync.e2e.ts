@@ -88,6 +88,7 @@ interface ResultadoAgenda {
   atualizados?: number;
   removidos?: number;
   erro?: string;
+  aguardando_publicacao?: number;
   ignorados?: Record<string, number>;
 }
 
@@ -216,6 +217,19 @@ await cenario("o que o board tem de interno nunca chega ao fã", async () => {
 
   const rows = await linhas();
   checar(rows.length === 1 && rows[0].show_id_origem === "ib-1", "só ib-1 na agenda do fã");
+});
+
+await cenario("show novo do board chega fora do ar, esperando aprovação", async () => {
+  servir = [show({ monday_item_id: "novo" })];
+  const ib = await sincronizarAgenda();
+  checar(ib?.aguardando_publicacao === 1, `deveria entrar 1 na fila, veio ${ib?.aguardando_publicacao}`);
+
+  const { data } = await db
+    .from("agenda_shows_sync")
+    .select("publicado")
+    .eq("show_id_origem", "novo")
+    .maybeSingle();
+  checar(data?.publicado === false, "curadoria: nada vai ao ar sem aprovação no painel");
 });
 
 await cenario("o fã recebe cidade/UF, teatro, horário e link", async () => {

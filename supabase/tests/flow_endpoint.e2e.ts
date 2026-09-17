@@ -269,10 +269,14 @@ const AMANHA = new Date(Date.now() + 86_400_000).toISOString();
 const ONTEM = new Date(Date.now() - 86_400_000).toISOString();
 
 await db.from("whatsapp_cloud_credentials").update({ artista: "Artista A" }).eq("id", CRED);
+// `publicado: true` explícito: o default da coluna é false (show do board
+// chega fora do ar, para curadoria), e estes shows representam agenda já
+// aprovada. Sem isso, a lista do fã viria vazia e os cenários abaixo
+// testariam o nada.
 const { data: showsCriados } = await db.from("agenda_shows_sync").insert([
-  { tenant_id: TENANT, artista: "Artista A", cidade: "Curitiba", teatro: "Guaíra", data_show: AMANHA, status_venda: "à venda", link_compra: "https://exemplo.invalido/x" },
-  { tenant_id: TENANT, artista: "Artista A", cidade: "Passado", teatro: "Antigo", data_show: ONTEM, status_venda: "esgotado" },
-  { tenant_id: TENANT, artista: "Outro Artista", cidade: "Recife", teatro: "Santa Isabel", data_show: AMANHA, status_venda: "à venda" },
+  { tenant_id: TENANT, artista: "Artista A", cidade: "Curitiba", teatro: "Guaíra", data_show: AMANHA, status_venda: "à venda", link_compra: "https://exemplo.invalido/x", publicado: true },
+  { tenant_id: TENANT, artista: "Artista A", cidade: "Passado", teatro: "Antigo", data_show: ONTEM, status_venda: "esgotado", publicado: true },
+  { tenant_id: TENANT, artista: "Outro Artista", cidade: "Recife", teatro: "Santa Isabel", data_show: AMANHA, status_venda: "à venda", publicado: true },
 ]).select("id, cidade");
 
 await cenario("INIT devolve a agenda do artista DAQUELE número", async () => {
@@ -331,9 +335,9 @@ await cenario("show removido entre a lista e o clique volta para a lista, sem er
   checar(corpo.screen === "AGENDA", `deveria cair na lista, veio "${corpo.screen}"`);
 });
 
-await cenario("show despublicado não aparece para o fã, mesmo estando à venda", async () => {
-  // O board diz que está Vendendo; quem cuida da central disse que não vai ao
-  // ar (migration agenda_publicado). Quem manda para o fã é a segunda.
+await cenario("show fora do ar não aparece para o fã, mesmo estando à venda", async () => {
+  // O board diz que está Vendendo; quem cuida da central não aprovou. Quem
+  // manda para o fã é a aprovação.
   const curitiba = (showsCriados ?? []).find((s) => s.cidade === "Curitiba");
   await db.from("agenda_shows_sync").update({ publicado: false }).eq("id", curitiba!.id);
 
@@ -524,6 +528,7 @@ await cenario("menu → agenda continua funcionando (as duas convivem)", async (
   await db.from("agenda_shows_sync").insert({
     tenant_id: TENANT, artista: "Artista A", cidade: "Belém", teatro: "Theatro da Paz",
     data_show: new Date(Date.now() + 86_400_000).toISOString(), status_venda: "à venda",
+    publicado: true, // default da coluna é false (curadoria) — aqui o show já foi aprovado
   });
   const { res, chaveAes, iv } = await pedir(publicaPem, {
     version: "7.2", action: "data_exchange", screen: "MENU", data: { destino: "agenda" },

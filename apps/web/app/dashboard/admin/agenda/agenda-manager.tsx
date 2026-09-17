@@ -27,10 +27,16 @@ const STATUS = ["à venda", "esgotado", "últimos ingressos", "em breve", "cance
 // sozinho é pior que um campo que não deixa editar. Correção de show se faz
 // no board.
 //
-// A EXCEÇÃO é `publicado` (migration agenda_publicado): não é dado do board,
-// é escolha de quem cuida da central — o board diz o que está à venda, isto
-// diz o que vai ao ar. O sync não a desfaz, então é a única ação que faz
+// A EXCEÇÃO é `publicado`: não é dado do board, é escolha de quem cuida da
+// central — o board diz o que está à venda, isto diz o que vai ao ar. O sync
+// não a desfaz em nenhum dos dois sentidos, então é a única ação que faz
 // sentido numa linha sincronizada.
+//
+// Show novo chega DESPUBLICADO (migration agenda_chega_despublicado). Isso faz
+// da tela uma fila de trabalho, não só uma listagem: se os novos não
+// aparecerem em destaque, eles ficam invisíveis para o fã e ninguém descobre
+// até alguém perguntar por um show que existe e não aparece. É o que o bloco
+// de "aguardando publicação" abaixo resolve.
 
 /** ISO -> valor de <input type="datetime-local"> em horário de Brasília.
  *  Usar o fuso do navegador aqui faria a data mudar de valor ao editar de
@@ -68,7 +74,28 @@ export default function AgendaManager({
   const visiveis = filtroArtista ? shows.filter((s) => s.artista === filtroArtista) : shows;
   const manuais = shows.filter((s) => !s.show_id_origem);
   const sincronizados = shows.length - manuais.length;
-  const despublicados = shows.filter((s) => !s.publicado).length;
+  const aguardando = shows.filter((s) => !s.publicado);
+  const [publicandoTodos, setPublicandoTodos] = useState(false);
+
+  async function publicarTodos() {
+    setPublicandoTodos(true);
+    try {
+      const res = await fetch("/api/agenda/publicar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: aguardando.map((s) => s.id), publicado: true }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `Erro ${res.status}`);
+      const publicadosAgora = new Set(aguardando.map((s) => s.id));
+      setShows((ss) => ss.map((s) => publicadosAgora.has(s.id) ? { ...s, publicado: true } : s));
+      toast.success(`${json.alterados} show(s) publicado(s)`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPublicandoTodos(false);
+    }
+  }
 
   async function atualizar(id: string, patch: Record<string, unknown>) {
     const res = await fetch(`/api/agenda/${id}`, {
@@ -97,6 +124,23 @@ export default function AgendaManager({
 
   return (
     <div className="space-y-8">
+      {aguardando.length > 0 && (
+        <div className="text-xs bg-amber-900/20 border border-amber-900 rounded px-3 py-2 flex items-center justify-between gap-3">
+          <p className="text-amber-300">
+            <b>{aguardando.length} show(s) aguardando publicação.</b> Show novo do board
+            chega fora do ar de propósito — enquanto estiver assim, o fã não vê, mesmo
+            estando à venda.
+          </p>
+          <button
+            onClick={publicarTodos}
+            disabled={publicandoTodos}
+            className="shrink-0 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white rounded px-3 py-1.5"
+          >
+            {publicandoTodos ? "Publicando…" : "Publicar todos"}
+          </button>
+        </div>
+      )}
+
       {manuais.length > 0 && (
         <p className="text-xs text-amber-400 bg-amber-900/20 border border-amber-900 rounded px-3 py-2">
           {manuais.length} show(s) desta lista <b>não vêm do board</b> — sobraram da época
@@ -113,7 +157,7 @@ export default function AgendaManager({
             {sincronizados > 0 && (
               <span className="text-gray-500 font-normal text-xs ml-2">
                 {sincronizados} do Monday{manuais.length > 0 && `, ${manuais.length} fora do board`}
-                {despublicados > 0 && `, ${despublicados} não publicado(s)`}
+                {aguardando.length > 0 && `, ${aguardando.length} aguardando publicação`}
               </span>
             )}
           </h2>

@@ -915,17 +915,31 @@ central. Primeira sincronização real trouxe **22 shows do IB**, todos com
 cidade, teatro, horário e link — nenhum campo vazio. As duas linhas manuais
 de teste de 09/09 ficaram intactas, como o índice único parcial prevê.
 
-**Publicação é escolha nossa, não do board** (migration `agenda_publicado`,
-17/09/2026): `agenda_shows_sync.publicado` esconde um show do fã sem mexer no
-Monday — show à venda que ainda não deve ser divulgado existe. A coluna
-**fica fora do `do update set`** de `sincronizar_agenda_shows()`: se entrasse,
-a despublicação duraria até o próximo tick do cron e voltaria sozinha, sem
-ninguém saber por quê. Regra para qualquer coluna nova ali: o que vem do board
-é sobrescrito, o que é decisão nossa fica fora. O `flow-endpoint` filtra
-`publicado` na lista **e** no detalhe — Flow aberto há dez minutos tem a lista
-antiga na tela, e o clique não pode abrir o que saiu do ar nesse intervalo.
-Despublicar não é arquivar: se o show deixa de ser elegível no board, a linha
-vai embora como qualquer outra.
+**Publicação é escolha nossa, não do board, e é CURADORIA** (migrations
+`agenda_publicado` e `agenda_chega_despublicado`, 17/09/2026):
+`agenda_shows_sync.publicado` decide o que o fã vê, e **show novo do board
+nasce `false`** — nada vai ao ar sem aprovação no painel (decisão do fundador;
+o default da coluna nasceu `true` no mesmo dia e foi invertido horas depois,
+sem reescrever as 68 linhas já publicadas).
+
+Três coisas que sustentam isso e não podem se perder:
+
+- **`publicado` fica fora do `do update set`** de `sincronizar_agenda_shows()`,
+  nos dois sentidos: se entrasse, a aprovação sumiria no tick seguinte do cron
+  (e a despublicação também voltaria), sem ninguém saber por quê. Regra para
+  qualquer coluna nova ali: o que vem do board é sobrescrito, o que é decisão
+  nossa fica fora.
+- **O `flow-endpoint` filtra `publicado` na lista E no detalhe.** Flow aberto
+  há dez minutos tem a lista antiga na tela, e o clique não pode abrir o que
+  não está no ar — cai na lista, mesmo desfecho de show removido.
+- **A fila tem que ser visível.** Chegar despublicado significa que uma rodada
+  pode esconder dez datas novas; a tela mostra "N aguardando publicação" com
+  "Publicar todos" (`POST /api/agenda/publicar`), e o resumo de cada rodada
+  carrega `aguardando_publicacao`. Sem isso o recurso viraria agenda que não
+  atualiza e ninguém entende por quê.
+
+Despublicado não é arquivado: show que deixa de ser elegível no board sai da
+tabela como qualquer outro.
 
 **A agenda é espelho: não há mais cadastro manual de show** (decisão do
 fundador, 16/09/2026 — `POST /api/agenda` removido). Linha sincronizada não é

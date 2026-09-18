@@ -77,10 +77,12 @@ async function carregar(slug: string) {
     shows = (data ?? []) as Show[];
   }
 
-  // Arte por espetáculo, para o bloco de agenda usar como imagem do grupo.
+  // Arte por espetáculo: o bloco de agenda mostra a arte UMA VEZ, no topo do
+  // grupo. Ela pertence ao espetáculo, não à data — repetir a mesma imagem em
+  // 12 cards seria ruído, e o bloco de data é o que a pessoa varre com o olho.
   const { data: temas } = await admin
     .from("agenda_temas")
-    .select("nome, nome_chave")
+    .select("nome, nome_chave, imagem_path")
     .eq("tenant_id", pagina.tenant_id);
 
   return { pagina, blocos: (blocos ?? []) as Bloco[], shows, temas: temas ?? [] };
@@ -112,7 +114,7 @@ export default async function PaginaPublica({ params }: { params: Promise<{ slug
   const dados = await carregar(slug);
   if (!dados) notFound();
 
-  const { pagina, blocos, shows } = dados;
+  const { pagina, blocos, shows, temas } = dados;
   const tema = lerTema(pagina.tema);
   // Um único instante para todo o render: chamar o relógio por card faria
   // dois shows da mesma página calcularem "hoje" em momentos diferentes.
@@ -206,8 +208,25 @@ export default async function PaginaPublica({ params }: { params: Promise<{ slug
 
           if (doBloco.length === 0) return null;
 
+          // Arte do espetáculo filtrado. Só quando o bloco tem filtro: um
+          // bloco "todos os shows" mistura espetáculos e não teria arte única.
+          const temaDoBloco = filtro
+            ? temas.find((t) => t.nome_chave === chave(filtro))
+            : null;
+          const mostrarArte = bloco.conteudo.mostrar_arte !== false;
+          const arte = mostrarArte && temaDoBloco?.imagem_path
+            ? `${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/render/image/public/temas/${temaDoBloco.imagem_path}?width=1080&resize=contain&quality=75`
+            : null;
+
           return (
             <section key={bloco.id} className="space-y-3">
+              {arte && (
+                // Servida pela transformação do Storage (CDN): a original tem
+                // tamanho de impressão, e mandá-la crua custaria o carregamento
+                // da página inteira.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={arte} alt={temaDoBloco?.nome ?? ""} style={{ borderRadius: raio }} className="w-full" />
+              )}
               {titulo && <h2 className="text-sm font-semibold tracking-wide uppercase text-center opacity-90">{titulo}</h2>}
               <div className="space-y-2">
                 {doBloco.map((show) => {

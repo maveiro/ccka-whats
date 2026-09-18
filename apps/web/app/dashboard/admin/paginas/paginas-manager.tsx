@@ -528,6 +528,15 @@ function BlocoEditor({
               {espetaculos.map((e) => <option key={e.nome} value={e.nome}>{e.nome}</option>)}
             </select>
           </label>
+          <label className="flex items-center gap-2 text-xs text-gray-400">
+            <input
+              type="checkbox"
+              checked={c.mostrar_arte !== false}
+              onChange={(e) => onSalvar({ conteudo: { ...c, mostrar_arte: e.target.checked } })}
+            />
+            Mostrar a arte do espetáculo no topo do grupo
+          </label>
+
           <Campo
             label="Link da lista de espera (para show confirmado que ainda não vende)"
             valor={texto("url_lista_espera")}

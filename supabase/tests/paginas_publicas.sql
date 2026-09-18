@@ -245,4 +245,43 @@ begin
     'sem tenant correspondente, metricas_pagina não pode devolver dados');
 end $$;
 
+-- ============================================================
+-- 13. Retenção: consolida ANTES de apagar
+-- Sem o consolidado, o expurgo levaria a série histórica junto com o dado
+-- bruto — e alguém descobriria só quando fosse comparar com o ano passado.
+-- ============================================================
+do $$
+declare r jsonb; antigo timestamptz := now() - interval '20 months';
+begin
+  insert into pagina_cliques (tenant_id, pagina_id, bloco_id, created_at)
+  select t.valor, p.valor, b.valor, antigo
+    from _ids t, _ids p, _ids b, generate_series(1,5)
+   where t.chave='tenant' and p.chave='pagina' and b.chave='bloco_agenda';
+  insert into pagina_visitas (tenant_id, pagina_id, created_at)
+  select t.valor, p.valor, antigo from _ids t, _ids p, generate_series(1,9)
+   where t.chave='tenant' and p.chave='pagina';
+
+  r := consolidar_e_expurgar_metricas_pagina(13);
+
+  perform pg_temp.assert(
+    (r->>'cliques_apagados')::int >= 5 and (r->>'visitas_apagadas')::int >= 9,
+    format('o bruto antigo deveria ser apagado, veio %s', r));
+
+  perform pg_temp.assert(
+    (select visitas from pagina_metricas_mensais
+      where pagina_id = (select valor from _ids where chave='pagina')
+        and mes = date_trunc('month', antigo)::date) = 9,
+    'as 9 aberturas antigas precisam sobreviver no consolidado mensal');
+  perform pg_temp.assert(
+    (select cliques from pagina_metricas_mensais
+      where pagina_id = (select valor from _ids where chave='pagina')
+        and mes = date_trunc('month', antigo)::date) = 5,
+    'e os 5 cliques também');
+
+  -- O recente não pode ser tocado.
+  perform pg_temp.assert(
+    (select count(*) from pagina_cliques where created_at > now() - interval '1 day') > 0,
+    'clique recente não pode ser expurgado');
+end $$;
+
 rollback;

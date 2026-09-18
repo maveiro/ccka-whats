@@ -15,6 +15,7 @@ import {
   History,
   Settings,
   Megaphone,
+  Activity,
   BookOpen,
   LogOut,
   PanelLeftClose,
@@ -55,6 +56,7 @@ const navItems = [
   { label: "Integrações",   href: "/dashboard/admin/integrations",   roles: ["admin"],             icon: Plug,         section: "admin" },
   { label: "Histórico",     href: "/dashboard/admin/history",        roles: ["admin"],             icon: History,      section: "admin" },
   { label: "Aprendizados",  href: "/dashboard/admin/aprendizados",   roles: ["admin"],             icon: BookOpen,     section: "admin" },
+  { label: "Saúde",         href: "/dashboard/admin/saude",          roles: ["admin"],             icon: Activity,     section: "admin" },
   { label: "Configurações", href: "/dashboard/settings",             roles: ["admin"],             icon: Settings,     section: "admin" },
 ];
 

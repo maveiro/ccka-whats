@@ -267,7 +267,7 @@ async function sincronizarTemas(conexao: Conexao) {
   for (const esp of espetaculos) {
     const { data: atual } = await supabase
       .from("agenda_temas")
-      .select("id, arte_asset_id, imagem_base64, imagem_bytes, imagem_largura, imagem_altura")
+      .select("id, arte_asset_id, imagem_base64, imagem_bytes, imagem_largura, imagem_altura, imagem_path")
       .eq("tenant_id", conexao.tenant_id)
       .eq("nome_chave", chaveTexto(esp.nome))
       .maybeSingle<{
@@ -277,25 +277,33 @@ async function sincronizarTemas(conexao: Conexao) {
         imagem_bytes: number | null;
         imagem_largura: number | null;
         imagem_altura: number | null;
+        imagem_path: string | null;
       }>();
 
     const arteMudou = (esp.arte_asset_id ?? null) !== (atual?.arte_asset_id ?? null);
     let imagem: {
       base64: string | null; bytes: number | null;
-      largura: number | null; altura: number | null; erro: string | null;
+      largura: number | null; altura: number | null;
+      caminho: string | null; erro: string | null;
     } = {
       base64: atual?.imagem_base64 ?? null,
       bytes: atual?.imagem_bytes ?? null,
       largura: atual?.imagem_largura ?? null,
       altura: atual?.imagem_altura ?? null,
+      caminho: atual?.imagem_path ?? null,
       erro: null,
     };
 
-    if (esp.arte_asset_id && (arteMudou || !atual?.imagem_base64)) {
+    // `!atual?.imagem_path` no meio da condição não é detalhe: quando uma
+    // coluna NOVA entra (foi o caso do caminho no Storage, 18/09/2026), a arte
+    // não mudou e o processamento seria pulado para sempre — a coluna ficaria
+    // vazia em toda linha existente, esperando um backfill manual que ninguém
+    // lembra de fazer. Assim o próprio sync se corrige na rodada seguinte.
+    if (esp.arte_asset_id && (arteMudou || !atual?.imagem_base64 || !atual?.imagem_path)) {
       imagem = await prepararArte(conexao.tenant_id, esp);
       if (imagem.erro) recusadas++;
     } else if (!esp.arte_asset_id) {
-      imagem = { base64: null, bytes: null, largura: null, altura: null, erro: null };
+      imagem = { base64: null, bytes: null, largura: null, altura: null, caminho: null, erro: null };
     }
 
     if (imagem.base64) comArte++;
@@ -312,6 +320,7 @@ async function sincronizarTemas(conexao: Conexao) {
       imagem_bytes: imagem.bytes,
       imagem_largura: imagem.largura,
       imagem_altura: imagem.altura,
+      imagem_path: imagem.caminho,
       imagem_atualizada_em: imagem.base64 ? new Date().toISOString() : null,
       imagem_erro: imagem.erro,
       updated_at: new Date().toISOString(),
@@ -345,16 +354,16 @@ async function sincronizarTemas(conexao: Conexao) {
 async function prepararArte(
   tenantId: string,
   esp: EspetaculoDoPainel,
-): Promise<{ base64: string | null; bytes: number | null; largura: number | null; altura: number | null; erro: string | null }> {
+): Promise<{ base64: string | null; bytes: number | null; largura: number | null; altura: number | null; caminho: string | null; erro: string | null }> {
   if (!esp.arte_url) {
-    return { base64: null, bytes: null, largura: null, altura: null, erro: "o painel-shows não devolveu URL de download da arte" };
+    return { base64: null, bytes: null, largura: null, altura: null, caminho: null, erro: "o painel-shows não devolveu URL de download da arte" };
   }
 
   const extensao = (esp.arte_nome?.split(".").pop() ?? "jpg").toLowerCase();
   if (!["jpg", "jpeg", "png"].includes(extensao)) {
     // O Flow aceita só JPEG e PNG. Converter aqui exigiria biblioteca de
     // imagem; recusar com motivo visível é melhor que imagem que não abre.
-    return { base64: null, bytes: null, largura: null, altura: null, erro: `formato .${extensao} não é aceito pelo Flow (use JPEG ou PNG)` };
+    return { base64: null, bytes: null, largura: null, altura: null, caminho: null, erro: `formato .${extensao} não é aceito pelo Flow (use JPEG ou PNG)` };
   }
 
   const caminho = `${tenantId}/${esp.monday_item_id}.${extensao === "png" ? "png" : "jpg"}`;
@@ -362,7 +371,7 @@ async function prepararArte(
   try {
     const original = await fetch(esp.arte_url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!original.ok) {
-      return { base64: null, bytes: null, largura: null, altura: null, erro: `download da arte respondeu ${original.status}` };
+      return { base64: null, bytes: null, largura: null, altura: null, caminho: null, erro: `download da arte respondeu ${original.status}` };
     }
     const bytes = new Uint8Array(await original.arrayBuffer());
 
@@ -372,7 +381,7 @@ async function prepararArte(
         contentType: extensao === "png" ? "image/png" : "image/jpeg",
         upsert: true,
       });
-    if (erroUpload) return { base64: null, bytes: null, largura: null, altura: null, erro: `Storage: ${erroUpload.message}` };
+    if (erroUpload) return { base64: null, bytes: null, largura: null, altura: null, caminho: null, erro: `Storage: ${erroUpload.message}` };
 
     const { data: reduzida, error: erroTransform } = await supabase.storage
       .from("temas")
@@ -388,7 +397,7 @@ async function prepararArte(
         },
       });
     if (erroTransform || !reduzida) {
-      return { base64: null, bytes: null, largura: null, altura: null, erro: `redução falhou: ${erroTransform?.message ?? "sem resposta"}` };
+      return { base64: null, bytes: null, largura: null, altura: null, caminho: null, erro: `redução falhou: ${erroTransform?.message ?? "sem resposta"}` };
     }
 
     const reduzidaBytes = new Uint8Array(await reduzida.arrayBuffer());
@@ -398,6 +407,9 @@ async function prepararArte(
         bytes: reduzidaBytes.byteLength,
         largura: null,
         altura: null,
+        // O caminho vai mesmo na recusa: o arquivo ESTÁ no Storage, e a
+        // página web pode usá-lo (lá o teto de 300KB do Flow não existe).
+        caminho,
         erro: `arte reduzida ainda tem ${Math.round(reduzidaBytes.byteLength / 1024)}KB (teto do Flow é 300KB)`,
       };
     }
@@ -411,10 +423,11 @@ async function prepararArte(
       bytes: reduzidaBytes.byteLength,
       largura: medida?.largura ?? null,
       altura: medida?.altura ?? null,
+      caminho,
       erro: null,
     };
   } catch (err) {
-    return { base64: null, bytes: null, largura: null, altura: null, erro: err instanceof Error ? err.message : String(err) };
+    return { base64: null, bytes: null, largura: null, altura: null, caminho: null, erro: err instanceof Error ? err.message : String(err) };
   }
 }
 

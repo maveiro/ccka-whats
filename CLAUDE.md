@@ -126,6 +126,7 @@ wa-intelligence/
 │       │   │   ├── admin/clientes/      ← busca, LGPD e números de teste
 │       │   │   ├── admin/formularios/   ← cria formulário + embed da landing
 │       │   │   ├── admin/paginas/       ← páginas públicas do artista (substitui Linktree)
+│       │   │   ├── admin/saude/         ← erros do events_log agrupados por assinatura
 │       │   │   ├── analytics/
 │       │   │   ├── settings/
 │       │   │   └── chat/[id]/
@@ -1128,6 +1129,48 @@ Duas páginas no ar (`drarosangela`, `diogoalmeida`), com tema por página.
 Card de show no formato de agenda de ticketeira, com selos vindos do board
 (`🔥 Quase Esgotado` chega intacto — emoji atravessa tudo) e período
 **derivado da data**. `Confirmado` vira "Lista de espera".
+
+### Vigilância, CI, arte e retenção — 18/09/2026
+
+Resposta às quatro frentes aprovadas na revisão de 17/09.
+
+52. **`events_log` passou a ser LIDO** (migration `vigilancia_events_log`).
+    `assinatura_erro()` troca número e **palavra com dígito** por `#` — é o que
+    faz 57 timeouts com id diferente virarem uma linha; trocar todo token
+    hexadecimal estragaria palavras como "face" e "dead", por isso a regra é
+    "palavra que contém dígito". `/dashboard/admin/saude` mostra o agrupado com
+    **reconhecer** (que não apaga: ocorrência nova depois do ack volta a
+    contar). Um `pg_cron` no minuto 12 avisa **assinatura nova** (nunca vista
+    em 30 dias) ou **volume > 20 no dia**, no máximo **uma vez por dia por
+    assinatura** — alerta repetido de hora em hora vira ruído, e ruído é o que
+    faz alerta ser ignorado. A entrega reusa o `webhook-delivery` e as
+    integrações do tenant: **sem webhook ativo, o aviso não sai** (a tela diz
+    isso). A SELEÇÃO (`erros_para_avisar()`) é função separada do ENVIO, para
+    ter teste sem disparar HTTP.
+53. **CI que pega regressão** (`.github/workflows/ci.yml`): job `web`
+    (tipos + lint + build) e job `banco` (`supabase start` → `db reset` →
+    `npm run test:db`, ~5 min). O lint roda por **linha de base**
+    (`.eslint-baseline.json`, hoje 8): o CI trava o **nono** erro, sem obrigar
+    a refatorar componentes em produção. A base só desce — o script avisa
+    quando alguém corrige algo e o número pode cair.
+54. **Arte do espetáculo na página**: aparece **uma vez, no topo do grupo** —
+    a arte é do espetáculo, não da data, e repeti-la em 12 cards seria ruído.
+    Servida pela transformação do Storage (CDN), não em base64: base64 é
+    exigência do Flow, não da web. `agenda_temas.imagem_path` guarda o caminho
+    porque adivinhar a extensão erraria quando a arte for PNG.
+55. **Retenção de 13 meses** para `pagina_cliques`/`pagina_visitas`
+    (`pg_cron` mensal): **consolida antes de apagar** em
+    `pagina_metricas_mensais`, senão o expurgo levaria a série histórica junto
+    e alguém descobriria só ao comparar com o ano anterior. 13 e não 12 para
+    permitir essa comparação. **Ainda sem retenção:** `events_log` e
+    `messages`/`media_files` — a segunda é dado pessoal de cliente e o prazo é
+    decisão de negócio.
+
+**Armadilha que se repete a cada coluna nova:** quando `imagem_path` entrou, a
+arte não havia mudado, então o processamento era pulado e a coluna ficaria
+vazia para sempre, esperando backfill manual. A condição do sync passou a
+incluir `|| !atual?.imagem_path` — **coluna nova precisa de um caminho de
+autocorreção**, não de alguém lembrar.
 
 ### Pendente / próximos passos
 - **Central de shows — Sprint C4: código pronto (15/09/2026), falta a Meta.**

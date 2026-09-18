@@ -1,0 +1,74 @@
+name: CI
+
+# Roda em PR e em push na main. O deploy continua no deploy.yml — este
+# workflow existe para PEGAR REGRESSÃO, não para publicar nada.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  web:
+    name: Web — tipos, lint e build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tipos
+        run: npx tsc --noEmit -p apps/web/tsconfig.json
+
+      # Linha de base, e não "lint tem de passar": o repo carrega 8 erros
+      # herdados em componentes que estão em produção (seis do mesmo
+      # react-hooks/set-state-in-effect). O que o CI trava é o NONO.
+      - name: Lint (linha de base)
+        run: node scripts/lint-baseline.mjs
+
+      - name: Build
+        working-directory: apps/web
+        # Valores fictícios: o build só precisa que as variáveis EXISTAM
+        # (@t3-oss/env-nextjs valida presença e formato, não credencial de
+        # verdade). Nada aqui alcança nenhum serviço real.
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://exemplo.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci
+          SUPABASE_SERVICE_ROLE_KEY: ci
+          EVOLUTION_API_URL: https://exemplo.invalido
+          EVOLUTION_API_KEY: ci
+        run: npx next build
+
+  banco:
+    name: Banco — migrations e suíte
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # `supabase start` sobe o Postgres e o PostgREST em Docker; `db reset`
+      # aplica TODAS as migrations do zero. É o que pega migration que só
+      # funciona no banco de quem escreveu (já aconteceu: função com JOIN
+      # ambíguo, DEFAULT dependente de search_path).
+      - name: Sobe o Supabase local
+        run: supabase start
+
+      - name: Aplica as migrations do zero
+        run: supabase db reset --local
+
+      - name: Suíte (SQL + e2e)
+        run: npm run test:db
+
+      # Quando a suíte falha, o que aconteceu no banco importa mais que o
+      # stack trace — os testes rodam em begin/rollback e não deixam rastro.
+      - name: Logs do banco (só em falha)
+        if: failure()
+        run: supabase status && docker logs supabase_db_whats --tail 100 || true

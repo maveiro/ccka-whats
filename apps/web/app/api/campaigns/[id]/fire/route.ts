@@ -20,7 +20,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: updated, error: updateError } = await admin
     .from("campaigns")
-    .update({ status: "sending", updated_at: new Date().toISOString() })
+    // pause_reason volta a null: motivo antigo em campanha que voltou a
+    // enviar é informação que contradiz a tela.
+    .update({ status: "sending", pause_reason: null, updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("tenant_id", operator.tenant_id)
     .in("status", ["ready", "paused"])

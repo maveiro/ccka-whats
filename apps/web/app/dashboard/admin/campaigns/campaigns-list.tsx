@@ -20,13 +20,15 @@ interface Campaign {
   /** Ledger de custo (migration custos_cloud_api). 0 para campanha anterior ao registro. */
   cost?: number;
   clicked_count: number;
+  /** Motivo da pausa automática (migration pausa_por_taxa). */
+  pause_reason?: string | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Rascunho",
   ready: "Pronta",
   sending: "Enviando",
-  paused: "Pausada (limite atingido)",
+  paused: "Pausada",
   completed: "Concluída",
   failed: "Falhou",
   cancelled: "Cancelada",
@@ -153,6 +155,12 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
               <p className="text-xs text-gray-500">
                 {c.template_name} {c.template_category ? `· ${c.template_category}` : ""}
               </p>
+              {/* O motivo da pausa fica na TELA, não só no events_log: uma
+                  campanha que para sozinha sem dizer por quê chega a quem
+                  disparou como "deu um erro" (18/09/2026). */}
+              {c.status === "paused" && c.pause_reason && (
+                <p className="mt-1 text-xs text-orange-400/90">{c.pause_reason}</p>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <span className={`text-xs px-2 py-1 rounded border ${STATUS_COLOR[c.status] ?? "text-gray-400 border-gray-700"}`}>
@@ -169,7 +177,7 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
               {c.status === "paused" && (
                 <button
                   onClick={() => handleFire(c.id)}
-                  title="Pausada por atingir o teto de mensagens/24h da Meta — retomar continua de onde parou"
+                  title={c.pause_reason ?? "Retomar continua de onde parou, sem reenviar para quem já recebeu."}
                   className="text-xs px-3 py-1 bg-orange-600 hover:bg-orange-500 text-white rounded-md transition-colors"
                 >
                   Retomar

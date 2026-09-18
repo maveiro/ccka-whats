@@ -1212,6 +1212,24 @@ Resposta às quatro frentes aprovadas na revisão de 17/09.
     `messages`/`media_files` — a segunda é dado pessoal de cliente e o prazo é
     decisão de negócio.
 
+62. **A pausa por qualidade é por TAXA, não na primeira recusa** (migration
+    `pausa_por_taxa`, 18/09/2026). O erro **131049** ("healthy ecosystem
+    engagement") tem dois significados que o webhook não distingue: a parede
+    de qualidade do número — o caso de 07/08/2026, com 76-92% de falha depois
+    do primeiro sinal — e o **teto individual de marketing**, que a Meta aplica
+    a UMA pessoa e é rotina. Parar na primeira ocorrência tratava os dois
+    igual: em 18/09 uma campanha de 631 foi pausada **16 segundos** depois do
+    disparo, com 4 falhas em 100 processados e 92% de entrega, deixando 531
+    pessoas paradas. Agora a pausa exige **≥10 falhas E ≥20% nos últimos 50
+    processados** (`taxa_de_falha_recente`) — os dois critérios juntos porque
+    só a proporção dispara com 2 de 3 no começo, e só o número absoluto deixa
+    passar 10 em 5.000; o caso de agosto cruza os dois em segundos. Recusa
+    isolada agora vira `campaign_qualidade_ignorada` no log: sem esse registro,
+    "a Meta recusou um número" e "está tudo bem" ficam indistinguíveis. E o
+    motivo passou a viver em `campaigns.pause_reason`, **na tela** — campanha
+    que para sozinha sem dizer por quê chega a quem disparou como "deu um
+    erro", que foi exatamente como chegou.
+
 61. **A lista de shows do Flow PAGINA — 20 é teto do componente** (18/09/2026).
     `RadioButtonsGroup` aceita no máximo 20 opções (doc da Meta); com 26 datas
     publicadas, o fã via até a vigésima (Maceió) e **nada** dizia que havia

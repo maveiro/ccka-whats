@@ -70,6 +70,23 @@ const OPT_OUT_BUTTON_TEXTS = new Set(
 // Match por código quando presente (mais confiável); texto como fallback
 // pra qualquer variante ainda não catalogada.
 const ASYNC_QUALITY_PROTECTION_CODES = new Set([131048, 131049]);
+
+// Quando esses sinais viram PAUSA (migration pausa_por_taxa, 18/09/2026).
+//
+// Até aqui bastava um: a campanha parava na primeira recusa. O 131049,
+// porém, também é o teto INDIVIDUAL de marketing que a Meta aplica por
+// pessoa — recusar a mensagem de um número não diz nada sobre a campanha.
+// Em 18/09/2026 uma campanha de 631 foi pausada 16 segundos depois do
+// disparo, com 4 falhas em 100 processados e 92% de entrega, deixando 531
+// pessoas paradas.
+//
+// A proteção real é a TAXA: o caso de agosto batia 76-92% e cruzaria estes
+// limites em segundos. Os dois critérios andam juntos de propósito — só a
+// proporção dispararia com 2 falhas em 3 envios no começo da campanha, e só
+// o número absoluto deixaria passar 10 falhas em 5.000.
+const PAUSA_JANELA = 50;
+const PAUSA_MINIMO_FALHAS = 10;
+const PAUSA_TAXA = 0.2;
 const ASYNC_QUALITY_PROTECTION_PHRASES = [
   "spam rate limit",
   "healthy ecosystem engagement",
@@ -531,11 +548,10 @@ async function handleStatus(status: {
     ...(errorTitle ? { errorTitle } : {}),
   });
 
-  // Pausa automática: proteção de qualidade/spam assíncrona da Meta não é
-  // por-destinatário, é sinal de que a campanha inteira precisa parar —
-  // continuar mandando contra a parede só piora (visto em produção: 76-92%
-  // de falha nos minutos seguintes ao primeiro sinal). Pausa na primeira
-  // ocorrência em vez de esperar acumular várias.
+  // Pausa automática por proteção de qualidade — agora por TAXA, não na
+  // primeira recusa (ver os limites acima). Continuar mandando contra a
+  // parede piora a nota do número; parar por causa de um teto individual
+  // trava a campanha por nada.
   if (newStatus === "failed" && isAsyncQualityProtectionError(errorCode, errorTitle)) {
     const { data: campaign } = await supabase
       .from("campaigns")
@@ -544,16 +560,48 @@ async function handleStatus(status: {
       .single();
 
     if (campaign?.status === "sending") {
-      await supabase
-        .from("campaigns")
-        .update({ status: "paused", updated_at: new Date().toISOString() })
-        .eq("id", recipient.campaign_id);
-      await logEvent(recipient.tenant_id, "campaign_paused", {
-        campaignId: recipient.campaign_id,
-        reason: "async_quality_protection",
-        errorCode,
-        errorTitle,
+      const { data: taxa } = await supabase.rpc("taxa_de_falha_recente", {
+        p_campaign_id: recipient.campaign_id,
+        p_janela: PAUSA_JANELA,
       });
+
+      const medida = (taxa ?? {}) as { processados?: number; falhas?: number; taxa?: number };
+      const falhas = medida.falhas ?? 0;
+      const proporcao = Number(medida.taxa ?? 0);
+      const deveParar = falhas >= PAUSA_MINIMO_FALHAS && proporcao >= PAUSA_TAXA;
+
+      if (deveParar) {
+        const motivo =
+          `Pausada pela proteção de qualidade: ${falhas} falhas nos últimos ` +
+          `${medida.processados ?? 0} envios (${Math.round(proporcao * 100)}%). ` +
+          `Último erro da Meta: ${errorTitle ?? errorCode ?? "sem detalhe"}.`;
+
+        await supabase
+          .from("campaigns")
+          .update({ status: "paused", pause_reason: motivo, updated_at: new Date().toISOString() })
+          .eq("id", recipient.campaign_id);
+        await logEvent(recipient.tenant_id, "campaign_paused", {
+          campaignId: recipient.campaign_id,
+          reason: "async_quality_protection",
+          errorCode,
+          errorTitle,
+          falhas,
+          processados: medida.processados ?? 0,
+          taxa: proporcao,
+        });
+      } else {
+        // Recusa isolada: fica registrada, a campanha segue. Sem este log, a
+        // diferença entre "a Meta recusou um número" e "a campanha está indo
+        // bem" some — e é ela que justifica não ter parado.
+        await logEvent(recipient.tenant_id, "campaign_qualidade_ignorada", {
+          campaignId: recipient.campaign_id,
+          errorCode,
+          errorTitle,
+          falhas,
+          processados: medida.processados ?? 0,
+          taxa: proporcao,
+        });
+      }
     }
   }
 }

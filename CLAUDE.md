@@ -1212,6 +1212,23 @@ Resposta às quatro frentes aprovadas na revisão de 17/09.
     `messages`/`media_files` — a segunda é dado pessoal de cliente e o prazo é
     decisão de negócio.
 
+56. **Os selos do board também chegam ao Flow — sem republicar.** `title` do
+    item de lista tem **30 caracteres** e `description` tem 300 (doc da Meta);
+    `metadata` (20) e `color` existem a partir da versão 5.0 e a nossa é 7.2,
+    **mas usá-los exigiria declarar propriedade nova na tela**, ou seja Flow
+    novo + descontinuar + invalidar template aprovado (ver o item de
+    republicação acima). Então os selos entram na **descrição**, que já existe
+    no contrato publicado: `data · teatro · status · período · ingressos`. No
+    detalhe, o mesmo — juntos no campo `status`.
+
+    **E o limite de 30 não era respeitado:** `cidade · teatro` passava de 30 em
+    **17 dos 26** shows do IB (achado em 18/09/2026), então o fã via nome
+    cortado no meio — *"Foz do Iguaçu/PR · Rafain Pala…"*. Hoje `title` é só a
+    cidade (o pior caso real, "São José dos Campos/SP", tem 22) e o teatro
+    desceu para a descrição. Os dois campos são cortados no limite por
+    garantia. **Regra:** ao mexer na lista do Flow, conferir contra os dados
+    REAIS, não contra o exemplo do JSON — o `__example__` sempre cabe.
+
 **Aviso ativo em standby (decisão do fundador, 18/09/2026).** A vigilância
 está completa, mas **nenhum destino foi escolhido** — nem webhook, nem e-mail,
 nem WhatsApp. A leitura é pela tela de Saúde, e a tela diz isso em texto

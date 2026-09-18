@@ -543,7 +543,7 @@ async function responderAgenda(
   if (acao === "data_exchange" && escolhido) {
     const { data: show } = await supabase
       .from("agenda_shows_sync")
-      .select("id, artista, cidade, teatro, data_show, status_venda, link_compra, espetaculo")
+      .select("id, artista, cidade, teatro, data_show, status_venda, link_compra, espetaculo, label_ingressos, label_periodo")
       .eq("tenant_id", credencial.tenant_id)
       .eq("id", escolhido)
       // Mesmo filtro da lista: um Flow aberto há dez minutos pode ter a lista
@@ -595,7 +595,7 @@ async function responderAgenda(
   // ao ar. Show à venda mas não publicado não existe para o fã.
   let query = supabase
     .from("agenda_shows_sync")
-    .select("id, artista, cidade, teatro, data_show, status_venda, link_compra")
+    .select("id, artista, cidade, teatro, data_show, status_venda, link_compra, label_ingressos, label_periodo")
     .eq("tenant_id", credencial.tenant_id)
     .eq("publicado", true)
     .or(`data_show.gte.${new Date().toISOString()},data_show.is.null`)

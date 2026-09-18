@@ -335,6 +335,72 @@ await cenario("show removido entre a lista e o clique volta para a lista, sem er
   checar(corpo.screen === "AGENDA", `deveria cair na lista, veio "${corpo.screen}"`);
 });
 
+await cenario("lista respeita os 30 caracteres do título e leva os selos na descrição", async () => {
+  // 17 dos 26 shows reais do IB passavam de 30 no `cidade · teatro`, então o
+  // fã via nome cortado no meio. Título é só a cidade; o teatro e os selos
+  // vão na descrição, que tem 300.
+  const curitiba = (showsCriados ?? []).find((s) => s.cidade === "Curitiba");
+  await db.from("agenda_shows_sync").update({
+    cidade: "São José dos Campos/SP",
+    teatro: "Teatro Municipal Paschoal Carlos Magno",
+    label_ingressos: "🔥 Quase Esgotado",
+    label_periodo: "Neste Fim de Semana",
+  }).eq("id", curitiba!.id);
+
+  const { res, chaveAes, iv } = await pedir(publicaPem, { version: "3.0", action: "INIT" });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as {
+    data: { shows: { title: string; description: string }[] };
+  };
+  const item = corpo.data.shows.find((s) => s.title.includes("São José"));
+
+  checar(!!item, "o show deveria estar na lista");
+  checar((item?.title.length ?? 99) <= 30, `title passou de 30: ${item?.title.length} (${item?.title})`);
+  checar(item?.title === "São José dos Campos/SP", `título deveria ser só a cidade, veio "${item?.title}"`);
+  checar(
+    (item?.description ?? "").includes("Teatro Municipal Paschoal Carlos Magno"),
+    `o teatro deveria ir para a descrição: ${item?.description}`,
+  );
+  checar((item?.description ?? "").includes("🔥 Quase Esgotado"), "o selo de ingressos precisa aparecer");
+  checar((item?.description ?? "").includes("Neste Fim de Semana"), "o selo de período precisa aparecer");
+  checar((item?.description.length ?? 999) <= 300, "descrição não pode passar de 300");
+
+  await db.from("agenda_shows_sync").update({
+    cidade: "Curitiba", teatro: "Guaíra", label_ingressos: null, label_periodo: null,
+  }).eq("id", curitiba!.id);
+});
+
+await cenario("cidade longa demais é cortada em 30, não vaza o limite", async () => {
+  const curitiba = (showsCriados ?? []).find((s) => s.cidade === "Curitiba");
+  await db.from("agenda_shows_sync")
+    .update({ cidade: "Cidade Com Nome Absurdamente Longo Para Um Título" })
+    .eq("id", curitiba!.id);
+
+  const { res, chaveAes, iv } = await pedir(publicaPem, { version: "3.0", action: "INIT" });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { data: { shows: { title: string }[] } };
+  const item = corpo.data.shows.find((s) => s.title.startsWith("Cidade Com"));
+  checar((item?.title.length ?? 99) === 30, `deveria cortar em 30, veio ${item?.title.length}`);
+
+  await db.from("agenda_shows_sync").update({ cidade: "Curitiba" }).eq("id", curitiba!.id);
+});
+
+await cenario("detalhe leva status e selos juntos", async () => {
+  const curitiba = (showsCriados ?? []).find((s) => s.cidade === "Curitiba");
+  await db.from("agenda_shows_sync")
+    .update({ label_ingressos: "Em Alta" })
+    .eq("id", curitiba!.id);
+
+  const { res, chaveAes, iv } = await pedir(publicaPem, {
+    version: "3.0", action: "data_exchange", screen: "AGENDA", data: { show_id: curitiba!.id },
+  });
+  const corpo = await abrirResposta(res, chaveAes, iv) as unknown as { data: Record<string, unknown> };
+  // Sem campo novo na tela: o selo entra no `status`, que já existe no
+  // contrato publicado — campo novo exigiria Flow novo.
+  checar(String(corpo.data.status).includes("Em Alta"), `status deveria carregar o selo, veio "${corpo.data.status}"`);
+  checar(String(corpo.data.status).includes("à venda"), "e continuar com o status de venda");
+
+  await db.from("agenda_shows_sync").update({ label_ingressos: null }).eq("id", curitiba!.id);
+});
+
 await cenario("detalhe mostra arte e sinopse do espetáculo quando o tema existe", async () => {
   const curitiba = (showsCriados ?? []).find((s) => s.cidade === "Curitiba");
   await db.from("agenda_shows_sync")

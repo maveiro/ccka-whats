@@ -17,6 +17,15 @@ export const TELA_DETALHE = "DETALHE";
 // lista gigante é ruim de usar no celular de qualquer forma.
 const MAX_SHOWS = 20;
 
+// Limites do item de lista do Flow (doc da Meta): title 30, description 300.
+// O title de 30 NÃO era respeitado: `cidade · teatro` passava de 30 em 17 dos
+// 26 shows do IB (achado em 18/09/2026), então o fã via nome cortado no meio
+// — "Foz do Iguaçu/PR · Rafain Pala...". Por isso o título passou a ser só a
+// cidade (o maior caso real, "São José dos Campos/SP", tem 22) e o teatro
+// desceu para a descrição, que tem folga de sobra.
+const MAX_TITULO = 30;
+const MAX_DESCRICAO = 300;
+
 export interface ShowRow {
   id: string;
   artista: string;
@@ -26,6 +35,8 @@ export interface ShowRow {
   status_venda: string | null;
   link_compra: string | null;
   espetaculo?: string | null;
+  label_ingressos?: string | null;
+  label_periodo?: string | null;
 }
 
 /** Conteúdo do espetáculo (agenda_temas), quando o show casa com um. */
@@ -68,11 +79,28 @@ function formatarData(iso: string | null): string {
   return hora === "00:00" ? `${dia} · hora a confirmar` : `${dia} ${hora}`;
 }
 
+/**
+ * Item da lista de shows.
+ *
+ * `title` = cidade, `description` = data · teatro · status · selos. Os selos
+ * (`label_ingressos` e `label_periodo`, vindos do board) entram na DESCRIÇÃO
+ * de propósito: o Flow tem um campo `metadata` feito para isso, mas usá-lo
+ * exigiria declarar propriedade nova na tela — e Flow publicado é imutável,
+ * ou seja, Flow novo, descontinuar o antigo e invalidar qualquer template
+ * aprovado que aponte para o id velho. Na descrição, o mesmo dado chega hoje,
+ * sem fila.
+ */
 export function montarLista(shows: ShowRow[]): ItemLista[] {
   return shows.slice(0, MAX_SHOWS).map((s) => ({
     id: s.id,
-    title: [s.cidade, s.teatro].filter(Boolean).join(" · ") || "Show",
-    description: [formatarData(s.data_show), s.status_venda].filter(Boolean).join(" · "),
+    title: (s.cidade ?? "Show").slice(0, MAX_TITULO),
+    description: [
+      formatarData(s.data_show),
+      s.teatro,
+      s.status_venda,
+      s.label_periodo,
+      s.label_ingressos,
+    ].filter(Boolean).join(" · ").slice(0, MAX_DESCRICAO),
   }));
 }
 
@@ -126,7 +154,10 @@ export function telaDetalhe(show: ShowRow, tema?: TemaRow | null) {
     data: {
       titulo: [show.cidade, show.teatro].filter(Boolean).join(" · ") || "Show",
       quando: formatarData(show.data_show),
-      status: show.status_venda ?? "",
+      // Status e selos no mesmo campo, pelo mesmo motivo da lista: campo novo
+      // na tela exigiria republicar o Flow.
+      status: [show.status_venda, show.label_periodo, show.label_ingressos]
+        .filter(Boolean).join(" · "),
       // Nome do espetáculo: é o que dá contexto à arte, e o fã de um artista
       // com dois espetáculos em cartaz precisa saber qual é qual.
       espetaculo: tema?.nome ?? show.espetaculo ?? "",

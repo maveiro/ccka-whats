@@ -1212,6 +1212,19 @@ Resposta às quatro frentes aprovadas na revisão de 17/09.
     `messages`/`media_files` — a segunda é dado pessoal de cliente e o prazo é
     decisão de negócio.
 
+59. **Campanha tem CANCELAR, e cancelar não apaga** (migration
+    `cancelar_campanha`, 18/09/2026). Uma campanha pausada por teto de tier só
+    tinha "Retomar" — quem decidia não continuar ficava sem saída, e os
+    destinatários restantes ficavam `pending` para sempre (achado com uma
+    campanha real: 400 de 5.174 processados). Cancelar marca quem ainda não
+    recebeu como `cancelled`, e isso importa por dois motivos:
+    `claim_campaign_recipients` só reivindica `pending`, então nem o cron nem
+    um "Retomar" acidental disparam o resto; e o relatório passa a mostrar
+    quantos nunca foram enviados. **O que já saiu permanece** — é o histórico
+    que explica a fatura, e para apagar não existe caminho (o "Excluir" é só
+    para rascunho). Campanha concluída ou falha **não** pode ser cancelada:
+    seria reescrever história.
+
 58. **O assistente de campanha escolhe DE QUAL número disparar.** Até
     18/09/2026 ele usava sempre `credentials[0]` e o botão "Trocar número"
     abria o cadastro de uma credencial NOVA — com quatro números cadastrados,

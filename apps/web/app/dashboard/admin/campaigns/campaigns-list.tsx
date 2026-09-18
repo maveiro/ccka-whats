@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import Papa from "papaparse";
 import { formatCurrency } from "@/lib/utils";
 
@@ -28,6 +29,7 @@ const STATUS_LABEL: Record<string, string> = {
   paused: "Pausada (limite atingido)",
   completed: "Concluída",
   failed: "Falhou",
+  cancelled: "Cancelada",
 };
 
 const STATUS_COLOR: Record<string, string> = {
@@ -37,12 +39,15 @@ const STATUS_COLOR: Record<string, string> = {
   paused: "text-orange-400 border-orange-800",
   completed: "text-green-400 border-green-800",
   failed: "text-red-400 border-red-800",
+  cancelled: "text-gray-500 border-gray-700",
 };
 
 export default function CampaignsList({ initial }: { initial: Campaign[] }) {
   const [campaigns, setCampaigns] = useState(initial);
   const [reportLoading, setReportLoading] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState<string | null>(null);
+  const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -71,6 +76,30 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
     if (res.ok) {
       const refreshed = await fetch("/api/campaigns");
       if (refreshed.ok) setCampaigns(await refreshed.json());
+    }
+  }
+
+  async function handleCancel(c: Campaign) {
+    // Dois toques, como o Excluir: cancelar não tem volta, e o botão fica ao
+    // lado do "Retomar" — errar o alvo custaria a campanha.
+    if (cancelConfirm !== c.id) {
+      setCancelConfirm(c.id);
+      return;
+    }
+    setCancelLoading(c.id);
+    try {
+      const res = await fetch(`/api/campaigns/${c.id}/cancel`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `Erro ${res.status}`);
+      setCampaigns((cs) => cs.map((x) => x.id === c.id ? { ...x, status: "cancelled" } : x));
+      toast.success(
+        `Campanha cancelada — ${json.cancelados} destinatário(s) não receberão`,
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCancelLoading(null);
+      setCancelConfirm(null);
     }
   }
 
@@ -144,6 +173,20 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
                   className="text-xs px-3 py-1 bg-orange-600 hover:bg-orange-500 text-white rounded-md transition-colors"
                 >
                   Retomar
+                </button>
+              )}
+              {["ready", "sending", "paused"].includes(c.status) && (
+                <button
+                  onClick={() => handleCancel(c)}
+                  disabled={cancelLoading === c.id}
+                  title="Encerra a campanha. O que já foi enviado permanece no histórico e no custo; quem ainda não recebeu nunca recebe."
+                  className={`text-xs px-2.5 py-1 rounded-md transition-colors disabled:opacity-50 ${
+                    cancelConfirm === c.id
+                      ? "bg-red-900/40 border border-red-800 text-red-300"
+                      : "bg-gray-800 hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  {cancelLoading === c.id ? "Cancelando..." : cancelConfirm === c.id ? "Confirmar?" : "Cancelar"}
                 </button>
               )}
               {c.total_recipients > 0 && (

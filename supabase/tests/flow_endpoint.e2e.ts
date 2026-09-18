@@ -311,6 +311,77 @@ await cenario("data_exchange com show_id devolve o detalhe daquele show", async 
   checar(corpo.data.tem_link === true, "show com link deveria marcar tem_link");
 });
 
+await cenario("agenda com mais de 20 datas pagina em vez de esconder o resto", async () => {
+  // O caso real que motivou isto: 26 datas publicadas do IB, e a lista parava
+  // em Maceió (a vigésima) sem nenhum sinal de que havia mais seis. O teto de
+  // 20 é do componente RadioButtonsGroup ("Max # of options: 20", doc da
+  // Meta), não nosso — por isso a saída é paginar, não aumentar o número.
+  const extras = Array.from({ length: 24 }, (_, i) => ({
+    tenant_id: TENANT,
+    artista: "Artista A",
+    cidade: `Cidade ${String(i + 1).padStart(2, "0")}`,
+    teatro: "Teatro",
+    data_show: new Date(Date.now() + (i + 2) * 86_400_000).toISOString(),
+    status_venda: "à venda",
+    publicado: true,
+  }));
+  const { data: criados } = await db.from("agenda_shows_sync").insert(extras).select("id");
+
+  try {
+    const { res, chaveAes, iv } = await pedir(publicaPem, { version: "7.2", action: "INIT" });
+    const corpo = await abrirResposta(res, chaveAes, iv) as unknown as {
+      data: { shows: { id: string; title: string; description: string }[] };
+    };
+    const itens = corpo.data.shows;
+
+    checar(itens.length === 20, `a tela cabe 20 itens, veio ${itens.length}`);
+    const ultimo = itens[itens.length - 1];
+    checar(ultimo.id.startsWith("pagina:"), `o último item deveria ser a navegação, veio ${ultimo.id}`);
+    checar(ultimo.title.includes("Ver mais"), `rótulo inesperado: ${ultimo.title}`);
+    checar(
+      ultimo.description.includes("6"),
+      `a navegação precisa dizer quantos faltam (25 shows - 19 na página = 6): ${ultimo.description}`,
+    );
+
+    // Segunda página: mesma tela publicada, conteúdo diferente.
+    const p2 = await pedir(publicaPem, {
+      version: "7.2", action: "data_exchange", screen: "AGENDA", data: { show_id: ultimo.id },
+    });
+    const corpo2 = await abrirResposta(p2.res, p2.chaveAes, p2.iv) as unknown as {
+      screen: string; data: { shows: { id: string; title: string }[]; titulo: string };
+    };
+
+    checar(corpo2.screen === "AGENDA", `a navegação deveria voltar à AGENDA, veio "${corpo2.screen}"`);
+    checar(
+      corpo2.data.shows[0].id === "pagina:0",
+      `a segunda página precisa do caminho de volta, veio ${corpo2.data.shows[0].id}`,
+    );
+    checar(
+      String(corpo2.data.titulo).includes("continuação"),
+      `o cabeçalho deveria dizer que é continuação: ${corpo2.data.titulo}`,
+    );
+    const idsP1 = new Set(itens.filter((i) => !i.id.startsWith("pagina:")).map((i) => i.id));
+    const repetidos = corpo2.data.shows.filter((i) => idsP1.has(i.id));
+    checar(repetidos.length === 0, `a segunda página não pode repetir show da primeira (${repetidos.length})`);
+
+    // Voltar ao início devolve a primeira página, com a navegação de novo.
+    const p3 = await pedir(publicaPem, {
+      version: "7.2", action: "data_exchange", screen: "AGENDA", data: { show_id: "pagina:0" },
+    });
+    const corpo3 = await abrirResposta(p3.res, p3.chaveAes, p3.iv) as unknown as {
+      data: { shows: { id: string }[] };
+    };
+    checar(
+      corpo3.data.shows[0].id === itens[0].id,
+      "voltar ao início precisa devolver a primeira página exatamente como era",
+    );
+  } finally {
+    // Sem esta limpeza, os 24 shows extras vazam para os cenários seguintes —
+    // e um deles conta os itens da lista.
+    for (const c of criados ?? []) await db.from("agenda_shows_sync").delete().eq("id", c.id);
+  }
+});
+
 await cenario("cada tela servida fica registrada (é como saber se o clique chegou)", async () => {
   await db.from("events_log").delete().eq("tenant_id", TENANT).eq("event_type", "flow_endpoint_tela");
   await pedir(publicaPem, { version: "7.2", action: "INIT" });

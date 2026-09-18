@@ -13,9 +13,34 @@
 export const TELA_AGENDA = "AGENDA";
 export const TELA_DETALHE = "DETALHE";
 
-// Teto de itens por resposta: payload de Flow tem limite de tamanho, e uma
-// lista gigante é ruim de usar no celular de qualquer forma.
-const MAX_SHOWS = 20;
+// Telas do Flow paralelo em avaliação (18/09/2026): mesmo conteúdo, mas a
+// lista é um `Dropdown` (200 opções) em vez de `RadioButtonsGroup` (20). Vive
+// num Flow SEPARADO de propósito — trocar o componente do Flow em produção
+// exigiria republicar e descontinuar o atual, e a comparação lado a lado é
+// justamente o que decide se vale pagar isso.
+export const TELA_AGENDA_LONGA = "AGENDA_LONGA";
+export const TELA_DETALHE_LONGO = "DETALHE_LONGO";
+
+// Teto do Dropdown: a doc da Meta permite 200 (100 com imagem). 100 é folga
+// suficiente para uma turnê inteira e mantém o payload pequeno.
+export const MAX_ITENS_DROPDOWN = 100;
+
+// Teto de itens da lista: 20 é limite DURO do componente `RadioButtonsGroup`
+// ("Max # of options: 20", doc da Meta), não escolha nossa — subir o número
+// não mostra mais shows, quebra a tela. Em 18/09/2026 a turnê do IB passou
+// disso: 26 datas publicadas, e o fã via até Maceió (a vigésima), sem nenhum
+// sinal de que havia mais seis.
+//
+// Por isso a lista PAGINA: uma das 20 vagas vira o item de navegação, e o
+// resto dos shows chega no lote seguinte. Quem escolhe qual tela responder é
+// este endpoint, não o JSON publicado — então paginar não exige Flow novo,
+// nem descontinuar o atual, nem invalidar template aprovado.
+const MAX_ITENS = 20;
+const POR_PAGINA = MAX_ITENS - 1;
+
+// Prefixo do item de navegação. Vai no mesmo campo `id` que carrega o uuid do
+// show, então precisa ser impossível de confundir com um: uuid não tem ":".
+export const PREFIXO_PAGINA = "pagina:";
 
 // Limites do item de lista do Flow (doc da Meta): title 30, description 300.
 // O title de 30 NÃO era respeitado: `cidade · teatro` passava de 30 em 17 dos
@@ -90,8 +115,8 @@ function formatarData(iso: string | null): string {
  * aprovado que aponte para o id velho. Na descrição, o mesmo dado chega hoje,
  * sem fila.
  */
-export function montarLista(shows: ShowRow[]): ItemLista[] {
-  return shows.slice(0, MAX_SHOWS).map((s) => ({
+function itemDoShow(s: ShowRow): ItemLista {
+  return {
     id: s.id,
     title: (s.cidade ?? "Show").slice(0, MAX_TITULO),
     description: [
@@ -101,16 +126,70 @@ export function montarLista(shows: ShowRow[]): ItemLista[] {
       s.label_periodo,
       s.label_ingressos,
     ].filter(Boolean).join(" · ").slice(0, MAX_DESCRICAO),
-  }));
+  };
+}
+
+/**
+ * Lê o destino de um item de navegação. Devolve null para id de show — é o
+ * que separa "o fã quer ver um show" de "o fã quer a próxima página".
+ */
+export function paginaDoItem(id: string | null | undefined): number | null {
+  if (!id || !id.startsWith(PREFIXO_PAGINA)) return null;
+  const n = Number.parseInt(id.slice(PREFIXO_PAGINA.length), 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/**
+ * Uma página da lista, com os itens de navegação que couberem.
+ *
+ * A ordem importa: "voltar" primeiro e "ver mais" por último, porque é a
+ * ordem em que a pessoa lê. E os dois só existem quando há para onde ir —
+ * item de navegação que não navega é vaga de show desperdiçada.
+ */
+export function montarLista(shows: ShowRow[], offset = 0, maxItens = MAX_ITENS): ItemLista[] {
+  const inicio = Math.max(0, Math.min(offset, shows.length));
+  const voltar = inicio > 0;
+  const cabem = maxItens - 1 - (voltar ? 1 : 0);
+  const pagina = shows.slice(inicio, inicio + cabem);
+  const restantes = shows.length - (inicio + pagina.length);
+
+  const itens: ItemLista[] = [];
+  if (voltar) {
+    itens.push({
+      id: `${PREFIXO_PAGINA}0`,
+      title: "◀ Voltar ao início",
+      description: "Mostrar as primeiras datas de novo",
+    });
+  }
+  itens.push(...pagina.map(itemDoShow));
+  if (restantes > 0) {
+    itens.push({
+      id: `${PREFIXO_PAGINA}${inicio + pagina.length}`,
+      title: "▶ Ver mais datas",
+      description: restantes === 1
+        ? "Mais 1 show depois desta data"
+        : `Mais ${restantes} shows depois desta data`,
+    });
+  }
+  return itens;
 }
 
 /** Tela inicial: a lista. Sem shows, o texto explica em vez de mostrar vazio. */
-export function telaAgenda(shows: ShowRow[], artista: string | null) {
-  const itens = montarLista(shows);
+export function telaAgenda(
+  shows: ShowRow[],
+  artista: string | null,
+  offset = 0,
+  tela: string = TELA_AGENDA,
+) {
+  const maxItens = tela === TELA_AGENDA_LONGA ? MAX_ITENS_DROPDOWN : MAX_ITENS;
+  const itens = montarLista(shows, offset, maxItens);
   return {
-    screen: TELA_AGENDA,
+    screen: tela,
     data: {
-      titulo: artista ? `Próximos shows — ${artista}` : "Próximos shows",
+      // O cabeçalho diz em que página a pessoa está: sem isso, a segunda
+      // leva de datas parece a mesma tela sem explicação de por que mudou.
+      titulo: [artista ? `Próximos shows — ${artista}` : "Próximos shows",
+        offset > 0 ? "(continuação)" : null].filter(Boolean).join(" "),
       tem_shows: itens.length > 0,
       // `sem_shows` existe porque a linguagem de expressão do Flow JSON não
       // tem negação: `${!data.tem_shows}` é recusado na validação da Meta.
@@ -140,7 +219,7 @@ export function telaAgenda(shows: ShowRow[], artista: string | null) {
  * conhecida, cai em 1 (o default da Meta) — pior enquadramento, nunca tela
  * quebrada.
  */
-export function telaDetalhe(show: ShowRow, tema?: TemaRow | null) {
+export function telaDetalhe(show: ShowRow, tema?: TemaRow | null, tela: string = TELA_DETALHE) {
   const sinopse = tema?.sinopse?.trim() ?? "";
   const imagem = tema?.imagem_base64 ?? "";
   const largura = tema?.imagem_largura ?? 0;
@@ -150,7 +229,7 @@ export function telaDetalhe(show: ShowRow, tema?: TemaRow | null) {
     : 1;
 
   return {
-    screen: TELA_DETALHE,
+    screen: tela,
     data: {
       titulo: [show.cidade, show.teatro].filter(Boolean).join(" · ") || "Show",
       quando: formatarData(show.data_show),

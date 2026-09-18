@@ -1,0 +1,217 @@
+{
+  "version": "7.2",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "AGENDA_LONGA": [
+      "DETALHE_LONGO"
+    ],
+    "DETALHE_LONGO": []
+  },
+  "screens": [
+    {
+      "id": "AGENDA_LONGA",
+      "title": "Próximos shows",
+      "terminal": false,
+      "data": {
+        "titulo": {
+          "type": "string",
+          "__example__": "Próximos shows — Índio Behn"
+        },
+        "tem_shows": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "sem_shows": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "vazio_texto": {
+          "type": "string",
+          "__example__": "Ainda não há datas confirmadas."
+        },
+        "shows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "Curitiba · Teatro Positivo",
+              "description": "24/12 20:59 · à venda"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.titulo}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.vazio_texto}",
+            "visible": "${data.sem_shows}"
+          },
+          {
+            "type": "Form",
+            "name": "form_agenda",
+            "children": [
+              {
+                "type": "Dropdown",
+                "name": "show_id",
+                "label": "Escolha uma data",
+                "required": true,
+                "visible": "${data.tem_shows}",
+                "data-source": "${data.shows}"
+              },
+              {
+                "type": "Footer",
+                "label": "Ver detalhes",
+                "enabled": "${data.tem_shows}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "show_id": "${form.show_id}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DETALHE_LONGO",
+      "title": "Detalhes do show",
+      "terminal": true,
+      "data": {
+        "titulo": {
+          "type": "string",
+          "__example__": "Curitiba · Teatro Positivo"
+        },
+        "quando": {
+          "type": "string",
+          "__example__": "24/12, 20:59"
+        },
+        "status": {
+          "type": "string",
+          "__example__": "à venda"
+        },
+        "tem_link": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "link_compra": {
+          "type": "string",
+          "__example__": "https://exemplo.com/ingressos"
+        },
+        "espetaculo": {
+          "type": "string",
+          "__example__": "Como Ser Tóxica e Influenciar Pessoas"
+        },
+        "tem_espetaculo": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "sem_espetaculo": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "sinopse": {
+          "type": "string",
+          "__example__": "Uma comédia sobre convivência."
+        },
+        "tem_sinopse": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "sem_sinopse": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "imagem": {
+          "type": "string",
+          "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/6A1GAAAAABJRU5ErkJggg=="
+        },
+        "tem_imagem": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "sem_imagem": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "imagem_proporcao": {
+          "type": "number",
+          "__example__": 2.34
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Image",
+            "src": "${data.imagem}",
+            "visible": "${data.tem_imagem}",
+            "scale-type": "contain",
+            "alt-text": "Arte do espetáculo",
+            "aspect-ratio": "${data.imagem_proporcao}"
+          },
+          {
+            "type": "TextHeading",
+            "text": "${data.titulo}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.espetaculo}",
+            "visible": "${data.tem_espetaculo}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.quando}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.status}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.sinopse}",
+            "visible": "${data.tem_sinopse}"
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "Abrir página de ingressos",
+            "visible": "${data.tem_link}",
+            "on-click-action": {
+              "name": "open_url",
+              "url": "${data.link_compra}"
+            }
+          },
+          {
+            "type": "Footer",
+            "label": "Fechar",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {}
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

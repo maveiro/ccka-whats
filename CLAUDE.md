@@ -1212,6 +1212,29 @@ Resposta às quatro frentes aprovadas na revisão de 17/09.
     `messages`/`media_files` — a segunda é dado pessoal de cliente e o prazo é
     decisão de negócio.
 
+61. **A lista de shows do Flow PAGINA — 20 é teto do componente** (18/09/2026).
+    `RadioButtonsGroup` aceita no máximo 20 opções (doc da Meta); com 26 datas
+    publicadas, o fã via até a vigésima (Maceió) e **nada** dizia que havia
+    mais seis. Subir o número não mostra mais shows: quebra a tela. A saída foi
+    gastar uma das 20 vagas com um item de navegação (`pagina:<offset>` — uuid
+    não tem `:`, então nunca se confunde com um show) e devolver a **própria
+    tela AGENDA** com o lote seguinte. Funciona porque **quem escolhe a tela da
+    resposta é o endpoint, não o JSON publicado** — paginar não exigiu Flow
+    novo, nem descontinuar o atual, nem invalidar template aprovado. A agenda
+    inteira é relida a cada página (uma consulta por toque) em vez de guardar
+    estado de paginação: o Flow só devolve o item escolhido, e inventar sessão
+    de página seria estado novo para sincronizar.
+
+    **Flow paralelo de avaliação** (`AGENDA_LONGA`/`DETALHE_LONGO`, Dropdown de
+    até 200): convive no mesmo número e no mesmo endpoint, aberto pela palavra
+    `agenda2`. Duas coisas que ele obrigou a resolver e valem para qualquer
+    segundo Flow: **id de tela não aceita dígito** (`AGENDA_V2` é recusado com
+    `PATTERN_MISMATCH` — só letras e underscore), e **no `INIT` a Meta não diz
+    qual Flow foi aberto**; quem diz é a sessão (`flow_sessoes.flow_id`) lida
+    pelo `flow_token`, e a coluna `whatsapp_flows.tela_inicial` declara por
+    onde aquele Flow começa. Sem isso, abrir o paralelo devolvia a
+    apresentação da central — sem erro, só a tela errada.
+
 60. **O gate CONFIRMA que terminou** (18/09/2026). Quem mandava o e-mail
     recebia, como próxima mensagem, o **fallback** — texto escrito para quem
     perguntou algo que não entendemos ("Da próxima vez, é só escrever *menu*"),

@@ -28,7 +28,17 @@ import {
   importarChavePrivada,
   type RequisicaoCriptografada,
 } from "./crypto.ts";
-import { type ShowRow, telaAgenda, telaDetalhe, type TemaRow } from "./agenda.ts";
+import {
+  paginaDoItem,
+  type ShowRow,
+  TELA_AGENDA,
+  TELA_AGENDA_LONGA,
+  TELA_DETALHE,
+  TELA_DETALHE_LONGO,
+  telaAgenda,
+  telaDetalhe,
+  type TemaRow,
+} from "./agenda.ts";
 import {
   type FaqItem,
   telaApresentacao,
@@ -221,14 +231,46 @@ async function responderTela(
     return await responderCentral(acao, corpo, phoneNumberId);
   }
 
-  // INIT sem tela: é a abertura do Flow. Central quando o Flow ativo do número
-  // é do tipo `central`; agenda quando é o Flow de agenda.
+  // Telas do Flow paralelo (lista em Dropdown): nomes próprios justamente para
+  // que a navegação não dependa de adivinhação — chegou AGENDA_LONGA, é dele.
+  if (tela === TELA_AGENDA_LONGA || tela === TELA_DETALHE_LONGO) {
+    return await responderAgenda(acao, corpo, phoneNumberId, TELA_AGENDA_LONGA);
+  }
+
+  // INIT sem tela: é a abertura do Flow, e a Meta não diz qual Flow foi
+  // aberto. A SESSÃO diz (flow_sessoes.flow_id, gravada quando o balão foi
+  // oferecido) — é a mesma fonte que já identifica a pessoa (regra 28). Só
+  // quando a sessão não resolve é que vale a regra antiga, por número.
   if (acao === "INIT") {
+    const inicial = await telaInicialDaSessao(corpo);
+    if (inicial === TELA_AGENDA_LONGA) {
+      return await responderAgenda(acao, corpo, phoneNumberId, TELA_AGENDA_LONGA);
+    }
     const ehCentral = await numeroTemCentral(phoneNumberId);
     if (ehCentral) return await responderCentral(acao, corpo, phoneNumberId);
   }
 
   return await responderAgenda(acao, corpo, phoneNumberId);
+}
+
+/**
+ * Tela de entrada declarada pelo Flow desta sessão (`whatsapp_flows.tela_inicial`).
+ *
+ * Devolve null quando não há token, sessão ou coluna preenchida — e null
+ * significa "siga a regra de sempre", nunca erro: sessão perdida já cai no
+ * caminho de desconhecido, e trocar isso por falha deixaria o fã na mão.
+ */
+async function telaInicialDaSessao(corpo: Record<string, unknown>): Promise<string | null> {
+  const token = typeof corpo.flow_token === "string" ? corpo.flow_token : null;
+  if (!token) return null;
+
+  const { data } = await supabase
+    .from("flow_sessoes")
+    .select("whatsapp_flows(tela_inicial)")
+    .eq("token", token)
+    .maybeSingle<{ whatsapp_flows: { tela_inicial: string | null } | null }>();
+
+  return data?.whatsapp_flows?.tela_inicial ?? null;
 }
 
 async function numeroTemCentral(phoneNumberId: string): Promise<boolean> {
@@ -523,7 +565,10 @@ async function responderAgenda(
   acao: string,
   corpo: Record<string, unknown>,
   phoneNumberId: string,
+  variante: string = TELA_AGENDA,
 ): Promise<unknown> {
+  const telaLista = variante === TELA_AGENDA_LONGA ? TELA_AGENDA_LONGA : TELA_AGENDA;
+  const telaDeDetalhe = variante === TELA_AGENDA_LONGA ? TELA_DETALHE_LONGO : TELA_DETALHE;
   const { data: credencial } = await supabase
     .from("whatsapp_cloud_credentials")
     .select("tenant_id, artista")
@@ -533,13 +578,29 @@ async function responderAgenda(
 
   if (!credencial) {
     await registrar(phoneNumberId, "flow_endpoint_sem_credencial", { phoneNumberId, acao });
-    return telaAgenda([], null);
+    return telaAgenda([], null, 0, telaLista);
   }
 
   const dados = (corpo.data ?? {}) as Record<string, unknown>;
 
   // Detalhe de um show escolhido na lista.
   const escolhido = typeof dados.show_id === "string" ? dados.show_id : null;
+
+  // ...a não ser que o escolhido seja o item de navegação: aí o mesmo campo
+  // pede a PÁGINA seguinte, e a resposta é a própria lista de novo. É isto
+  // que contorna o teto de 20 opções do RadioButtonsGroup sem republicar o
+  // Flow: a tela publicada é a mesma, só o conteúdo muda — e quem decide qual
+  // tela responder é este endpoint, não o JSON congelado na Meta.
+  const paginaPedida = paginaDoItem(escolhido);
+  if (acao === "data_exchange" && paginaPedida !== null) {
+    const shows = await buscarShows(credencial.tenant_id, credencial.artista, phoneNumberId);
+    await registrarTela(phoneNumberId, acao, telaLista, {
+      shows: shows.length,
+      offset: paginaPedida,
+    });
+    return telaAgenda(shows, credencial.artista, paginaPedida, telaLista);
+  }
+
   if (acao === "data_exchange" && escolhido) {
     const { data: show } = await supabase
       .from("agenda_shows_sync")
@@ -557,7 +618,7 @@ async function responderAgenda(
     // a lista em vez de tela de erro.
     if (show) {
       const tema = await buscarTema(credencial.tenant_id, show.espetaculo ?? null);
-      await registrarTela(phoneNumberId, acao, "DETALHE", {
+      await registrarTela(phoneNumberId, acao, telaDeDetalhe, {
         showId: show.id,
         // Sem isto, "o espetáculo não tem arte" e "o nome não casou com
         // nenhum tema" são indistinguíveis — e o segundo é o defeito real do
@@ -566,7 +627,7 @@ async function responderAgenda(
         temaEncontrado: Boolean(tema),
         temImagem: Boolean(tema?.imagem_base64),
       });
-      return telaDetalhe(show, tema);
+      return telaDetalhe(show, tema, telaDeDetalhe);
     }
   }
 
@@ -593,30 +654,49 @@ async function responderAgenda(
   // `publicado` é a escolha editorial de quem cuida da central (migration
   // agenda_publicado): o board diz o que está à venda, e isto diz o que vai
   // ao ar. Show à venda mas não publicado não existe para o fã.
+  const shows = await buscarShows(credencial.tenant_id, credencial.artista, phoneNumberId);
+  await registrarTela(phoneNumberId, acao, telaLista, { shows: shows.length, offset: 0 });
+  return telaAgenda(shows, credencial.artista, 0, telaLista);
+}
+
+/**
+ * Agenda publicada do artista, inteira — a paginação da tela acontece depois,
+ * em memória.
+ *
+ * O teto de 200 não é o da tela (20 por página): é um limite de sanidade do
+ * payload. Trazer a agenda toda a cada página custa uma consulta a mais por
+ * toque, e é o preço de não guardar estado de paginação em lugar nenhum — o
+ * Flow não devolve nada além do item escolhido, e inventar sessão de página
+ * seria estado novo para sincronizar.
+ *
+ * Falha de leitura devolve lista VAZIA, nunca exceção: a tela vazia tem texto
+ * explicativo, e o evento no log é o que sinaliza o problema para nós.
+ */
+async function buscarShows(
+  tenantId: string,
+  artista: string | null,
+  phoneNumberId: string,
+): Promise<ShowRow[]> {
   let query = supabase
     .from("agenda_shows_sync")
     .select("id, artista, cidade, teatro, data_show, status_venda, link_compra, label_ingressos, label_periodo")
-    .eq("tenant_id", credencial.tenant_id)
+    .eq("tenant_id", tenantId)
     .eq("publicado", true)
     .or(`data_show.gte.${new Date().toISOString()},data_show.is.null`)
     .order("data_show", { ascending: true, nullsFirst: false })
-    .limit(20);
+    .limit(200);
 
-  if (credencial.artista) query = query.eq("artista", credencial.artista);
+  if (artista) query = query.eq("artista", artista);
 
-  const { data: shows, error } = await query;
+  const { data, error } = await query;
 
   if (error) {
     console.error("[flow-endpoint] falha ao ler agenda:", error.message);
     await registrar(phoneNumberId, "flow_endpoint_erro_agenda", { phoneNumberId, erro: error.message });
-    // Tela vazia com texto explicativo é melhor que erro cru para quem está do
-    // outro lado — e o evento acima é o que sinaliza o problema para nós.
-    return telaAgenda([], credencial.artista);
+    return [];
   }
 
-  const resposta = telaAgenda((shows ?? []) as ShowRow[], credencial.artista);
-  await registrarTela(phoneNumberId, acao, "AGENDA", { shows: (shows ?? []).length });
-  return resposta;
+  return (data ?? []) as ShowRow[];
 }
 
 /**

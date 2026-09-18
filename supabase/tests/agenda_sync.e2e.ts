@@ -161,7 +161,7 @@ const CRED_IB = "cccccccc-0000-4000-8000-0000000ac001";
 const CRED_FP = "cccccccc-0000-4000-8000-0000000ac002";
 const FILTRO_IB = "cccccccc-0000-4000-8000-0000000af001";
 const FILTRO_FP = "cccccccc-0000-4000-8000-0000000af002";
-const ARTISTA_IB = "Índio Behn - Dra. Rosangêla";
+const ARTISTA_IB = "Índio Behn - Dra. Rosângela";
 
 function futuro(dias: number, horaLocal = "21:00"): string {
   const d = new Date(Date.now() + dias * 86_400_000);

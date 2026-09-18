@@ -24,7 +24,7 @@ insert into tenants (name, slug) values ('Tenant pagina','tenant-pagina');
 insert into _ids select 'tenant', id from tenants where slug='tenant-pagina';
 
 insert into paginas_publicas (tenant_id, slug, artista, titulo)
-select valor, 'indiobehn', 'Índio Behn - Dra. Rosangêla', 'Dra. Rosângela' from _ids where chave='tenant';
+select valor, 'indiobehn', 'Índio Behn - Dra. Rosângela', 'Dra. Rosângela' from _ids where chave='tenant';
 insert into _ids select 'pagina', id from paginas_publicas where slug='indiobehn';
 
 insert into pagina_blocos (pagina_id, tenant_id, tipo, ordem, conteudo)
@@ -38,7 +38,7 @@ select p.valor, t.valor, 'agenda', 20, '{"titulo":"NOVO SHOW!"}'::jsonb
 insert into _ids select 'bloco_agenda', id from pagina_blocos where tipo='agenda';
 
 insert into agenda_shows_sync (tenant_id, artista, cidade, teatro, data_show, status_venda, link_compra, publicado)
-select valor, 'Índio Behn - Dra. Rosangêla', 'Curitiba/PR', 'Teatro Bom Jesus',
+select valor, 'Índio Behn - Dra. Rosângela', 'Curitiba/PR', 'Teatro Bom Jesus',
        now() + interval '10 days', 'à venda', 'https://exemplo.invalido/ingresso-curitiba', true
   from _ids where chave='tenant';
 insert into _ids select 'show', id from agenda_shows_sync where cidade='Curitiba/PR';

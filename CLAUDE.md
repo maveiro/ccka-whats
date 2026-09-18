@@ -1049,7 +1049,7 @@ texto de botão, relatório CSV por campanha, retomada de campanha pausada por t
 ### Módulo de automação + central — em produção (10/09/2026), validado ponta a ponta
 
 Migrations `0025`–`0040` aplicadas. Um número (`+55 41 8440-8675`, Índio Behn /
-Dra. Rosangêla) com automação `FAQ 2026` ativa, Flow `Central de shows`
+Dra. Rosângela) com automação `FAQ 2026` ativa, Flow `Central de shows`
 publicado, agenda e FAQ com conteúdo inicial, formulário público `/f/teste`
 apontando de volta para a conversa. Suíte: `npm run test:db` (SQL + e2e do
 engine, do endpoint e do painel; ~200 asserções).
@@ -1212,6 +1212,20 @@ Resposta às quatro frentes aprovadas na revisão de 17/09.
     `messages`/`media_files` — a segunda é dado pessoal de cliente e o prazo é
     decisão de negócio.
 
+60. **O gate CONFIRMA que terminou** (18/09/2026). Quem mandava o e-mail
+    recebia, como próxima mensagem, o **fallback** — texto escrito para quem
+    perguntou algo que não entendemos ("Da próxima vez, é só escrever *menu*"),
+    lido como correção de um erro que o fã não cometeu. Duas causas somadas:
+    o e-mail é o último campo, então não sobra pergunta onde embutir um
+    "Anotado!" (o do nome vive dentro de `pedirEmail`); e a pergunta guardada
+    em `mensagem_pendente` costuma ser um "olá", que não bate palavra-chave
+    nenhuma e cai no fallback. O motor já tinha o lugar certo —
+    `mensagem_boas_vindas` é enviada antes de keyword/fallback, uma vez por
+    contato ([`flow-engine/index.ts:564`]) — e estava **vazia**. É dado, não
+    código: entrou sem deploy e sem republicar Flow. O texto vale também para
+    quem já era cadastrado e escreve pela primeira vez, porque a mesma
+    mensagem serve aos dois.
+
 59. **Campanha tem CANCELAR, e cancelar não apaga** (migration
     `cancelar_campanha`, 18/09/2026). Uma campanha pausada por teto de tier só
     tinha "Retomar" — quem decidia não continuar ficava sem saída, e os
@@ -1285,6 +1299,17 @@ escrever, e os três templates UTILITY aprovados hoje são de RSVP do Diogo, que
 não servem; Slack e Discord recusam o corpo que o `webhook-delivery` envia
 (`{event, payload, timestamp}`) com 400 e precisariam de um campo de formato;
 n8n e Make funcionam só cadastrando a URL.
+
+**O nome do artista é CHAVE DE JUNÇÃO, não rótulo** (corrigido em
+18/09/2026: era "Rosangêla", é **Rosângela**). O `flow-endpoint` acha os shows
+comparando `whatsapp_cloud_credentials.artista` com `agenda_shows_sync.artista`
+por igualdade literal (regra 38c), e `whatsapp_flows.artista` e
+`paginas_publicas.artista` carregam a mesma string. Corrigir a grafia em um
+lado só faz a central servir agenda **vazia**, sem erro nenhum — por isso a
+correção foi uma migration, com as quatro tabelas na mesma transação, e não
+três edições pelo painel. O `slug` da página (`drarosangela`) **não** muda:
+é URL pública já divulgada, e slug é minúsculo sem acento de propósito
+(regra 42).
 
 **Armadilha que se repete a cada coluna nova:** quando `imagem_path` entrou, a
 arte não havia mudado, então o processamento era pulado e a coluna ficaria

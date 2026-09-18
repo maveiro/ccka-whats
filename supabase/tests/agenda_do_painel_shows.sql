@@ -25,7 +25,7 @@ insert into _ids select 'tenant', id from tenants where slug='tenant-agenda-sync
 
 -- Número do IB (com artista definido) e número da Dra. (sem artista).
 insert into whatsapp_cloud_credentials (tenant_id, waba_id, phone_number_id, access_token, artista)
-select valor, 'waba-ag', 'phone-ag-ib', 'tok', 'Índio Behn - Dra. Rosangêla' from _ids where chave='tenant';
+select valor, 'waba-ag', 'phone-ag-ib', 'tok', 'Índio Behn - Dra. Rosângela' from _ids where chave='tenant';
 insert into _ids select 'cred_ib', id from whatsapp_cloud_credentials where phone_number_id='phone-ag-ib';
 
 insert into whatsapp_cloud_credentials (tenant_id, waba_id, phone_number_id, access_token)
@@ -46,7 +46,7 @@ insert into _ids select 'filtro_fp', id from agenda_filtros where artista_origem
 
 -- Linha DIGITADA À MÃO: sem origem, sem filtro. O sync nunca pode tocá-la.
 insert into agenda_shows_sync (tenant_id, artista, cidade, teatro, data_show, status_venda)
-select valor, 'Índio Behn - Dra. Rosangêla', 'Cidade Manual', 'Teatro Manual',
+select valor, 'Índio Behn - Dra. Rosângela', 'Cidade Manual', 'Teatro Manual',
        now() + interval '40 days', 'à venda'
   from _ids where chave='tenant';
 
@@ -65,7 +65,7 @@ begin
   perform pg_temp.assert((r->>'inseridos')::int = 3, format('deveria inserir 3, veio %s', r->>'inseridos'));
   perform pg_temp.assert((r->>'removidos')::int = 0, 'nada a remover na primeira rodada');
   perform pg_temp.assert(
-    r->>'artista' = 'Índio Behn - Dra. Rosangêla',
+    r->>'artista' = 'Índio Behn - Dra. Rosângela',
     'o artista gravado precisa vir da CREDENCIAL do número, não do rótulo do board');
 end $$;
 
@@ -81,7 +81,7 @@ begin
       where filtro_id = (select valor from _ids where chave='filtro_ib')) = 3,
     'as duas sessões do mesmo dia precisam ter horários distintos');
   perform pg_temp.assert(
-    (select artista from agenda_shows_sync where show_id_origem='m-1') = 'Índio Behn - Dra. Rosangêla',
+    (select artista from agenda_shows_sync where show_id_origem='m-1') = 'Índio Behn - Dra. Rosângela',
     'a linha gravada tem que casar com o artista que o endpoint do Flow filtra');
 end $$;
 

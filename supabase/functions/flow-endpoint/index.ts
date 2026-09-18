@@ -318,7 +318,7 @@ async function responderCentral(
 
     // Artista nulo no item = vale para todos os artistas do tenant.
     // As aspas no valor NÃO são opcionais: nomes de artista têm espaço
-    // ("Índio Behn - Dra. Rosangêla"), e sem elas o PostgREST não consegue
+    // ("Índio Behn - Dra. Rosângela"), e sem elas o PostgREST não consegue
     // separar os termos do `or` — a query devolve vazio em silêncio, que é
     // indistinguível de "não há FAQ cadastrado".
     if (credencial.artista) {

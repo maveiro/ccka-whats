@@ -88,7 +88,7 @@ configuração do `painel-shows`, não mudança de código.
    mágico no banco, e o modo de falhar é agenda vazia sem erro.
 
 5. **`artista` no board é código (`IB`), na central é nome
-   (`Índio Behn - Dra. Rosangêla`).** O casamento por igualdade de texto que o
+   (`Índio Behn - Dra. Rosângela`).** O casamento por igualdade de texto que o
    endpoint do Flow faz (`credencial.artista = agenda.artista`) nunca casaria.
    Precisa de mapa explícito, e show de artista não mapeado **não entra** —
    entrar com o nome errado é pior que não entrar, porque não aparece para

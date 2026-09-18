@@ -33,6 +33,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (typeof body.mensagemFallback === "string") {
     patch.mensagem_fallback = body.mensagemFallback.trim() || null;
   }
+
+  // Destino do fallback: abre a central junto do texto quando nenhuma
+  // palavra-chave bate. String vazia = volta a ser fallback só de texto.
+  if ("fallbackFlowDestinoId" in body) {
+    patch.fallback_flow_destino_id =
+      typeof body.fallbackFlowDestinoId === "string" && body.fallbackFlowDestinoId
+        ? body.fallbackFlowDestinoId
+        : null;
+  }
   if (typeof body.ativo === "boolean") patch.ativo = body.ativo;
 
   if (Object.keys(patch).length === 0) {
@@ -74,7 +83,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     .update(patch)
     .eq("id", id)
     .is("deleted_at", null)
-    .select("id, cloud_credential_id, artista, nome, tipo, ativo, mensagem_convite, mensagem_boas_vindas, mensagem_fallback, created_at")
+    .select("id, cloud_credential_id, artista, nome, tipo, ativo, mensagem_convite, mensagem_boas_vindas, mensagem_fallback, fallback_flow_destino_id, created_at")
     .maybeSingle();
 
   if (error) {

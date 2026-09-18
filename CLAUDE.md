@@ -1212,6 +1212,25 @@ Resposta às quatro frentes aprovadas na revisão de 17/09.
     `messages`/`media_files` — a segunda é dado pessoal de cliente e o prazo é
     decisão de negócio.
 
+57. **O fallback pode abrir a central** (migration `fallback_abre_central`,
+    18/09/2026): `whatsapp_flows.fallback_flow_destino_id` faz a resposta
+    padrão mandar o texto **e** o balão, atendendo "responder qualquer coisa
+    sem depender de palavra-chave". Três coisas que não mudaram, de propósito:
+    **palavra-chave continua tendo prioridade** (quem escreve "ingresso" recebe
+    a resposta específica); o **texto vem antes do balão** (balão solto parece
+    resposta errada); e a **pausa por 3 fallbacks consecutivos continua
+    valendo** — oferecer a central indefinidamente a quem está tentando falar
+    com uma pessoa é exatamente a repetição que a pausa existe para impedir, e
+    balão interativo incomoda mais que texto. O destino é validado como o de
+    palavra-chave (tipo abrível, ativo, mesmo número) e não pode ser o próprio
+    Flow.
+
+    **Conta que muda em 01/10/2026:** responder a tudo é mensagem de serviço, e
+    `whatsapp_rates` registra serviço a **R$ 0,00 até 30/09** e **R$ 0,035
+    (estimado) a partir de 01/10**. Hoje é grátis; com a base do Linktree
+    chegando ao WhatsApp, "responder qualquer coisa" passa a ter preço por
+    conversa.
+
 56. **Os selos do board também chegam ao Flow — sem republicar.** `title` do
     item de lista tem **30 caracteres** e `description` tem 300 (doc da Meta);
     `metadata` (20) e `color` existem a partir da versão 5.0 e a nossa é 7.2,

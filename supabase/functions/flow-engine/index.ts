@@ -66,6 +66,7 @@ interface Flow {
   artista: string | null;
   mensagem_boas_vindas: string | null;
   mensagem_fallback: string | null;
+  fallback_flow_destino_id: string | null;
 }
 
 interface Cliente {
@@ -228,7 +229,7 @@ async function processar(payload: FlowEngineRequest): Promise<string> {
   // a dar.
   const { data: flow } = await supabase
     .from("whatsapp_flows")
-    .select("id, tenant_id, artista, mensagem_boas_vindas, mensagem_fallback")
+    .select("id, tenant_id, artista, mensagem_boas_vindas, mensagem_fallback, fallback_flow_destino_id")
     .eq("tenant_id", tenantId)
     .eq("cloud_credential_id", credencial.id)
     .eq("tipo", "keyword_automation")
@@ -643,12 +644,31 @@ async function responder(ctx: Contexto, texto: string | null, cliente: Cliente |
   const consecutivos = (estado?.fallbacks_consecutivos ?? 0) + 1;
   if (flow.mensagem_fallback) await enviar(ctx, flow.mensagem_fallback);
 
+  // O fallback pode abrir a central junto do texto (migration
+  // fallback_abre_central): é a resposta padrão a "qualquer coisa que a
+  // pessoa escreva", sem depender de palavra-chave.
+  //
+  // O texto vem ANTES do balão: ele é que explica por que a central está
+  // sendo oferecida. Balão solto, sem contexto, parece resposta errada.
+  //
+  // Sujeito à pausa como todo o resto — a checagem de `pausado` acima já
+  // devolveu antes de chegar aqui. Sem isso, a central seria oferecida
+  // indefinidamente a quem está claramente tentando falar com um humano.
+  let abriuCentral = false;
+  if (flow.fallback_flow_destino_id) {
+    const resultado = await abrirFlowNaConversa(ctx, flow.fallback_flow_destino_id);
+    abriuCentral = resultado === "abrir_flow";
+  }
+
   // Um evento por fallback (não só no 3º, que dispara o alerta): é a matéria-
   // prima do "o que caiu em fallback recentemente" na tela de Flows — o sinal
   // de que falta uma palavra-chave. O texto vai junto, truncado, porque a
   // revisão semanal precisa ler o que a pessoa perguntou sem abrir conversa
   // por conversa; `chatId` dá o link para a conversa quando faz falta.
   await logEvent(tenantId, payload.sessionId, "flow_fallback", {
+    // Distingue "fallback só de texto" de "fallback que ofereceu a central" —
+    // sem isso, a tela de Flows mostraria os dois como a mesma coisa.
+    abriuCentral,
     messageId: payload.messageId,
     flowId: flow.id,
     telefone: payload.from,

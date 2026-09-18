@@ -447,6 +447,78 @@ await cenario("o gate se apresenta com o artista DAQUELE número, nunca com outr
   checar(!neutra.includes("central do"), `sem artista não pode sobrar a apresentação: "${neutra}"`);
 });
 
+await cenario("fallback pode abrir a central junto do texto", async () => {
+  // Pedido de 18/09/2026: responder qualquer coisa com texto + central, sem
+  // depender de palavra-chave.
+  await clienteJaCadastrado();
+  const { data: central } = await db.from("whatsapp_flows").insert({
+    tenant_id: TENANT_A, cloud_credential_id: CRED_A, nome: "Central A",
+    tipo: "central", ativo: true, meta_flow_id: "meta-central-a",
+    mensagem_convite: "Dá uma olhada na agenda",
+  }).select("id").single();
+  await db.from("whatsapp_flows")
+    .update({ fallback_flow_destino_id: central!.id })
+    .eq("id", FLOW_A);
+
+  const r = await chamarEngine(msg({ text: "qualquer coisa que não casa" }));
+  checar(r === "fallback", `deveria ser fallback, veio "${r}"`);
+  checar(
+    enviadas.some((e) => e.body === "FALLBACK"),
+    "o texto do fallback precisa continuar saindo",
+  );
+  // O texto vem ANTES do balão: ele é que explica por que a central apareceu.
+  const iTexto = enviadas.findIndex((e) => e.body === "FALLBACK");
+  const iBalao = enviadas.findIndex((e) => e.body.includes("Dá uma olhada"));
+  checar(iBalao > iTexto, `o balão deveria vir depois do texto (texto=${iTexto}, balão=${iBalao})`);
+
+  await db.from("whatsapp_flows").update({ fallback_flow_destino_id: null }).eq("id", FLOW_A);
+  await db.from("whatsapp_flows").delete().eq("id", central!.id);
+});
+
+await cenario("palavra-chave continua tendo prioridade sobre o fallback com central", async () => {
+  await clienteJaCadastrado();
+  const { data: central } = await db.from("whatsapp_flows").insert({
+    tenant_id: TENANT_A, cloud_credential_id: CRED_A, nome: "Central A2",
+    tipo: "central", ativo: true, meta_flow_id: "meta-central-a2",
+  }).select("id").single();
+  await db.from("whatsapp_flows")
+    .update({ fallback_flow_destino_id: central!.id })
+    .eq("id", FLOW_A);
+
+  const r = await chamarEngine(msg({ text: "quero ingresso" }));
+  checar(r === "keyword", `keyword deveria ganhar, veio "${r}"`);
+  checar(!enviadas.some((e) => e.body === "FALLBACK"), "fallback não pode sair quando a keyword casa");
+
+  await db.from("whatsapp_flows").update({ fallback_flow_destino_id: null }).eq("id", FLOW_A);
+  await db.from("whatsapp_flows").delete().eq("id", central!.id);
+});
+
+await cenario("a pausa por 3 fallbacks também vale para o balão da central", async () => {
+  // É a proteção que impede oferecer a central indefinidamente a quem está
+  // claramente tentando falar com uma pessoa.
+  await clienteJaCadastrado();
+  const { data: central } = await db.from("whatsapp_flows").insert({
+    tenant_id: TENANT_A, cloud_credential_id: CRED_A, nome: "Central A3",
+    tipo: "central", ativo: true, meta_flow_id: "meta-central-a3",
+    mensagem_convite: "Agenda aqui",
+  }).select("id").single();
+  await db.from("whatsapp_flows")
+    .update({ fallback_flow_destino_id: central!.id })
+    .eq("id", FLOW_A);
+
+  await chamarEngine(msg({ text: "aaa" }));
+  await chamarEngine(msg({ text: "bbb" }));
+  await chamarEngine(msg({ text: "ccc" }));
+  const antes = enviadas.length;
+  const r = await chamarEngine(msg({ text: "ddd" }));
+
+  checar(r === "pausado", `a 4ª deveria cair na pausa, veio "${r}"`);
+  checar(enviadas.length === antes, "pausado não pode mandar nem texto nem balão");
+
+  await db.from("whatsapp_flows").update({ fallback_flow_destino_id: null }).eq("id", FLOW_A);
+  await db.from("whatsapp_flows").delete().eq("id", central!.id);
+});
+
 await cenario("mensagem não-texto durante o gate: reprompt, não vira resposta", async () => {
   await chamarEngine(msg({ text: "oi" }));
   const antes = enviadas.length;

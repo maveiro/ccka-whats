@@ -29,6 +29,7 @@ interface Flow {
   mensagem_convite: string | null;
   mensagem_boas_vindas: string | null;
   mensagem_fallback: string | null;
+  fallback_flow_destino_id: string | null;
   created_at: string;
   flow_palavras_chave: Keyword[];
 }
@@ -306,6 +307,7 @@ function FlowCard({
   const [convite, setConvite] = useState(flow.mensagem_convite ?? "");
   const [boasVindas, setBoasVindas] = useState(flow.mensagem_boas_vindas ?? "");
   const [fallback, setFallback] = useState(flow.mensagem_fallback ?? "");
+  const [fallbackDestino, setFallbackDestino] = useState(flow.fallback_flow_destino_id ?? "");
   const [novaPalavra, setNovaPalavra] = useState("");
   const [novaResposta, setNovaResposta] = useState("");
   const [novoTipo, setNovoTipo] = useState("texto");
@@ -467,9 +469,32 @@ function FlowCard({
                 className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
               />
             </label>
+            <label className="text-xs text-gray-400 space-y-1 block">
+              <span>Abrir junto do fallback (opcional)</span>
+              <select
+                value={fallbackDestino}
+                onChange={(e) => {
+                  setFallbackDestino(e.target.value);
+                  onAtualizar({ fallbackFlowDestinoId: e.target.value });
+                }}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+              >
+                <option value="">Só o texto</option>
+                {destinos.map((d) => (
+                  <option key={d.id} value={d.id}>{d.nome}</option>
+                ))}
+              </select>
+            </label>
+            <p className="text-[11px] text-gray-500">
+              Com um destino escolhido, quem escreve qualquer coisa que não casa
+              palavra-chave recebe o texto <b>e</b> o balão da central — sem depender de
+              palavra-chave. Palavra-chave continua tendo prioridade.
+            </p>
             <p className="text-[11px] text-gray-500">
               Depois de 3 fallbacks seguidos, a automação se cala sozinha e registra um
-              alerta — para não repetir a mesma resposta genérica indefinidamente.
+              alerta — para não repetir a mesma resposta genérica indefinidamente. Isso
+              vale também para o balão: oferecer a central indefinidamente a quem está
+              tentando falar com uma pessoa é o que essa pausa existe para impedir.
             </p>
           </div>
 

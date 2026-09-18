@@ -1300,6 +1300,17 @@ não servem; Slack e Discord recusam o corpo que o `webhook-delivery` envia
 (`{event, payload, timestamp}`) com 400 e precisariam de um campo de formato;
 n8n e Make funcionam só cadastrando a URL.
 
+**Renomear artista é VARREDURA, não lista de tabelas** (18/09/2026). A
+primeira correção listou as quatro tabelas que eu lembrava e deixou duas —
+`faq_itens.artista` e `formularios_cadastro.artista` também casam por nome.
+Com a credencial já corrigida e os itens não, **a tela de dúvidas da central
+respondeu vazia por 15 minutos**, sem erro nenhum: o `flow-endpoint` filtra a
+FAQ por `artista.eq.<credencial> or artista.is.null`, e ninguém erra — some.
+A correção certa varre `information_schema.columns` por **toda** coluna
+`artista` e usa `replace()` nos textos livres (o balão de convite trazia o
+nome no meio da frase, e igualdade não pegaria). Vale para qualquer troca de
+nome de artista daqui para frente, inclusive na replicação.
+
 **O nome do artista é CHAVE DE JUNÇÃO, não rótulo** (corrigido em
 18/09/2026: era "Rosangêla", é **Rosângela**). O `flow-endpoint` acha os shows
 comparando `whatsapp_cloud_credentials.artista` com `agenda_shows_sync.artista`

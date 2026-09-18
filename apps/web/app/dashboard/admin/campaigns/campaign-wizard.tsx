@@ -8,6 +8,7 @@ interface Credential {
   waba_id: string;
   phone_number_id: string;
   display_phone_number: string | null;
+  artista: string | null;
   active: boolean;
 }
 
@@ -76,9 +77,11 @@ function countPlaceholders(components: Template["components"]): number {
   return matches ? new Set(matches).size : 0;
 }
 
-export default function CampaignWizard({ credentials }: { credentials: Credential[] }) {
+export default function CampaignWizard({ credentials: iniciais }: { credentials: Credential[] }) {
+  // Em estado, e não só na prop: número recém-cadastrado precisa aparecer no
+  // seletor sem recarregar a página (a prop vem do Server Component).
+  const [credentials, setCredentials] = useState(iniciais);
   const hasCredential = credentials.length > 0;
-  const currentCredential = credentials[0] ?? null;
   const [step, setStep] = useState<Step>(hasCredential ? "template" : "credential");
   const [error, setError] = useState<string | null>(null);
 
@@ -92,7 +95,12 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
   // Templates
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
-  const [credentialId, setCredentialId] = useState<string | null>(null);
+  // O número que DISPARA. Antes o assistente usava sempre `credentials[0]` e
+  // "Trocar número" abria o cadastro de uma credencial nova — com quatro
+  // números cadastrados, não havia como escolher de qual sair (achado pelo
+  // fundador em 18/09/2026). A rota de templates já aceitava `credentialId`
+  // desde a multi-número; faltava a tela.
+  const [credentialId, setCredentialId] = useState<string | null>(iniciais[0]?.id ?? null);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
 
   // Campanha
@@ -109,17 +117,20 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
   const [creating, setCreating] = useState(false);
   const [result, setResult] = useState<{ campaignId: string; accepted: number; skippedOptOut: number; skippedInvalid: number; skippedDuplicate: number } | null>(null);
 
-  async function loadTemplates() {
+  async function loadTemplates(deQual: string | null = credentialId) {
     setLoadingTemplates(true);
     setError(null);
     try {
-      const res = await fetch("/api/campaigns/templates");
+      const res = await fetch(`/api/campaigns/templates${deQual ? `?credentialId=${deQual}` : ""}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `Erro ${res.status}`);
       }
       const data = await res.json() as { credentialId: string; templates: Template[] };
       setTemplates(data.templates);
+      // A rota devolve a credencial que usou: com `?credentialId=` é a nossa,
+      // sem ele é a mais antiga do tenant. Guardar o que ela respondeu evita
+      // divergência entre o que a tela mostra e o que vai disparar.
       setCredentialId(data.credentialId);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -141,8 +152,17 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `Erro ${res.status}`);
       }
+
+      // O número recém-cadastrado entra no seletor e vira o escolhido — quem
+      // acabou de cadastrar quer disparar DELE. Sem isso, o assistente
+      // continuaria no número anterior e o cadastro pareceria não ter efeito.
+      const nova = await res.json() as Credential;
+      setCredentials((cs) => [...cs.filter((c) => c.id !== nova.id), nova]);
+      setCredentialId(nova.id);
+      setSelectedTemplate(null);
+      setTemplates([]);
       setStep("template");
-      await loadTemplates();
+      await loadTemplates(nova.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -311,25 +331,48 @@ export default function CampaignWizard({ credentials }: { credentials: Credentia
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-white">Escolher modelo (template aprovado)</p>
-            <button onClick={loadTemplates} className="text-xs text-gray-400 hover:text-white">
+            <button onClick={() => void loadTemplates()} className="text-xs text-gray-400 hover:text-white">
               {loadingTemplates ? "Carregando..." : "Recarregar"}
             </button>
           </div>
-          {currentCredential && (
-            <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-800/50 rounded-md px-3 py-2">
-              <span>
-                Conectado: {currentCredential.display_phone_number || currentCredential.phone_number_id}
-              </span>
-              <button
-                onClick={() => { setStep("credential"); setError(null); }}
-                className="text-green-400 hover:text-green-300"
+          {hasCredential && (
+            <div className="space-y-1 bg-gray-800/50 rounded-md px-3 py-2">
+              <label className="block text-xs text-gray-400">Disparar a partir de</label>
+              <select
+                value={credentialId ?? ""}
+                onChange={(e) => {
+                  setCredentialId(e.target.value);
+                  // Trocar o número invalida a escolha anterior: o template é
+                  // aprovado na conta (WABA), mas quem envia é o número — e
+                  // seguir com um template selecionado dá a impressão de que
+                  // nada mudou.
+                  setSelectedTemplate(null);
+                  setTemplates([]);
+                  void loadTemplates(e.target.value);
+                }}
+                className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white text-sm"
               >
-                Trocar número
-              </button>
+                {credentials.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.artista ? `${c.artista} — ` : ""}{c.display_phone_number || c.phone_number_id}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-gray-500">
+                É este número que aparece para quem recebe, e é o limite e a nota de
+                qualidade dele que valem no disparo. Os modelos vêm da conta (WABA), então
+                números da mesma conta oferecem a mesma lista.{" "}
+                <button
+                  onClick={() => { setStep("credential"); setError(null); }}
+                  className="text-green-400 hover:text-green-300"
+                >
+                  cadastrar outro número
+                </button>
+              </p>
             </div>
           )}
           {templates.length === 0 && !loadingTemplates && (
-            <button onClick={loadTemplates} className="text-xs text-green-400 hover:text-green-300">
+            <button onClick={() => void loadTemplates()} className="text-xs text-green-400 hover:text-green-300">
               Buscar templates aprovados na Meta
             </button>
           )}

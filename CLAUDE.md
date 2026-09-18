@@ -1212,6 +1212,19 @@ Resposta às quatro frentes aprovadas na revisão de 17/09.
     `messages`/`media_files` — a segunda é dado pessoal de cliente e o prazo é
     decisão de negócio.
 
+58. **O assistente de campanha escolhe DE QUAL número disparar.** Até
+    18/09/2026 ele usava sempre `credentials[0]` e o botão "Trocar número"
+    abria o cadastro de uma credencial NOVA — com quatro números cadastrados,
+    não havia como escolher (achado pelo fundador). A rota
+    `/api/campaigns/templates` já aceitava `?credentialId=` desde a
+    multi-número; **faltava só a tela**, e o comentário no código dizia que o
+    seletor "entra na Sprint A2" — entrou agora. Detalhes que a UI passou a
+    dizer: o template é aprovado na **conta (WABA)**, então números da mesma
+    WABA oferecem a mesma lista (os quatro da Plauz estão na mesma), e o que
+    muda é **quem aparece para quem recebe** — mais o limite e a nota de
+    qualidade daquele número. Trocar o número **limpa o template escolhido**, e
+    cadastrar um número novo passa a selecioná-lo na hora.
+
 57. **O fallback pode abrir a central** (migration `fallback_abre_central`,
     18/09/2026): `whatsapp_flows.fallback_flow_destino_id` faz a resposta
     padrão mandar o texto **e** o balão, atendendo "responder qualquer coisa

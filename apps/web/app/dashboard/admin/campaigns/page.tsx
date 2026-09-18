@@ -35,9 +35,12 @@ export default async function CampaignsPage() {
   const admin = createAdminClient();
   const { data: credentials } = await admin
     .from("whatsapp_cloud_credentials")
-    .select("id, waba_id, phone_number_id, display_phone_number, active")
+    .select("id, waba_id, phone_number_id, display_phone_number, artista, active")
     .eq("tenant_id", operator.tenant_id)
-    .eq("active", true);
+    .eq("active", true)
+    // Ordem estável: sem isso o "primeiro número" do seletor mudava entre
+    // carregamentos, e o assistente sempre começava por um qualquer.
+    .order("created_at", { ascending: true });
 
   // whatsapp_opt_outs tem RLS admin_only normal (não deny-all) — o client
   // autenticado do próprio operador já resolve, sem precisar do admin client.

@@ -1212,6 +1212,18 @@ Resposta às quatro frentes aprovadas na revisão de 17/09.
     `messages`/`media_files` — a segunda é dado pessoal de cliente e o prazo é
     decisão de negócio.
 
+**Aviso ativo em standby (decisão do fundador, 18/09/2026).** A vigilância
+está completa, mas **nenhum destino foi escolhido** — nem webhook, nem e-mail,
+nem WhatsApp. A leitura é pela tela de Saúde, e a tela diz isso em texto
+neutro (não em alerta: é escolha, não defeito). Quando for reavaliado, o que
+já está levantado: e-mail via provedor (Resend, sem fila, chave de API) sai no
+mesmo dia; **WhatsApp exige template novo aprovado** — mesmo sendo o próprio
+número do admin, a Meta só permite texto livre dentro de 24h após ELE
+escrever, e os três templates UTILITY aprovados hoje são de RSVP do Diogo, que
+não servem; Slack e Discord recusam o corpo que o `webhook-delivery` envia
+(`{event, payload, timestamp}`) com 400 e precisariam de um campo de formato;
+n8n e Make funcionam só cadastrando a URL.
+
 **Armadilha que se repete a cada coluna nova:** quando `imagem_path` entrou, a
 arte não havia mudado, então o processamento era pulado e a coluna ficaria
 vazia para sempre, esperando backfill manual. A condição do sync passou a

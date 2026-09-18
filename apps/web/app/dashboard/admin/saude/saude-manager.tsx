@@ -71,11 +71,12 @@ export default function SaudeManager({ iniciais, temWebhook }: { iniciais: Erro[
           ))}
         </div>
         {!temWebhook && (
-          // Sem integração de webhook, o cron não tem para onde avisar — e a
-          // vigilância vira "alguém precisa abrir esta tela", que é o
-          // problema que ela existe para resolver.
-          <span className="text-xs text-amber-400">
-            nenhum webhook ativo em Integrações — o aviso de hora em hora não sai
+          // Sem webhook cadastrado, a leitura é por esta tela. É uma decisão
+          // de 18/09/2026 (aviso ativo em standby), não um defeito — por isso
+          // a frase é neutra e não um alerta em âmbar, que lido todo dia
+          // pareceria problema.
+          <span className="text-xs text-gray-500">
+            aviso ativo não configurado — a leitura é por esta tela
           </span>
         )}
       </div>

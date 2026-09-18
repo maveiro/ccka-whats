@@ -1,3 +1,15 @@
+> **Retrato da Fase 1 (junho/2026) — não é o estado atual.**
+>
+> Este arquivo não é atualizado desde 24/06/2026 e descreve o produto quando
+> ele era captura de mensagens e busca. Tudo que veio depois — campanhas pela
+> Cloud API, automação por Flow e central de shows, ponte com o Monday via
+> painel-shows, página pública do artista, ledger de custos, vigilância do
+> events_log — **não está aqui**.
+>
+> O estado corrente, as regras inegociáveis e as armadilhas já pagas vivem no
+> `CLAUDE.md` da raiz; o desenho de cada módulo, em `docs/prd/`. Mantido como
+> registro histórico porque a Fase 1 ainda é a base do pipeline Evolution.
+
 # Edge Functions — Supabase
 
 ## Visão geral

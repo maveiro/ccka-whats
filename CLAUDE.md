@@ -89,7 +89,10 @@ A arquitetura já é a da Fase 3 — apenas com 1 tenant ativo.
 
 ### Atenção: Next.js 16
 
-Next.js 16 tem breaking changes. Leia `apps/web/AGENTS.md` antes de tocar no frontend.
+Next.js 16 tem breaking changes. **Leia `apps/web/AGENTS.md` antes de tocar no
+frontend** — lá estão, além do Next 16, as convenções do web app: linha de base
+do lint, busca de dados com `use()`+`Suspense` (nunca `useEffect`+`setState`),
+quando usar `createAdminClient()` e as regras das rotas públicas.
 - **`proxy.ts`** no lugar de `middleware.ts` — ambos não podem coexistir
 - `proxy.ts` exporta `proxy()`, não `middleware()`
 - `params` em Route Handlers é `Promise<{...}>` — sempre `await params`
@@ -127,9 +130,11 @@ wa-intelligence/
 │       │   │   ├── admin/formularios/   ← cria formulário + embed da landing
 │       │   │   ├── admin/paginas/       ← páginas públicas do artista (substitui Linktree)
 │       │   │   ├── admin/saude/         ← erros do events_log agrupados por assinatura
+│       │   │   ├── admin/aprendizados/   ← registro de aprendizados do time
+│       │   │   ├── admin/saude/         ← erros do events_log agrupados por assinatura
 │       │   │   ├── analytics/
 │       │   │   ├── settings/
-│       │   │   └── chat/[id]/
+│       │   │   └── chat/[id]/           ← inbox (grupo de rotas `(inbox)`)
 │       │   └── api/
 │       │       ├── sessions/         ← CRUD de sessões
 │       │       │   ├── create/
@@ -160,6 +165,9 @@ wa-intelligence/
 │       │       ├── formularios/          ← formulários de cadastro (painel)
 │       │       ├── public/cadastro/[slug]← recebe o formulário público (sem auth)
 │       │       ├── paginas/             ← CRUD de página, blocos, upload de imagem
+│       │       ├── saude/               ← resumo de erros + reconhecer
+│       │       ├── alert-events/, learnings/
+│       │       └── clientes/cadastrar/  ← cadastro pelo painel (porta única, regra 24)
 │       │       └── register/
 │       ├── lib/whatsapp-cloud/       ← graphClient.ts, getCloudCredential.ts (módulo de campanhas)
 │       └── components/
@@ -168,6 +176,14 @@ wa-intelligence/
 │           ├── session-card.tsx      ← QR, status, delete com confirmação
 │           ├── sidebar.tsx           ← dot de status das sessões
 │           └── ...
+│
+├── scripts/
+│   ├── republicar-flow.ts        ← Flow publicado é imutável: cria o novo, valida e publica
+│   └── lint-baseline.mjs         ← trava o NONO erro de lint (ver .eslint-baseline.json)
+│
+├── .github/workflows/
+│   ├── ci.yml                    ← PR e main: tipos, lint, build, migrations do zero e suíte
+│   └── deploy.yml                ← main: deploy das 12 Edge Functions (o web vai pela Vercel)
 │
 ├── packages/
 │   └── types/                    ← tipos compartilhados
@@ -192,6 +208,36 @@ wa-intelligence/
 ```
 
 ---
+
+## Como rodar, testar e publicar
+
+```bash
+npm install                      # workspaces (apps/* e packages/*)
+supabase start                   # Postgres + PostgREST locais, em Docker
+supabase db reset --local        # aplica TODAS as migrations do zero
+npm run test:db                  # suíte: SQL (psql, begin/rollback) + e2e (Deno)
+```
+
+**A suíte tem ~320 asserções** em dois formatos:
+
+| Arquivo | O que cobre |
+|---|---|
+| `0025`–`0035_*.sql` | RLS, motor do Flow, credenciais multi-número, `registrar_cliente`, formulários |
+| `campanhas_clique_rastreado.sql`, `custos_cloud_api.sql`, `campanha_abre_flow.sql` | clique, ledger de custo, botão de Flow em campanha |
+| `agenda_do_painel_shows.sql`, `paginas_publicas.sql`, `vigilancia_events_log.sql` | sync da agenda, página pública e retenção, vigilância de erros |
+| `flow_engine.e2e.ts`, `flow_endpoint.e2e.ts`, `agenda_sync.e2e.ts`, `cloud_webhook.e2e.ts`, `custos_webhook.e2e.ts`, `painel_consultas.e2e.ts` | Edge Functions com a API externa stubada — nada sai da máquina |
+| `show_card.e2e.ts`, `imagem_dimensoes.e2e.ts` | regra do botão do card e leitura de dimensão de imagem (puros, sem banco) |
+
+**O banco local é UM SÓ para todos os worktrees** — antes de `db reset --local`
+ou `npm run test:db`, use o lock descrito em "Trabalho em paralelo".
+
+**CI** (`.github/workflows/ci.yml`, em PR e em push na main): job `web` (tipos,
+lint por linha de base, build) e job `banco` (`supabase start` → `db reset` →
+suíte). ~5 min. O `deploy.yml` publica as Edge Functions em push na main; o web
+vai pela integração Vercel↔GitHub.
+
+**Publicar Edge Function na mão:** `supabase functions deploy <nome>`. Migration
+**sempre antes** do código que a usa (regra 10).
 
 ## Regras inegociáveis de arquitetura
 

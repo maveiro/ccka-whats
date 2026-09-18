@@ -1174,10 +1174,16 @@ Card de show no formato de agenda de ticketeira, com selos vindos do board
   soube**. E 33 eventos de custo do número do DA foram descartados entre 11 e
   14/09, antes de a credencial existir aqui — sem recuperação retroativa,
   porque a Meta manda o `pricing` uma vez só.
-- **A ponte só está completa para o IB.** O DA tem 43 shows publicados e página
-  no ar, mas **nenhuma central** no WhatsApp; a CD tem agenda sincronizando e
-  **0 de 7 shows publicados** (fila de curadoria nunca olhada); e o número
-  `+55 12 3199-2996` está cadastrado sem artista e sem uso.
+- **A ponte está completa só para o IB — e isso é deliberado.** O DA tem 43
+  shows publicados e página no ar sem central no WhatsApp; a CD tem agenda
+  sincronizando e 0 de 7 shows publicados; o número `+55 12 3199-2996` está sem
+  artista. **Decisão do fundador (18/09/2026): o sistema está sendo construído
+  como um todo, e a replicação para os demais artistas acontece UMA VEZ,
+  quando o conjunto for considerado pronto.** Portanto: não tratar essas
+  lacunas como pendência a resolver artista a artista, e sim como o estado
+  esperado até o momento da replicação. O que elas exigem é que o caminho de
+  replicação seja barato e repetível (Flow + palavras-chave + agenda + página),
+  não que alguém saia configurando artista por artista agora.
 - **A suíte (300+ asserções) roda só localmente.** O CI só deploya — e até
   17/09 deployava 11 das 12 Edge Functions, sem o `agenda-sync`.
 - **Roadmap de inteligência** (wedge defensável, reordenável) — próximo é alertas semânticos:

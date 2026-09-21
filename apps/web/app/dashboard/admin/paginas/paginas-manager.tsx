@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { contraste, lerTema, type Tema } from "@/lib/pagina-tema";
+import { env } from "@/lib/env";
 import MetricasPagina from "./metricas-pagina";
 
 // Editor das páginas públicas. Cada página tem tema próprio (pedido do
@@ -251,14 +252,29 @@ export default function PaginasManager({
           <section className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-white">Perfil</p>
-              <a
-                href={`/a/${pagina.slug}`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-green-400 hover:text-green-300"
-              >
-                abrir /a/{pagina.slug} ↗
-              </a>
+              <div className="flex items-center gap-3">
+                {/* O endereço COMPLETO, para copiar e colar na bio — é o que
+                    esta página substitui. Vem do domínio público configurado,
+                    não do host por onde o painel foi aberto. */}
+                <button
+                  onClick={() => {
+                    const url = `${env.NEXT_PUBLIC_LINK_BASE_URL ?? globalThis.location.origin}/a/${pagina.slug}`;
+                    void navigator.clipboard.writeText(url);
+                    toast.success(`Copiado: ${url}`);
+                  }}
+                  className="text-xs text-gray-400 hover:text-white"
+                >
+                  copiar link
+                </button>
+                <a
+                  href={`/a/${pagina.slug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-green-400 hover:text-green-300"
+                >
+                  abrir /a/{pagina.slug} ↗
+                </a>
+              </div>
             </div>
 
             <Campo label="Título" valor={pagina.titulo} onSalvar={(v) => salvarPagina({ titulo: v })} />

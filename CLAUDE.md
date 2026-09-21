@@ -879,6 +879,7 @@ clique e custos de disparo.
 ### apps/web (.env.local / Vercel)
 ```
 NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_LINK_BASE_URL=         # domínio público (link.plauz.com.br); sem ele, cai no host da requisição
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=        # só server-side (Route Handlers)
 EVOLUTION_API_URL=                # URL do VPS com Evolution API
@@ -1409,11 +1410,20 @@ autocorreção**, não de alguém lembrar.
   do piloto C5**: quem tocar em "Abrir página de ingressos" hoje cai numa busca
   do Google. FAQ tem 3 itens genéricos, plausíveis mas não revisados pelo
   artista.
-- **Domínio próprio (`link.plauz.com.br`)** — bloqueia o template com botão
-  rastreado: URL crua da Vercel num botão de marketing lê como phishing, derruba
-  clique e chama atenção na revisão da Meta; trocar depois é outro ciclo de
-  aprovação. Também resolve a landing, que hoje usa a URL do projeto. Parado em
-  11/09/2026 por falta de acesso ao DNS.
+- **Domínio próprio `link.plauz.com.br` — em andamento (21/09/2026), falta só
+  o DNS.** Bloqueia o template com botão rastreado: URL crua da Vercel num
+  botão de marketing lê como phishing, derruba clique e chama atenção na
+  revisão da Meta; e como a URL fica **congelada no template aprovado**,
+  trocar depois é outro ciclo de aprovação. Também resolve a landing e a
+  página do artista, que hoje vivem em `web-ten-gray-14.vercel.app`.
+  **O bloqueio registrado em 11/09 ("sem acesso ao DNS") estava vencido:** o
+  `plauz.com.br` está no Cloudflare e já tem três subdomínios apontando para
+  projetos Vercel (`artistas.`, `ads.`, `hahaha.`), todos CNAME em DNS-only.
+  Feito aqui: domínio anexado ao projeto `wa-intelligence` e
+  `NEXT_PUBLIC_LINK_BASE_URL` configurada em produção. Falta o registro no
+  Cloudflare — `CNAME link → 5c63d1eabac4e23a.vercel-dns-017.com`, nuvem
+  cinza — e depois submeter à Meta o template com botão de URL dinâmica
+  terminando em `/c/{{1}}` (regra 32).
 - **Dívidas menores, revistas em 17/09/2026** (ver
   `docs/revisao-17-09-2026.md`): o ESLint tem **8 erros**, não um — seis são o
   mesmo `react-hooks/set-state-in-effect` (`chat-view` ×2, `search-bar`,

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { env } from "@/lib/env";
 import { headers } from "next/headers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import FormulariosManager from "./formularios-manager";
@@ -33,7 +34,11 @@ export default async function FormulariosPage() {
   // A URL de embed precisa ser a real (o site de terceiros não conhece
   // caminhos relativos nossos), e ela muda entre local e produção.
   const h = await headers();
-  const origem = `https://${h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000"}`;
+  // O domínio público ganha do host da requisição: este link é copiado para
+  // divulgação, e o endereço cru do projeto na Vercel num link de marketing
+  // lê como phishing (é o motivo de o domínio próprio existir).
+  const origem = env.NEXT_PUBLIC_LINK_BASE_URL
+    ?? `https://${h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000"}`;
 
   return (
     <div className="p-6 max-w-3xl space-y-8">

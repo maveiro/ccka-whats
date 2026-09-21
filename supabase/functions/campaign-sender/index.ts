@@ -7,6 +7,7 @@
 // double-send). verify_jwt=true — só chamada internamente com service role.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { dividirVariaveis, planoDeVariaveis } from "./variaveis.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -137,6 +138,10 @@ Deno.serve(async (req: Request) => {
   // findDynamicUrlButtonIndex para por que não pode ser fixo.
   const urlButtonIndex = findDynamicUrlButtonIndex(campaign.template_components);
 
+  // Onde cada coluna do CSV entra (cabeçalho ou corpo). Uma vez por
+  // invocação: é metadata do template, igual para todo destinatário.
+  const planoVariaveis = planoDeVariaveis(campaign.template_components);
+
   // Botão de FLOW (Sprint C4): abre a central já sabendo quem é a pessoa.
   // Resolvido aqui, não por destinatário — e validado ANTES do primeiro
   // envio, porque enviar sem o flow_token não dá erro nenhum na Graph API:
@@ -220,7 +225,7 @@ Deno.serve(async (req: Request) => {
     for (let i = 0; i < recipients.length; i += CONCURRENCY) {
       if (messagingLimitHit || throughputLimitHit) break;
       const slice = recipients.slice(i, i + CONCURRENCY);
-      const results = await Promise.allSettled(slice.map((r) => sendOne(campaign, credential, r, urlButtonIndex, flowSessionPlan)));
+      const results = await Promise.allSettled(slice.map((r) => sendOne(campaign, credential, r, urlButtonIndex, flowSessionPlan, planoVariaveis)));
 
       for (const result of results) {
         if (result.status !== "fulfilled") continue;
@@ -271,8 +276,9 @@ async function sendOne(
   recipient: Recipient,
   urlButtonIndex: number | null,
   flowSessionPlan: FlowSessionPlan | null,
+  planoVariaveis: ReturnType<typeof planoDeVariaveis>,
 ): Promise<{ messagingLimitHit: boolean; throughputLimitHit: boolean }> {
-  const components = buildComponents(recipient, urlButtonIndex, flowSessionPlan);
+  const components = buildComponents(recipient, urlButtonIndex, flowSessionPlan, planoVariaveis);
 
   try {
     const response = await fetchWithRetry(`${GRAPH_API_BASE}/${credential.phone_number_id}/messages`, {
@@ -399,15 +405,26 @@ function buildComponents(
   recipient: Recipient,
   urlButtonIndex: number | null,
   flowSessionPlan: FlowSessionPlan | null,
+  plano: ReturnType<typeof planoDeVariaveis>,
 ): unknown[] | undefined {
   const components: unknown[] = [];
 
-  const variables = recipient.variables ?? {};
-  const keys = Object.keys(variables).sort((a, b) => Number(a) - Number(b));
-  if (keys.length > 0) {
+  // Cabeçalho e corpo numeram placeholders separadamente (os dois começam em
+  // {{1}}), então quem decide o destino de cada coluna é o PLANO lido do
+  // template, não o número da variável. Ver variaveis.ts.
+  const { header, body } = dividirVariaveis(recipient.variables ?? {}, plano);
+
+  if (header.length > 0) {
+    components.push({
+      type: "header",
+      parameters: header.map((v) => ({ type: "text", text: v })),
+    });
+  }
+
+  if (body.length > 0) {
     components.push({
       type: "body",
-      parameters: keys.map((k) => ({ type: "text", text: String(variables[k]) })),
+      parameters: body.map((v) => ({ type: "text", text: v })),
     });
   }
 

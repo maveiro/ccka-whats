@@ -36,7 +36,9 @@ interface Template {
   language: string;
   category: string;
   status: string;
-  components: { type: string; text?: string; buttons?: TemplateButton[] }[];
+  // `format` só existe no HEADER (TEXT | IMAGE | VIDEO | DOCUMENT) e decide
+  // se o cabeçalho pede uma variável de texto ou uma mídia.
+  components: { type: string; format?: string; text?: string; buttons?: TemplateButton[] }[];
 }
 
 interface ParsedRecipient {
@@ -70,11 +72,39 @@ function flowButton(components: Template["components"]): TemplateButton | null {
   return null;
 }
 
+/**
+ * Quantas colunas de variável o CSV precisa ter — CABEÇALHO + CORPO.
+ *
+ * Contava só o corpo até 18/09/2026, e por isso um template com a variável no
+ * cabeçalho ("Olá, {{1}}") aparecia aqui como "0 variáveis": a pessoa subia o
+ * CSV com o nome assim mesmo, e a Meta recusava 100% dos envios com
+ * "(#132000) Number of parameters does not match". Os dois trechos numeram
+ * seus placeholders de forma independente (ambos começam em {{1}}), então o
+ * que vale é a SOMA, e a ordem é cabeçalho primeiro.
+ *
+ * Espelha `planoDeVariaveis` em supabase/functions/campaign-sender/variaveis.ts
+ * — Edge Function (Deno) e painel (Next) não compartilham módulo.
+ */
+function contarVariaveis(components: Template["components"]): { header: number; body: number; total: number } {
+  const conta = (texto?: string) => {
+    const achados = texto?.match(/\{\{\s*\d+\s*\}\}/g);
+    return achados ? new Set(achados.map((m) => m.replace(/\s/g, ""))).size : 0;
+  };
+  const cabecalho = components.find((c) => c.type === "HEADER");
+  const header = (cabecalho?.format ?? "TEXT").toUpperCase() === "TEXT" ? conta(cabecalho?.text) : 0;
+  const body = conta(components.find((c) => c.type === "BODY")?.text);
+  return { header, body, total: header + body };
+}
+
+/** Cabeçalho de mídia exige um parâmetro de imagem/vídeo que ainda não montamos. */
+function headerDeMidia(components: Template["components"]): string | null {
+  const cabecalho = components.find((c) => c.type === "HEADER");
+  const formato = cabecalho?.format?.toUpperCase();
+  return formato && formato !== "TEXT" ? formato : null;
+}
+
 function countPlaceholders(components: Template["components"]): number {
-  const body = components.find((c) => c.type === "BODY");
-  if (!body?.text) return 0;
-  const matches = body.text.match(/\{\{\d+\}\}/g);
-  return matches ? new Set(matches).size : 0;
+  return contarVariaveis(components).total;
 }
 
 export default function CampaignWizard({ credentials: iniciais }: { credentials: Credential[] }) {
@@ -386,6 +416,8 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
                 <p className="text-sm text-white">{t.name}</p>
                 <p className="text-xs text-gray-500">
                   {t.language} · {t.category} · {countPlaceholders(t.components)} variável(is)
+                  {contarVariaveis(t.components).header > 0 ? " (1 no cabeçalho)" : ""}
+                  {headerDeMidia(t.components) ? ` · cabeçalho de ${headerDeMidia(t.components)}` : ""}
                 </p>
               </button>
             ))}
@@ -401,6 +433,23 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
             template tiver variáveis, colunas adicionais na ordem dos placeholders {"{{1}}"}, {"{{2}}"}...
             (template tem {countPlaceholders(selectedTemplate.components)} variável(is)).
           </p>
+          {contarVariaveis(selectedTemplate.components).header > 0 && (
+            <p className="text-xs text-blue-300 bg-blue-900/20 border border-blue-900 rounded-md px-3 py-2">
+              Este template tem variável no <b>cabeçalho</b>. Cabeçalho e corpo numeram os
+              placeholders separadamente (os dois começam em {"{{1}}"}), então as colunas vão
+              nesta ordem: <b>primeiro a do cabeçalho</b>
+              {contarVariaveis(selectedTemplate.components).body > 0
+                ? `, depois as ${contarVariaveis(selectedTemplate.components).body} do corpo.`
+                : " (o corpo não tem nenhuma)."}
+            </p>
+          )}
+          {headerDeMidia(selectedTemplate.components) && (
+            <p className="text-xs text-red-300 bg-red-900/20 border border-red-900 rounded-md px-3 py-2">
+              Este template tem cabeçalho de <b>{headerDeMidia(selectedTemplate.components)}</b>, que
+              ainda não sabemos preencher — todos os envios seriam recusados pela Meta. Escolha um
+              template de cabeçalho em texto.
+            </p>
+          )}
           {trackedButton && (
             <p className="text-xs text-amber-400 bg-amber-900/20 border border-amber-900 rounded-md px-3 py-2">
               O botão <b>{trackedButton.text}</b> tem link rastreado. A variável dele{" "}

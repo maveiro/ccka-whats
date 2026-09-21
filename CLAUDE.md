@@ -1212,6 +1212,23 @@ Resposta às quatro frentes aprovadas na revisão de 17/09.
     `messages`/`media_files` — a segunda é dado pessoal de cliente e o prazo é
     decisão de negócio.
 
+63. **Variável de template tem DOIS lugares, e o cabeçalho é um deles**
+    (18/09/2026). O disparador mandava toda coluna do CSV como parâmetro de
+    **corpo**; um template com a variável no **cabeçalho** ("Olá, {{1}}")
+    fazia a Meta recusar **100%** dos envios com `(#132000) Number of
+    parameters does not match the expected number of params`. Cabeçalho e
+    corpo numeram placeholders **independentemente** — os dois começam em
+    `{{1}}` —, então o número não diz o destino: quem diz é o componente em
+    que o placeholder está (`campaign-sender/variaveis.ts`). A convenção do
+    CSV é **cabeçalho primeiro, corpo depois**, e a tela passou a dizer isso.
+    Três guardas novas, porque o erro só aparecia depois, no `error` de cada
+    destinatário: a contagem da tela agora soma cabeçalho + corpo (contava só
+    o corpo, e por isso o template aparecia como "0 variáveis"); `POST
+    /api/campaigns` **recusa** a campanha quando o CSV traz número diferente
+    do esperado; e template com cabeçalho de **mídia** (IMAGE/VIDEO/DOCUMENT)
+    é recusado com o motivo — ainda não montamos esse parâmetro, e sem a
+    guarda ele falharia igual, 100%, só que em silêncio.
+
 62. **A pausa por qualidade é por TAXA, não na primeira recusa** (migration
     `pausa_por_taxa`, 18/09/2026). O erro **131049** ("healthy ecosystem
     engagement") tem dois significados que o webhook não distingue: a parede

@@ -32,6 +32,39 @@ export async function GET() {
   return NextResponse.json((data ?? []).map((c) => ({ ...c, cost: porCampanha.get(c.id) ?? 0 })));
 }
 
+
+/**
+ * Quantos parâmetros o template espera, e onde.
+ *
+ * Espelha `planoDeVariaveis` em supabase/functions/campaign-sender/variaveis.ts
+ * — Edge Function (Deno) e painel (Next) não compartilham módulo. As duas
+ * cópias precisam concordar: é esta que recusa a campanha, e é a de lá que
+ * monta o envio.
+ */
+function planoDeVariaveis(componentes: unknown): { header: number; body: number; headerMidia: string | null } {
+  const plano = { header: 0, body: 0, headerMidia: null as string | null };
+  if (!Array.isArray(componentes)) return plano;
+
+  const conta = (texto: unknown) => {
+    if (typeof texto !== "string") return 0;
+    const achados = texto.match(/\{\{\s*\d+\s*\}\}/g);
+    return achados ? new Set(achados.map((m) => m.replace(/\s/g, ""))).size : 0;
+  };
+
+  for (const c of componentes) {
+    const comp = c as { type?: string; format?: string; text?: string };
+    const tipo = comp?.type?.toUpperCase();
+    if (tipo === "HEADER") {
+      const formato = comp.format?.toUpperCase() ?? "TEXT";
+      if (formato === "TEXT") plano.header = conta(comp.text);
+      else plano.headerMidia = formato;
+    }
+    if (tipo === "BODY") plano.body = conta(comp.text);
+  }
+
+  return plano;
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -90,6 +123,43 @@ export async function POST(req: NextRequest) {
     // só no campaign-sender, é o que dá mensagem de erro para quem está
     // montando a campanha; enviar sem token não falha, só faz a base
     // inteira abrir a central como desconhecida.
+    // Quantidade de variáveis: o CSV tem que trazer exatamente o que o
+    // template pede, CABEÇALHO + CORPO. Barrar aqui é o que transforma um
+    // "(#132000) Number of parameters does not match" — que só aparece
+    // depois, no erro de cada destinatário, com a campanha já criada e
+    // 100% de falha — em uma frase antes de existir base para disparar
+    // (18/09/2026).
+    const plano = planoDeVariaveis(body.templateComponents);
+    if (plano.headerMidia) {
+      return NextResponse.json(
+        {
+          error:
+            `O template "${body.templateName}" tem cabeçalho de ${plano.headerMidia}, que ainda não ` +
+            `sabemos preencher — a Meta recusaria todos os envios. Use um template com cabeçalho em texto.`,
+        },
+        { status: 400 },
+      );
+    }
+
+    const esperadas = plano.header + plano.body;
+    const recebidas = recipientsInput.reduce(
+      (max, r) => Math.max(max, Object.keys((r?.variables ?? {}) as Record<string, unknown>).length),
+      0,
+    );
+    if (recebidas !== esperadas) {
+      const onde = plano.header > 0
+        ? ` (${plano.header} no cabeçalho e ${plano.body} no corpo, nesta ordem)`
+        : "";
+      return NextResponse.json(
+        {
+          error:
+            `O template "${body.templateName}" espera ${esperadas} variável(is)${onde}, ` +
+            `mas o CSV trouxe ${recebidas}. A Meta recusaria todos os envios.`,
+        },
+        { status: 400 },
+      );
+    }
+
     const flowButton = findFlowButton(body.templateComponents);
     const flowId = typeof body.flowId === "string" && body.flowId ? body.flowId : null;
 

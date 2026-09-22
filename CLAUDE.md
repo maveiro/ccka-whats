@@ -1412,6 +1412,29 @@ autocorreção**, não de alguém lembrar.
   artista.
 - **Domínio próprio `link.plauz.com.br` — NO AR (21/09/2026).** Falta só
   submeter o template com botão rastreado à Meta.**
+- **Site URL do Supabase Auth está quebrado — achado em 22/09/2026, ainda
+  ABERTO.** `auth.site_url` em produção é `https://web-ten-gray-14.vercel.app/**`
+  (confirmado via `supabase config diff`) — `/**` é sintaxe de wildcard da
+  lista de **Redirect URLs**, nunca do Site URL, que precisa ser uma URL
+  simples. E `additional_redirect_urls` está **vazio**. Consequência real: um
+  link de redefinição de senha chegou como
+  `https://web-ten-gray-14.vercel.app/**?code=...` — 404. O GoTrue confere o
+  `redirectTo` pedido (`whats.plauz.com.br/reset-password`) contra a
+  allow-list; vazia, não bate; cai no fallback de usar o Site URL como
+  destino real, colando os parâmetros nele — e como o Site URL contém `/**`
+  como TEXTO, o resultado sai literalmente com `/**` no meio da URL. Corrige
+  no dashboard (Authentication → URL Configuration), não no `config.toml`
+  local nem via `supabase config push` — o `config.toml` do repo declara
+  `site_url = "http://127.0.0.1:3000"` (valor de DEV) e vários outros campos
+  de auth com valor de produção intencionalmente diferente (confirmações de
+  e-mail, OTP, Twilio, client_id do Google); um `config push` sem filtro
+  sobrescreveria tudo isso com o template local. Correção: Site URL =
+  `https://whats.plauz.com.br`; Redirect URLs += `https://whats.plauz.com.br/**`
+  (cobre login, `/auth/callback`, `/reset-password`, `/dashboard` — todos
+  construídos a partir de `window.location.origin`, e `/login` no host
+  público sempre redireciona para `whats.` agora). Manter
+  `https://web-ten-gray-14.vercel.app/**` na lista por um tempo, para não
+  quebrar quem tiver aba ou link antigo.
 - **Dois hosts, dois papéis (22/09/2026).** `link.plauz.com.br` é o que o fã
   abre; `whats.plauz.com.br` é o painel. Cookie é por host, e sessão de admin
   não precisa existir no endereço que milhares de desconhecidos abrem — com os

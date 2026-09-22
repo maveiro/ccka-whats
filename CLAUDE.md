@@ -1412,8 +1412,8 @@ autocorreção**, não de alguém lembrar.
   artista.
 - **Domínio próprio `link.plauz.com.br` — NO AR (21/09/2026).** Falta só
   submeter o template com botão rastreado à Meta.**
-- **Site URL do Supabase Auth está quebrado — achado em 22/09/2026, ainda
-  ABERTO.** `auth.site_url` em produção é `https://web-ten-gray-14.vercel.app/**`
+- **Site URL do Supabase Auth estava quebrado — achado e corrigido em
+  22/09/2026.** `auth.site_url` em produção é `https://web-ten-gray-14.vercel.app/**`
   (confirmado via `supabase config diff`) — `/**` é sintaxe de wildcard da
   lista de **Redirect URLs**, nunca do Site URL, que precisa ser uma URL
   simples. E `additional_redirect_urls` está **vazio**. Consequência real: um
@@ -1434,7 +1434,10 @@ autocorreção**, não de alguém lembrar.
   construídos a partir de `window.location.origin`, e `/login` no host
   público sempre redireciona para `whats.` agora). Manter
   `https://web-ten-gray-14.vercel.app/**` na lista por um tempo, para não
-  quebrar quem tiver aba ou link antigo.
+  quebrar quem tiver aba ou link antigo. **Corrigido e confirmado** via
+  `supabase config diff` — remoto hoje: `site_url = https://whats.plauz.com.br`,
+  `additional_redirect_urls = [https://whats.plauz.com.br/**,
+  https://web-ten-gray-14.vercel.app/**]`.
 - **Dois hosts, dois papéis (22/09/2026).** `link.plauz.com.br` é o que o fã
   abre; `whats.plauz.com.br` é o painel. Cookie é por host, e sessão de admin
   não precisa existir no endereço que milhares de desconhecidos abrem — com os

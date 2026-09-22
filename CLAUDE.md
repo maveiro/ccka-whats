@@ -1411,7 +1411,7 @@ autocorreção**, não de alguém lembrar.
   do Google. FAQ tem 3 itens genéricos, plausíveis mas não revisados pelo
   artista.
 - **Domínio próprio `link.plauz.com.br` — NO AR (21/09/2026).** Falta só
-  submeter o template com botão rastreado à Meta.**
+  submeter o template com botão rastreado à Meta.
 - **Site URL do Supabase Auth estava quebrado — achado e corrigido em
   22/09/2026.** `auth.site_url` em produção é `https://web-ten-gray-14.vercel.app/**`
   (confirmado via `supabase config diff`) — `/**` é sintaxe de wildcard da

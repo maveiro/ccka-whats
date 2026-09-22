@@ -1411,7 +1411,20 @@ autocorreção**, não de alguém lembrar.
   do Google. FAQ tem 3 itens genéricos, plausíveis mas não revisados pelo
   artista.
 - **Domínio próprio `link.plauz.com.br` — NO AR (21/09/2026).** Falta só
-  submeter o template com botão rastreado à Meta.** Bloqueia o template com botão rastreado: URL crua da Vercel num
+  submeter o template com botão rastreado à Meta.**
+- **Dois hosts, dois papéis (22/09/2026).** `link.plauz.com.br` é o que o fã
+  abre; `whats.plauz.com.br` é o painel. Cookie é por host, e sessão de admin
+  não precisa existir no endereço que milhares de desconhecidos abrem — com os
+  dois separados, uma falha futura numa página pública não tem sessão de admin
+  ao alcance. Só o caminho de ENTRADA redireciona (`proxy.ts`: `/login` e
+  `/dashboard` abertos pelo host público mandam para
+  `NEXT_PUBLIC_PANEL_BASE_URL`); o contrário — link de página pública já
+  copiado, aberto pelo host do painel — continua servindo normalmente, porque
+  quebrar isso seria pior que servir a mesma página por dois endereços.
+  `/auth/` fica fora da regra de propósito: é o retorno do OAuth, amarrado ao
+  host que iniciou o fluxo. Cookie novo por host: primeiro acesso a
+  `whats.plauz.com.br` pede login de novo, mesmo para quem já estava logado em
+  `link.` ou no `.vercel.app`. Bloqueia o template com botão rastreado: URL crua da Vercel num
   botão de marketing lê como phishing, derruba clique e chama atenção na
   revisão da Meta; e como a URL fica **congelada no template aprovado**,
   trocar depois é outro ciclo de aprovação. Também resolve a landing e a

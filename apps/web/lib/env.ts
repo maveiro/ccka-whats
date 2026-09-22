@@ -23,11 +23,15 @@ export const env = createEnv({
     // hosts (domínio próprio, URL do projeto, preview) e o link que alguém
     // COPIA para divulgar não pode depender de por onde essa pessoa entrou.
     NEXT_PUBLIC_LINK_BASE_URL: z.string().url().optional(),
+    // Endereço do painel (hoje https://whats.plauz.com.br). Posto junto com o
+    // de cima, é o que faz /dashboard e /login saírem do host público.
+    NEXT_PUBLIC_PANEL_BASE_URL: z.string().url().optional(),
   },
   runtimeEnv: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_LINK_BASE_URL: process.env.NEXT_PUBLIC_LINK_BASE_URL,
+    NEXT_PUBLIC_PANEL_BASE_URL: process.env.NEXT_PUBLIC_PANEL_BASE_URL,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     EVOLUTION_API_URL: process.env.EVOLUTION_API_URL,
     EVOLUTION_API_KEY: process.env.EVOLUTION_API_KEY,

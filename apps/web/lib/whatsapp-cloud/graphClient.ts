@@ -195,6 +195,93 @@ export async function listMessageTemplates(
   return results;
 }
 
+// ─── Upload de mídia para cabeçalho de template ──────────────────────────────
+//
+// Header de mídia (imagem/vídeo/documento) exige um `header_handle` de
+// EXEMPLO — a Meta pede para ver a mídia antes de aprovar. O handle vem da
+// Resumable Upload API, um subsistema separado do resto da Graph API:
+//
+//  1. POST /{app_id}/uploads?file_name&file_length&file_type → sessão
+//  2. POST /{sessão} com o BINÁRIO no corpo e Authorization: OAuth <token>
+//     (não "Bearer" — a doc é explícita sobre isso, e é a única chamada da
+//     Graph API neste arquivo que usa esse esquema) → devolve `h`, o handle
+//  3. `example.header_handle: [h]` no componente HEADER da criação/edição
+//
+// `app_id` não é um valor que já tínhamos guardado em lugar nenhum — as
+// credenciais salvam waba_id/phone_number_id/access_token, nunca o app da
+// Meta que emitiu o token. Resolvido via `debug_token`, que qualquer token
+// válido consegue perguntar sobre SI MESMO (input_token === access_token):
+// evita um env var novo, e continua certo mesmo que WABAs diferentes usem
+// apps da Meta diferentes (o CLAUDE.md já registra 3 apps inscritos na WABA
+// da Plauz).
+//
+// Validado ao vivo em 22/09/2026: sessão criada, PNG de teste enviado,
+// handle usado para criar um template com cabeçalho IMAGE de verdade
+// (`status: PENDING`), depois apagado — era só teste.
+
+export async function resolveAppId(accessToken: string): Promise<string> {
+  const url = new URL(`${GRAPH_API_BASE}/debug_token`);
+  url.searchParams.set("input_token", accessToken);
+  url.searchParams.set("access_token", accessToken);
+
+  const response = await fetchWithRetry(url.toString(), { method: "GET" });
+  if (!response.ok) throw await parseGraphError(response, "debug_token");
+
+  const json = (await response.json()) as { data?: { app_id?: string } };
+  const appId = json.data?.app_id;
+  if (!appId) throw new GraphApiError("debug_token não devolveu app_id", response.status, json);
+  return appId;
+}
+
+export async function createUploadSession(params: {
+  appId: string;
+  accessToken: string;
+  fileName: string;
+  fileLength: number;
+  fileType: string;
+}): Promise<string> {
+  const { appId, accessToken, fileName, fileLength, fileType } = params;
+  const url = new URL(`${GRAPH_API_BASE}/${appId}/uploads`);
+  url.searchParams.set("file_name", fileName);
+  url.searchParams.set("file_length", String(fileLength));
+  url.searchParams.set("file_type", fileType);
+  url.searchParams.set("access_token", accessToken);
+
+  const response = await fetchWithRetry(url.toString(), { method: "POST" });
+  if (!response.ok) throw await parseGraphError(response, `${appId}/uploads`);
+
+  const json = (await response.json()) as { id?: string };
+  if (!json.id) throw new GraphApiError("uploads não devolveu id de sessão", response.status, json);
+  return json.id; // já vem como "upload:<...>" — usado como está no passo 2
+}
+
+export async function uploadFileBytes(params: {
+  uploadSessionId: string;
+  accessToken: string;
+  bytes: Uint8Array;
+}): Promise<string> {
+  const { uploadSessionId, accessToken, bytes } = params;
+
+  const response = await fetchWithRetry(`${GRAPH_API_BASE}/${uploadSessionId}`, {
+    method: "POST",
+    headers: {
+      // OAuth, não Bearer — único lugar neste arquivo assim (doc da Meta).
+      Authorization: `OAuth ${accessToken}`,
+      "file_offset": "0",
+      "Content-Type": "application/octet-stream",
+    },
+    // Uint8Array é um BodyInit válido em runtime (fetch/undici aceitam),
+    // mas o typing do DOM lib discorda dependendo da versão — cast local,
+    // sem afrouxar tipo em lugar nenhum mais.
+    body: bytes as unknown as BodyInit,
+  });
+  if (!response.ok) throw await parseGraphError(response, uploadSessionId);
+
+  const json = (await response.json()) as { h?: string };
+  if (!json.h) throw new GraphApiError("upload não devolveu handle (h)", response.status, json);
+  return json.h;
+}
+
 export interface CreateMessageTemplateParams {
   wabaId: string;
   accessToken: string;
@@ -239,6 +326,42 @@ export async function createMessageTemplate(
 
   const json = (await response.json()) as CreateMessageTemplateResult;
   return json;
+}
+
+/**
+ * POST /{template_id} — edita um template EXISTENTE.
+ *
+ * Achado testando contra a Graph API real (22/09/2026): a Meta recusa editar
+ * um template `PENDING` (`error_subcode 2388003`, *"Os modelos de mensagem
+ * só podem ser editados se tiverem sido rejeitados"*). Ou seja, este
+ * endpoint só serve para REJECTED — não é uma via geral de atualizar
+ * template aprovado. Não duplicamos essa checagem aqui: o erro da Meta já
+ * diz por quê, e é repassado como veio (mesmo espírito da regra de não
+ * duplicar a combinação exata de botões).
+ *
+ * `name` e `language` NÃO entram — são a identidade do template, fixadas na
+ * criação. O que dá para mudar é `category` e `components`.
+ */
+export async function updateMessageTemplate(params: {
+  templateId: string;
+  accessToken: string;
+  category?: "MARKETING" | "UTILITY";
+  components: unknown[];
+}): Promise<{ success: boolean }> {
+  const { templateId, accessToken, category, components } = params;
+
+  const response = await fetchWithRetry(`${GRAPH_API_BASE}/${templateId}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ ...(category ? { category } : {}), components }),
+  });
+
+  if (!response.ok) throw await parseGraphError(response, `${templateId} (editar)`);
+
+  return (await response.json()) as { success: boolean };
 }
 
 export interface SendTemplateMessageParams {

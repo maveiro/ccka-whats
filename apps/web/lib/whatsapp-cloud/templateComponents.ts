@@ -17,12 +17,16 @@ export const LIMITE_BODY = 1024;
 export const LIMITE_FOOTER = 60;
 export const MAX_VARIAVEIS_BODY = 15;
 
+export type FormatoMidia = "IMAGE" | "VIDEO" | "DOCUMENT";
+
 export interface TemplateFormInput {
   headerTexto: string | null;
   bodyTexto: string;
   footerTexto: string | null;
   headerExemplo: string | null;
   bodyExemplos: string[];
+  /** Cabeçalho de mídia — mutuamente exclusivo com headerTexto. */
+  headerMidia: null | { formato: FormatoMidia; handle: string };
   botao: null | {
     texto: string;
     modo: "rastreada" | "estatica" | "flow" | "quick_reply";
@@ -101,7 +105,19 @@ export function montarComponentes(
 
   // ── Cabeçalho ──────────────────────────────────────────────────────────
   const header = input.headerTexto?.trim() ?? "";
-  if (header) {
+  if (input.headerMidia && header) {
+    return { ok: false, erro: "Cabeçalho não pode ser texto e mídia ao mesmo tempo." };
+  }
+  if (input.headerMidia) {
+    // Sem `text`: o cabeçalho de mídia é só a imagem/vídeo/documento — nada
+    // de texto no lugar. `example.header_handle` é o handle da Resumable
+    // Upload API, não a mídia em si (confirmado ao vivo, 22/09/2026).
+    components.push({
+      type: "HEADER",
+      format: input.headerMidia.formato,
+      example: { header_handle: [input.headerMidia.handle] },
+    });
+  } else if (header) {
     if (header.length > LIMITE_HEADER) {
       return { ok: false, erro: `Cabeçalho passou de ${LIMITE_HEADER} caracteres (tem ${header.length}).` };
     }
@@ -241,6 +257,104 @@ export function montarComponentes(
   }
 
   return { ok: true, components };
+}
+
+export interface ComponentesParseados {
+  headerTexto: string | null;
+  headerExemplo: string | null;
+  /**
+   * Só o FORMATO do cabeçalho de mídia que já existia — o handle antigo NÃO
+   * é reaproveitável (é de uma sessão de upload já fechada, e a doc da Meta
+   * avisa que o handle é de curta duração). Editar um template com
+   * cabeçalho de mídia exige subir o arquivo de novo.
+   */
+  headerMidiaFormato: FormatoMidia | null;
+  bodyTexto: string;
+  bodyExemplos: string[];
+  footerTexto: string | null;
+  botao: null | {
+    modo: "rastreada" | "estatica" | "flow" | "quick_reply";
+    texto: string;
+    urlEstatica?: string;
+    /** flow_id da META (não o nosso uuid) — quem chama casa contra whatsapp_flows.meta_flow_id. */
+    flowMetaId?: string;
+  };
+}
+
+/**
+ * Lê de volta um `components` que a Meta já tem (para pré-preencher o
+ * formulário de EDIÇÃO — só templates REJECTED aceitam edição, achado
+ * testando ao vivo em 22/09/2026). Best-effort e nunca lança: um template
+ * criado fora da plataforma pode ter forma que o formulário não sabe editar
+ * (ex.: `parameter_format: "named"`, fora de escopo — ver PRD); nesse caso
+ * os campos ficam em branco, e a pessoa preenche de novo, em vez de a tela
+ * quebrar.
+ */
+export function formularioAPartirDeComponentes(components: unknown[]): ComponentesParseados {
+  const resultado: ComponentesParseados = {
+    headerTexto: null,
+    headerExemplo: null,
+    headerMidiaFormato: null,
+    bodyTexto: "",
+    bodyExemplos: [],
+    footerTexto: null,
+    botao: null,
+  };
+  if (!Array.isArray(components)) return resultado;
+
+  for (const c of components) {
+    const comp = c as {
+      type?: string;
+      format?: string;
+      text?: string;
+      example?: { header_text?: string[]; body_text?: string[][] };
+      buttons?: {
+        type?: string;
+        text?: string;
+        url?: string;
+        flow_id?: string;
+      }[];
+    };
+    const tipo = comp?.type?.toUpperCase();
+
+    if (tipo === "HEADER") {
+      const formato = comp.format?.toUpperCase();
+      if (formato === "TEXT") {
+        resultado.headerTexto = comp.text ?? null;
+        resultado.headerExemplo = comp.example?.header_text?.[0] ?? null;
+      } else if (formato === "IMAGE" || formato === "VIDEO" || formato === "DOCUMENT") {
+        resultado.headerMidiaFormato = formato;
+      }
+    }
+
+    if (tipo === "BODY") {
+      resultado.bodyTexto = comp.text ?? "";
+      resultado.bodyExemplos = comp.example?.body_text?.[0] ?? [];
+    }
+
+    if (tipo === "FOOTER") {
+      resultado.footerTexto = comp.text ?? null;
+    }
+
+    if (tipo === "BUTTONS" && Array.isArray(comp.buttons) && comp.buttons[0]) {
+      const b = comp.buttons[0];
+      const btnTipo = b.type?.toUpperCase();
+      if (btnTipo === "URL" && b.url) {
+        const rastreada = /\/c\/\{\{\s*1\s*\}\}$/.test(b.url);
+        resultado.botao = {
+          modo: rastreada ? "rastreada" : "estatica",
+          texto: b.text ?? "",
+          ...(rastreada ? {} : { urlEstatica: b.url }),
+        };
+      } else if (btnTipo === "FLOW" && b.flow_id) {
+        resultado.botao = { modo: "flow", texto: b.text ?? "", flowMetaId: b.flow_id };
+      } else if (btnTipo === "QUICK_REPLY") {
+        resultado.botao = { modo: "quick_reply", texto: b.text ?? "" };
+      }
+    }
+  }
+
+  return resultado;
 }
 
 /** name da Meta: só minúsculo, dígito e "_", até 512 — deriva do título que o admin digita. */

@@ -8,6 +8,7 @@ import {
   slugifyNomeTemplate,
   type TemplateFormInput,
 } from "@/lib/whatsapp-cloud/templateComponents";
+import { resolverBotaoFlow } from "@/lib/whatsapp-cloud/resolverBotaoFlow";
 
 // GET — lista TODO template da WABA (qualquer status), para a tela de
 // gestão (/dashboard/admin/templates). Irmã de /api/campaigns/templates,
@@ -74,6 +75,7 @@ interface CreateBody {
   bodyTexto?: string;
   bodyExemplos?: string[];
   footerTexto?: string | null;
+  headerMidia?: TemplateFormInput["headerMidia"];
   botao?: TemplateFormInput["botao"];
 }
 
@@ -129,44 +131,10 @@ export async function POST(req: Request) {
 
   const language = (body.language ?? "pt_BR").trim();
 
-  // Botão de Flow: mesma validação de POST /api/campaigns (regra 37) — Flow
-  // do mesmo tenant, mesmo número, ativo e publicado na Meta. Aqui é a
-  // pessoa que MONTA o template quem escolhe, então a checagem acontece
-  // antes de montar o payload, não só quando a campanha for criada depois.
-  let botaoResolvido = body.botao ?? null;
-  if (botaoResolvido?.modo === "flow") {
-    if (!botaoResolvido.flowId) {
-      return NextResponse.json({ error: "Escolha qual Flow o botão abre" }, { status: 400 });
-    }
-    const { data: flow } = await admin
-      .from("whatsapp_flows")
-      .select("id, tipo, ativo, meta_flow_id, cloud_credential_id, tenant_id, tela_inicial")
-      .eq("id", botaoResolvido.flowId)
-      .is("deleted_at", null)
-      .maybeSingle();
-
-    if (!flow || flow.tenant_id !== operator.tenant_id) {
-      return NextResponse.json({ error: "Flow não encontrado" }, { status: 400 });
-    }
-    if (flow.cloud_credential_id !== credential.id) {
-      return NextResponse.json(
-        { error: "O Flow escolhido é de outro número — abriria a central errada" },
-        { status: 400 },
-      );
-    }
-    if (!flow.ativo || !flow.meta_flow_id) {
-      return NextResponse.json({ error: "O Flow escolhido não está ativo e publicado na Meta" }, { status: 400 });
-    }
-    if (!["central", "agenda_shows"].includes(flow.tipo)) {
-      return NextResponse.json({ error: "Esse Flow não é do tipo que se abre numa conversa" }, { status: 400 });
-    }
-
-    // Mesma tela que o flow-engine abriria no INIT (index.ts,
-    // telaInicialDaSessao): tela_inicial quando setada, senão o padrão do
-    // tipo. O botão do template precisa cair no MESMO lugar.
-    const navigateScreen = flow.tela_inicial ?? (flow.tipo === "central" ? "APRESENTACAO" : "AGENDA");
-    botaoResolvido = { ...botaoResolvido, flowId: flow.meta_flow_id, navigateScreen };
-  }
+  // Botão de Flow: mesma validação de POST /api/campaigns (regra 37),
+  // compartilhada com a rota de edição (resolverBotaoFlow.ts).
+  const resolvido = await resolverBotaoFlow(operator.tenant_id, credential.id, body.botao ?? null);
+  if (!resolvido.ok) return NextResponse.json({ error: resolvido.erro }, { status: 400 });
 
   const montagem = montarComponentes(
     {
@@ -175,7 +143,8 @@ export async function POST(req: Request) {
       footerTexto: body.footerTexto ?? null,
       headerExemplo: body.headerExemplo ?? null,
       bodyExemplos: body.bodyExemplos ?? [],
-      botao: botaoResolvido,
+      headerMidia: body.headerMidia ?? null,
+      botao: resolvido.botao,
     },
     env.NEXT_PUBLIC_LINK_BASE_URL ?? null,
   );

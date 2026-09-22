@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { placeholders, variavelNaBordaDoCorpo } from "@/lib/whatsapp-cloud/templateComponents";
+import {
+  formularioAPartirDeComponentes,
+  placeholders,
+  variavelNaBordaDoCorpo,
+  type FormatoMidia,
+} from "@/lib/whatsapp-cloud/templateComponents";
 
 interface Credential {
   id: string;
@@ -26,9 +31,21 @@ interface Flow {
   meta_flow_id: string | null;
 }
 
+/** Template existente cuja edição está em andamento — só REJECTED aceita (achado ao vivo, 22/09/2026). */
+export interface TemplateParaEditar {
+  id: string;
+  name: string;
+  language: string;
+  category: string;
+  components: unknown[];
+}
+
 const LIMITE_HEADER = 60;
 const LIMITE_BODY = 1024;
 const LIMITE_FOOTER = 60;
+
+type BotaoModo = "rastreada" | "estatica" | "flow" | "quick_reply";
+type HeaderTipo = "nenhum" | "texto" | "midia";
 
 export default function TemplateForm({
   credentials,
@@ -36,28 +53,58 @@ export default function TemplateForm({
   onCredentialChange,
   linkBaseUrl,
   onCriado,
+  templateParaEditar,
+  onEditado,
+  onFecharEdicao,
 }: {
   credentials: Credential[];
   credentialId: string | null;
   onCredentialChange: (id: string) => void;
   linkBaseUrl: string | null;
   onCriado: () => void;
+  /** Presente = formulário abre em modo EDIÇÃO, pré-preenchido. */
+  templateParaEditar?: TemplateParaEditar | null;
+  onEditado?: () => void;
+  onFecharEdicao?: () => void;
 }) {
-  const [aberto, setAberto] = useState(false);
+  const editando = templateParaEditar ?? null;
+  const parsed = useMemo(
+    () => (editando ? formularioAPartirDeComponentes(editando.components) : null),
+    [editando],
+  );
+
+  const [aberto, setAberto] = useState(Boolean(editando));
   const [titulo, setTitulo] = useState("");
-  const [category, setCategory] = useState<"MARKETING" | "UTILITY">("MARKETING");
-  const [language, setLanguage] = useState("pt_BR");
-  const [headerTexto, setHeaderTexto] = useState("");
-  const [headerExemplo, setHeaderExemplo] = useState("");
-  const [bodyTexto, setBodyTexto] = useState("");
-  const [bodyExemplos, setBodyExemplos] = useState<string[]>([]);
-  const [footerTexto, setFooterTexto] = useState("");
-  const [temBotao, setTemBotao] = useState(false);
-  const [botaoModo, setBotaoModo] = useState<"rastreada" | "estatica" | "flow" | "quick_reply">("rastreada");
-  const [botaoTexto, setBotaoTexto] = useState("Comprar Meu Ingresso");
-  const [botaoUrlEstatica, setBotaoUrlEstatica] = useState("");
+  const [category, setCategory] = useState<"MARKETING" | "UTILITY">(
+    (editando?.category.toUpperCase() as "MARKETING" | "UTILITY") ?? "MARKETING",
+  );
+  const [language] = useState(editando?.language ?? "pt_BR");
+
+  const [headerTipo, setHeaderTipo] = useState<HeaderTipo>(
+    parsed?.headerMidiaFormato ? "midia" : parsed?.headerTexto ? "texto" : "nenhum",
+  );
+  const [headerTexto, setHeaderTexto] = useState(parsed?.headerTexto ?? "");
+  const [headerExemplo, setHeaderExemplo] = useState(parsed?.headerExemplo ?? "");
+  const [headerMidiaFormatoOriginal] = useState<FormatoMidia | null>(parsed?.headerMidiaFormato ?? null);
+  const [headerMidiaFormato, setHeaderMidiaFormato] = useState<FormatoMidia>(parsed?.headerMidiaFormato ?? "IMAGE");
+  const [headerMidiaHandle, setHeaderMidiaHandle] = useState<string | null>(null);
+  const [headerMidiaNome, setHeaderMidiaNome] = useState<string | null>(null);
+  const [enviandoMidia, setEnviandoMidia] = useState(false);
+
+  const [bodyTexto, setBodyTexto] = useState(parsed?.bodyTexto ?? "");
+  const [bodyExemplos, setBodyExemplos] = useState<string[]>(parsed?.bodyExemplos ?? []);
+  const [footerTexto, setFooterTexto] = useState(parsed?.footerTexto ?? "");
+
+  const [temBotao, setTemBotao] = useState(Boolean(parsed?.botao));
+  const [botaoModo, setBotaoModo] = useState<BotaoModo>(parsed?.botao?.modo ?? "rastreada");
+  const [botaoTexto, setBotaoTexto] = useState(parsed?.botao?.texto || "Comprar Meu Ingresso");
+  const [botaoUrlEstatica, setBotaoUrlEstatica] = useState(parsed?.botao?.urlEstatica ?? "");
   const [botaoFlowId, setBotaoFlowId] = useState("");
+  // Flow existente que o botão abria (edição), antes de casar com a lista
+  // carregada — mostrado como dica até a pessoa escolher de novo.
+  const [botaoFlowMetaIdOriginal] = useState<string | null>(parsed?.botao?.flowMetaId ?? null);
   const [flows, setFlows] = useState<Flow[]>([]);
+
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -86,6 +133,28 @@ export default function TemplateForm({
     }
   }
 
+  async function subirMidia(file: File) {
+    if (!credentialId) return;
+    setEnviandoMidia(true);
+    setErro(null);
+    try {
+      const form = new FormData();
+      form.append("credentialId", credentialId);
+      form.append("file", file);
+      const res = await fetch("/api/templates/upload-header-media", { method: "POST", body: form });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `Erro ${res.status}`);
+      setHeaderMidiaHandle(json.handle);
+      setHeaderMidiaFormato(json.formato);
+      setHeaderMidiaNome(file.name);
+      toast.success("Mídia enviada — pronta pra usar no cabeçalho.");
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : String(err));
+    } finally {
+      setEnviandoMidia(false);
+    }
+  }
+
   function ajustarExemplos(qtd: number) {
     setBodyExemplos((atual) => {
       const novo = atual.slice(0, qtd);
@@ -111,43 +180,68 @@ export default function TemplateForm({
   const urlRastreadaPreview = linkBaseUrl ? `${linkBaseUrl.replace(/\/+$/, "")}/c/{{1}}` : null;
 
   function resetar() {
-    setTitulo(""); setBodyTexto(""); setBodyExemplos([]); setHeaderTexto(""); setHeaderExemplo("");
+    setTitulo(""); setBodyTexto(""); setBodyExemplos([]); setHeaderTipo("nenhum"); setHeaderTexto(""); setHeaderExemplo("");
+    setHeaderMidiaHandle(null); setHeaderMidiaNome(null);
     setFooterTexto(""); setTemBotao(false); setBotaoModo("rastreada"); setBotaoTexto("Comprar Meu Ingresso");
     setBotaoUrlEstatica(""); setBotaoFlowId(""); setErro(null); setAberto(false);
+    onFecharEdicao?.();
+  }
+
+  // Falta subir mídia nova quando o cabeçalho é de mídia — handle antigo (se
+  // havia, na edição) não é reaproveitável, então SEMPRE exige upload novo.
+  const faltaMidia = headerTipo === "midia" && !headerMidiaHandle;
+
+  function montarPayloadBotao() {
+    if (!temBotao) return null;
+    return {
+      texto: botaoTexto,
+      modo: botaoModo,
+      ...(botaoModo === "estatica" ? { urlEstatica: botaoUrlEstatica } : {}),
+      ...(botaoModo === "flow" ? { flowId: botaoFlowId } : {}),
+    };
   }
 
   async function enviar() {
     setErro(null);
+    if (faltaMidia) {
+      setErro("Falta subir o arquivo do cabeçalho.");
+      return;
+    }
     setEnviando(true);
     try {
-      const res = await fetch("/api/templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          credentialId,
-          titulo,
-          category,
-          language,
-          headerTexto: headerTexto.trim() || null,
-          headerExemplo: headerExemplo.trim() || null,
-          bodyTexto,
-          bodyExemplos,
-          footerTexto: footerTexto.trim() || null,
-          botao: temBotao
-            ? {
-                texto: botaoTexto,
-                modo: botaoModo,
-                ...(botaoModo === "estatica" ? { urlEstatica: botaoUrlEstatica } : {}),
-                ...(botaoModo === "flow" ? { flowId: botaoFlowId } : {}),
-              }
-            : null,
-        }),
-      });
+      const corpoComum = {
+        credentialId,
+        category,
+        headerTexto: headerTipo === "texto" ? (headerTexto.trim() || null) : null,
+        headerExemplo: headerTipo === "texto" ? (headerExemplo.trim() || null) : null,
+        headerMidia: headerTipo === "midia" && headerMidiaHandle
+          ? { formato: headerMidiaFormato, handle: headerMidiaHandle }
+          : null,
+        bodyTexto,
+        bodyExemplos,
+        footerTexto: footerTexto.trim() || null,
+        botao: montarPayloadBotao(),
+      };
+
+      const res = editando
+        ? await fetch("/api/templates/edit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...corpoComum, templateId: editando.id }),
+          })
+        : await fetch("/api/templates", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...corpoComum, titulo, language }),
+          });
+
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? `Erro ${res.status}`);
-      toast.success(`Template enviado para revisão — status: ${json.status}`);
+      toast.success(
+        editando ? "Template editado e reenviado para revisão." : `Template enviado para revisão — status: ${json.status}`,
+      );
       resetar();
-      onCriado();
+      editando ? onEditado?.() : onCriado();
     } catch (err) {
       setErro(err instanceof Error ? err.message : String(err));
     } finally {
@@ -169,16 +263,26 @@ export default function TemplateForm({
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-white">Novo template</p>
+        <p className="text-sm font-medium text-white">
+          {editando ? `Editando "${editando.name}"` : "Novo template"}
+        </p>
         <button onClick={resetar} className="text-xs text-gray-500 hover:text-white">Cancelar</button>
       </div>
+
+      {editando && (
+        <p className="text-[11px] text-amber-400 bg-amber-900/20 border border-amber-900 rounded-md px-3 py-2">
+          Só dá para editar um template REJEITADO — a Meta recusa em qualquer outro status.
+          Nome e idioma não mudam ({editando.name} · {editando.language}).
+        </p>
+      )}
 
       <div className="space-y-1 bg-gray-800/50 rounded-md px-3 py-2">
         <label className="block text-xs text-gray-400">Conta (WABA)</label>
         <select
           value={credentialId ?? ""}
           onChange={(e) => onCredentialChange(e.target.value)}
-          className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white text-sm"
+          disabled={Boolean(editando)}
+          className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white text-sm disabled:opacity-60"
         >
           {credentials.map((c) => (
             <option key={c.id} value={c.id}>
@@ -188,26 +292,24 @@ export default function TemplateForm({
         </select>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        <div className="col-span-2">
-          <label className="block text-xs text-gray-400 mb-1">Título (vira o nome do template)</label>
-          <input
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            placeholder="Vendas abertas — Natal"
-            className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
-          />
-          {titulo && <p className="text-[11px] text-gray-500 mt-1 font-mono">name: {nomeGerado || "(precisa de letra ou número)"}</p>}
+      {!editando && (
+        <div className="grid grid-cols-3 gap-2">
+          <div className="col-span-2">
+            <label className="block text-xs text-gray-400 mb-1">Título (vira o nome do template)</label>
+            <input
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              placeholder="Vendas abertas — Natal"
+              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+            />
+            {titulo && <p className="text-[11px] text-gray-500 mt-1 font-mono">name: {nomeGerado || "(precisa de letra ou número)"}</p>}
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Idioma</label>
+            <input value={language} disabled className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-gray-400 text-sm" />
+          </div>
         </div>
-        <div>
-          <label className="block text-xs text-gray-400 mb-1">Idioma</label>
-          <input
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
-          />
-        </div>
-      </div>
+      )}
 
       <div>
         <label className="block text-xs text-gray-400 mb-1">Categoria</label>
@@ -228,22 +330,63 @@ export default function TemplateForm({
       </div>
 
       <div>
-        <label className="block text-xs text-gray-400 mb-1">Cabeçalho (opcional, só texto)</label>
-        <input
-          value={headerTexto}
-          onChange={(e) => setHeaderTexto(e.target.value)}
-          maxLength={LIMITE_HEADER}
-          placeholder="Olá, {{1}}!"
-          className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
-        />
-        <p className="text-[11px] text-gray-500 mt-1">{headerTexto.length}/{LIMITE_HEADER} · no máximo 1 variável</p>
-        {headerVars.length === 1 && (
-          <input
-            value={headerExemplo}
-            onChange={(e) => setHeaderExemplo(e.target.value)}
-            placeholder="Valor de exemplo para {{1}} (ex: Marcelo)"
-            className="mt-1.5 w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
-          />
+        <label className="block text-xs text-gray-400 mb-1">Cabeçalho (opcional)</label>
+        <div className="flex flex-wrap gap-3 text-xs text-gray-400 mb-2">
+          <label className="flex items-center gap-1.5">
+            <input type="radio" checked={headerTipo === "nenhum"} onChange={() => setHeaderTipo("nenhum")} />
+            Nenhum
+          </label>
+          <label className="flex items-center gap-1.5">
+            <input type="radio" checked={headerTipo === "texto"} onChange={() => setHeaderTipo("texto")} />
+            Texto
+          </label>
+          <label className="flex items-center gap-1.5">
+            <input type="radio" checked={headerTipo === "midia"} onChange={() => setHeaderTipo("midia")} />
+            Imagem / Vídeo / Documento
+          </label>
+        </div>
+
+        {headerTipo === "texto" && (
+          <>
+            <input
+              value={headerTexto}
+              onChange={(e) => setHeaderTexto(e.target.value)}
+              maxLength={LIMITE_HEADER}
+              placeholder="Olá, {{1}}!"
+              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+            />
+            <p className="text-[11px] text-gray-500 mt-1">{headerTexto.length}/{LIMITE_HEADER} · no máximo 1 variável</p>
+            {headerVars.length === 1 && (
+              <input
+                value={headerExemplo}
+                onChange={(e) => setHeaderExemplo(e.target.value)}
+                placeholder="Valor de exemplo para {{1}} (ex: Marcelo)"
+                className="mt-1.5 w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+              />
+            )}
+          </>
+        )}
+
+        {headerTipo === "midia" && (
+          <div className="space-y-1.5">
+            {editando && headerMidiaFormatoOriginal && !headerMidiaHandle && (
+              <p className="text-[11px] text-amber-400">
+                Este template tinha cabeçalho de {headerMidiaFormatoOriginal.toLowerCase()} — o link antigo
+                expirou, suba o arquivo de novo para mantê-lo.
+              </p>
+            )}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,video/mp4,video/3gpp,application/pdf"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) void subirMidia(f); }}
+              className="text-xs text-gray-300"
+            />
+            <p className="text-[11px] text-gray-500">JPEG/PNG até 5MB · MP4/3GPP até 16MB · PDF até 5MB</p>
+            {enviandoMidia && <p className="text-[11px] text-gray-400">Enviando…</p>}
+            {headerMidiaHandle && (
+              <p className="text-[11px] text-green-400">✓ {headerMidiaNome} ({headerMidiaFormato.toLowerCase()}) pronto</p>
+            )}
+          </div>
         )}
       </div>
 
@@ -354,17 +497,26 @@ export default function TemplateForm({
             )}
 
             {botaoModo === "flow" && (
-              flowsDisponiveis.length > 0 ? (
-                <select
-                  value={botaoFlowId}
-                  onChange={(e) => setBotaoFlowId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
-                >
-                  <option value="">Escolha o Flow</option>
-                  {flowsDisponiveis.map((f) => (
-                    <option key={f.id} value={f.id}>{f.nome}</option>
-                  ))}
-                </select>
+              flows.length === 0 ? (
+                <button onClick={() => void carregarFlows()} className="text-[11px] text-blue-400 hover:text-blue-300">
+                  Carregar Flows
+                </button>
+              ) : flowsDisponiveis.length > 0 ? (
+                <>
+                  {botaoFlowMetaIdOriginal && !botaoFlowId && (
+                    <p className="text-[11px] text-amber-400">Este botão abria um Flow — escolha de novo abaixo.</p>
+                  )}
+                  <select
+                    value={botaoFlowId}
+                    onChange={(e) => setBotaoFlowId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+                  >
+                    <option value="">Escolha o Flow</option>
+                    {flowsDisponiveis.map((f) => (
+                      <option key={f.id} value={f.id}>{f.nome}</option>
+                    ))}
+                  </select>
+                </>
               ) : (
                 <p className="text-[11px] text-amber-400">
                   Nenhum Flow ativo e publicado neste número — crie/publique um em Automações.
@@ -385,7 +537,10 @@ export default function TemplateForm({
       {bodyTexto.trim() && (
         <div className="bg-gray-800/40 border border-gray-800 rounded-md p-3 space-y-1">
           <p className="text-[11px] text-gray-500 uppercase tracking-wide">Como o fã vê</p>
-          {headerTexto.trim() && <p className="text-sm text-white font-semibold">{previewHeader}</p>}
+          {headerTipo === "texto" && headerTexto.trim() && <p className="text-sm text-white font-semibold">{previewHeader}</p>}
+          {headerTipo === "midia" && (
+            <p className="text-xs text-gray-500">🖼 {headerMidiaNome ?? `cabeçalho de ${headerMidiaFormato.toLowerCase()}`}</p>
+          )}
           <p className="text-sm text-gray-200 whitespace-pre-wrap">{previewBody}</p>
           {footerTexto.trim() && <p className="text-xs text-gray-500">{footerTexto}</p>}
           {temBotao && botaoTexto.trim() && (
@@ -398,10 +553,10 @@ export default function TemplateForm({
 
       <button
         onClick={() => void enviar()}
-        disabled={enviando || !titulo.trim() || !bodyTexto.trim() || !credentialId}
+        disabled={enviando || (!editando && !titulo.trim()) || !bodyTexto.trim() || !credentialId || faltaMidia}
         className="w-full text-sm px-3 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white rounded-md transition-colors"
       >
-        {enviando ? "Enviando..." : "Enviar para revisão"}
+        {enviando ? "Enviando..." : editando ? "Reenviar edição" : "Enviar para revisão"}
       </button>
     </div>
   );

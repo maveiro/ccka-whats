@@ -8,7 +8,12 @@
 //
 // COMO RODAR: `npm run test:db` (não usa banco).
 
-import { montarComponentes, slugifyNomeTemplate, type TemplateFormInput } from "../../apps/web/lib/whatsapp-cloud/templateComponents.ts";
+import {
+  formularioAPartirDeComponentes,
+  montarComponentes,
+  slugifyNomeTemplate,
+  type TemplateFormInput,
+} from "../../apps/web/lib/whatsapp-cloud/templateComponents.ts";
 
 let falhas = 0;
 let passou = 0;
@@ -33,6 +38,7 @@ const base: TemplateFormInput = {
   footerTexto: null,
   headerExemplo: null,
   bodyExemplos: [],
+  headerMidia: null,
   botao: null,
 };
 
@@ -230,6 +236,83 @@ cenario("botão de Flow: monta flow_action navigate com o flow_id e a tela — f
     }),
     `formato errado: ${JSON.stringify(botoes?.[0])}`,
   );
+});
+
+cenario("cabeçalho de mídia: monta HEADER com format e example.header_handle — sem example.header_handle, monta só o handle", () => {
+  const r = montarComponentes(
+    { ...base, headerMidia: { formato: "IMAGE", handle: "4:abc:def" } },
+    null,
+  );
+  checar(r.ok, r.erro ?? "");
+  const header = (r.components as { type: string; format?: string; example?: { header_handle?: string[] } }[])
+    .find((c) => c.type === "HEADER");
+  checar(header?.format === "IMAGE", `format errado: ${header?.format}`);
+  checar(
+    JSON.stringify(header?.example) === JSON.stringify({ header_handle: ["4:abc:def"] }),
+    `example errado: ${JSON.stringify(header?.example)}`,
+  );
+});
+
+cenario("cabeçalho não pode ser texto E mídia ao mesmo tempo", () => {
+  const r = montarComponentes(
+    { ...base, headerTexto: "Olá!", headerMidia: { formato: "IMAGE", handle: "4:abc:def" } },
+    null,
+  );
+  checar(!r.ok, "deveria recusar os dois juntos");
+});
+
+cenario("formularioAPartirDeComponentes: lê de volta header texto + exemplo, corpo + exemplos, rodapé e botão rastreado", () => {
+  const componentes = [
+    { type: "HEADER", format: "TEXT", text: "Olá, {{1}}!", example: { header_text: ["Marcelo"] } },
+    { type: "BODY", text: "Seu show em {{1}} é dia {{2}}.", example: { body_text: [["Curitiba", "19/12"]] } },
+    { type: "FOOTER", text: "Plauz Produções" },
+    { type: "BUTTONS", buttons: [{ type: "URL", text: "Comprar", url: "https://link.plauz.com.br/c/{{1}}" }] },
+  ];
+  const f = formularioAPartirDeComponentes(componentes);
+  checar(f.headerTexto === "Olá, {{1}}!", `headerTexto: ${f.headerTexto}`);
+  checar(f.headerExemplo === "Marcelo", `headerExemplo: ${f.headerExemplo}`);
+  checar(f.bodyTexto === "Seu show em {{1}} é dia {{2}}.", `bodyTexto: ${f.bodyTexto}`);
+  checar(JSON.stringify(f.bodyExemplos) === JSON.stringify(["Curitiba", "19/12"]), `bodyExemplos: ${JSON.stringify(f.bodyExemplos)}`);
+  checar(f.footerTexto === "Plauz Produções", `footerTexto: ${f.footerTexto}`);
+  checar(f.botao?.modo === "rastreada", `botao.modo: ${f.botao?.modo}`);
+});
+
+cenario("formularioAPartirDeComponentes: URL sem o padrão /c/{{1}} é lida como estática", () => {
+  const f = formularioAPartirDeComponentes([
+    { type: "BODY", text: "Fixo." },
+    { type: "BUTTONS", buttons: [{ type: "URL", text: "Ver site", url: "https://plauz.com.br" }] },
+  ]);
+  checar(f.botao?.modo === "estatica" && f.botao.urlEstatica === "https://plauz.com.br", JSON.stringify(f.botao));
+});
+
+cenario("formularioAPartirDeComponentes: botão de Flow e resposta rápida", () => {
+  const flow = formularioAPartirDeComponentes([
+    { type: "BODY", text: "Fixo." },
+    { type: "BUTTONS", buttons: [{ type: "FLOW", text: "Ver agenda", flow_id: "123" }] },
+  ]);
+  checar(flow.botao?.modo === "flow" && flow.botao.flowMetaId === "123", JSON.stringify(flow.botao));
+
+  const qr = formularioAPartirDeComponentes([
+    { type: "BODY", text: "Fixo." },
+    { type: "BUTTONS", buttons: [{ type: "QUICK_REPLY", text: "Vou sim!" }] },
+  ]);
+  checar(qr.botao?.modo === "quick_reply" && qr.botao.texto === "Vou sim!", JSON.stringify(qr.botao));
+});
+
+cenario("formularioAPartirDeComponentes: cabeçalho de mídia devolve só o FORMATO (handle antigo não é reaproveitável)", () => {
+  const f = formularioAPartirDeComponentes([
+    { type: "HEADER", format: "IMAGE", example: { header_handle: ["4:velho:handle"] } },
+    { type: "BODY", text: "Fixo." },
+  ]);
+  checar(f.headerMidiaFormato === "IMAGE", `headerMidiaFormato: ${f.headerMidiaFormato}`);
+});
+
+cenario("formularioAPartirDeComponentes nunca lança, mesmo com components vazio/estranho", () => {
+  const vazio = formularioAPartirDeComponentes([]);
+  checar(vazio.bodyTexto === "", "vazio deveria voltar seguro");
+  // deno-lint-ignore no-explicit-any
+  const estranho = formularioAPartirDeComponentes([{ type: "ALGO_NOVO" } as any]);
+  checar(estranho.bodyTexto === "", "tipo desconhecido não deveria quebrar nem preencher nada");
 });
 
 cenario("slugify: título vira name só com minúsculo, dígito e underscore", () => {

@@ -1388,7 +1388,8 @@ incluir `|| !atual?.imagem_path` — **coluna nova precisa de um caminho de
 autocorreção**, não de alguém lembrar.
 
 ### Pendente / próximos passos
-- **Criação de templates pela plataforma — Fases 1, 2 e 3 no ar (22/09/2026).**
+- **Criação de templates pela plataforma — Fases 1-3 e parte da 4 no ar
+  (22/09/2026).** Só categoria Authentication ficou de fora (zero uso hoje).
   `docs/prd/prd-criacao-de-templates.md`. `GET /api/templates` lista TODO
   status de uma WABA (não só `APPROVED`, ao contrário de
   `/api/campaigns/templates`), com `rejected_reason` e `quality_score` —
@@ -1414,6 +1415,34 @@ autocorreção**, não de alguém lembrar.
     `{"type":"URL","url":"https://…/c/{{1}}","example":["https://…/c/k7Qm2xR9tA"]}`
     — o `example` repete a URL inteira com a variável já substituída, não só
     o valor da variável. Confirmado contra a doc e contra a API real.
+67. **Edição de template só funciona em REJECTED — testado ao vivo, e não é
+    intuitivo.** `POST /{template_id}` num template `PENDING` volta
+    `error_subcode 2388003`, *"Os modelos de mensagem só podem ser editados
+    se tiverem sido rejeitados"*. Não é uma via geral de "atualizar
+    template aprovado" — é só o caminho de consertar um rejeitado e
+    reenviar sob o MESMO nome. `name`/`language` não entram no corpo (são a
+    identidade, fixada na criação); o que muda é `category` e `components`.
+    Tela: "Editar e reenviar" aparece só em templates `REJECTED`, pré-
+    preenchido por `formularioAPartirDeComponentes()` (parser reverso puro,
+    nunca lança — template com forma que o formulário não sabe editar só
+    fica com campo em branco). **Não confirmado ao vivo:** o caminho feliz
+    de uma edição aceita — forçar rejeição real leva horas de revisão, fora
+    do que dava pra testar nesta sessão. O bloqueio, sim, foi confirmado.
+68. **`app_id` da Meta não fica guardado em lugar nenhum — resolvido via
+    `debug_token`, não env var novo.** A Resumable Upload API (cabeçalho de
+    mídia) precisa de `POST /{app_id}/uploads`, e `whatsapp_cloud_credentials`
+    nunca guardou isso. `GET /debug_token?input_token=X&access_token=X` (um
+    token perguntando sobre si mesmo) devolve `app_id` — evita cadastro
+    manual, e fica certo mesmo que WABAs diferentes tenham token de apps
+    diferentes (regra já registrada: 3 apps inscritos na WABA da Plauz).
+    Upload é 3 passos: sessão (`POST /{app_id}/uploads`) → bytes (`POST
+    /{sessão}` com `Authorization: OAuth`, não `Bearer` — único lugar do
+    código assim) → handle `h`, usado em `example.header_handle`. **O handle
+    não é reaproveitável** (sessão de upload específica, curta duração):
+    editar um REJECTED com cabeçalho de mídia exige subir o arquivo de novo,
+    sempre — o formulário bloqueia o envio até isso acontecer. Validado ao
+    vivo: PNG de teste, sessão, upload, handle, template criado com
+    cabeçalho IMAGE de verdade (`PENDING`), removido em seguida.
 66. **Botão de Flow no TEMPLATE tem forma própria** (diferente do balão
     interativo que o `flow-engine` oferece numa resposta):
     `{"type":"FLOW","flow_id":"<id da Meta>","flow_action":"navigate",

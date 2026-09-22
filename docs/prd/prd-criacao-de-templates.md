@@ -1,8 +1,8 @@
 # PRD: Criação de templates pela plataforma — wa-intelligence
 
 **Data:** 22/09/2026
-**Status:** Fases 1, 2 e 3 implementadas (22/09/2026). Fase 4 (fora de
-escopo do v1) segue em aberto.
+**Status:** Fases 1, 2, 3 e parte da 4 implementadas (22/09/2026). Só
+categoria Authentication segue de fora, por decisão (zero uso hoje).
 
 ## Contexto
 
@@ -45,13 +45,7 @@ o motivo) na mesma tela que hoje só lista o que já existe.
   é inclusive a mesma lacuna que a regra 63 do CLAUDE.md documentou como
   "ainda não montamos esse parâmetro" no disparo). Entra como PRD próprio se
   algum artista pedir.
-- **Categoria Authentication.**
-- **Edição de template aprovado.** A Meta tem um endpoint de edição, mas com
-  limites e restrições que valem investigar quando surgir o primeiro caso
-  real. Para v1, rejeitado ou a ajustar = duplicar e reenviar com nome novo
-  (`_v2`) — mesma filosofia já usada com Flow publicado (regra "armadilhas já
-  pagas" do módulo de automação: o que está fixado na Meta não se edita, se
-  substitui).
+- **Categoria Authentication** — decisão mantida, zero uso hoje.
 - **Webhook de status em tempo real** (decisão acima).
 - **`parameter_format: named`.** A Meta aceita variável nomeada
   (`{{primeiro_nome}}`) desde uma versão recente da API; toda a plataforma —
@@ -151,6 +145,48 @@ sucesso ou rejeição) — é a auditoria, e é suficiente.
 - **Botão de URL rastreada sem o domínio no ar**: já não é mais risco —
   `link.plauz.com.br` está em produção desde 21/09/2026.
 
+## Terceiro achado real: edição só funciona em REJECTED (22/09/2026)
+
+Testado ao vivo, direto: criar um template, tentar editar (`POST
+/{template_id}` mudando só o corpo) enquanto ele ainda estava `PENDING`. A
+Meta recusou: `error_subcode 2388003`, *"Os modelos de mensagem só podem ser
+editados se tiverem sido rejeitados."* Ou seja, o endpoint de edição da Meta
+**não é** uma via geral de atualizar template aprovado — é só para consertar
+um rejeitado e reenviar, sob o MESMO nome. Isso muda o desenho original do
+PRD (que previa "duplicar com `_v2`" para qualquer ajuste): agora um
+REJECTED tem "Editar e reenviar" na tela, preenchido a partir do que já
+existe (`formularioAPartirDeComponentes`, parser reverso e puro); `_v2` /
+duplicar continua sendo o caminho para um template já APROVADO que precisa
+mudar — esse continua impossível de editar, e sem uso reportado ainda.
+
+**Limitação conhecida e não testada:** não há como forçar a Meta a rejeitar
+um template de teste em minutos (a revisão leva horas), então o CAMINHO
+FELIZ da edição (`components` novos aceitos, volta a `PENDING`?) não foi
+confirmado ao vivo — só a regra de bloqueio foi. O erro da Meta, seja qual
+for, é repassado como veio; o primeiro uso real vai confirmar o resto.
+
+## Cabeçalho de mídia, validado ponta a ponta (22/09/2026)
+
+A Resumable Upload API é um subsistema à parte da Graph API normal — três
+passos (`POST /{app_id}/uploads` → sessão; `POST /{sessão}` com o binário e
+`Authorization: OAuth` em vez de `Bearer` → handle `h`; `example.header_handle:
+[h]` no componente HEADER da criação). Testado ao vivo com um PNG de 4×4
+gerado na hora: sessão criada, upload aceito, handle usado para criar um
+template de verdade com cabeçalho IMAGE (`status: PENDING`), removido em
+seguida.
+
+**`app_id` não vinha guardado em lugar nenhum** — `whatsapp_cloud_credentials`
+salva `waba_id`/`phone_number_id`/`access_token`, nunca o app da Meta que
+emitiu o token. Resolvido via `GET /debug_token?input_token=X&access_token=X`
+(um token perguntando sobre si mesmo) em vez de um env var novo — e mais
+correto, porque WABAs diferentes podem ter tokens emitidos por apps
+diferentes (o CLAUDE.md já registra 3 apps inscritos na WABA da Plauz).
+
+**O handle não é reaproveitável.** Ele é de uma sessão de upload específica,
+de duração curta. Editar um template com cabeçalho de mídia (a combinação
+com a Fase 4b, edição de REJECTED) exige subir o arquivo de novo — o
+formulário mostra isso e bloqueia o envio até a mídia nova estar pronta.
+
 ## Segundo achado real, ao testar o botão de Flow (22/09/2026)
 
 Um `flow_id` inválido do lado da Meta (não deveria acontecer — a rota
@@ -197,5 +233,6 @@ o formulário inteiro.
    do tipo — a mesma que o `flow-engine` resolveria) e resposta rápida.
    Validado ao vivo: botão de Flow (`Central de shows` do IB) e resposta
    rápida foram criados de verdade (`PENDING`) e removidos em seguida.
-4. (Fora do v1, PRD próprio se necessário) cabeçalho de mídia, edição de
-   template aprovado, categoria Authentication.
+4. **Parcial (22/09/2026).** Cabeçalho de mídia (upload real testado) e
+   edição de REJECTED (testado o bloqueio, não o caminho feliz — ver acima)
+   implementados. Categoria Authentication segue de fora, sem uso hoje.

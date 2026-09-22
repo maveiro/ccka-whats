@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import TemplateForm from "./template-form";
+import type { TemplateParaEditar } from "./template-form";
 
 interface Credential {
   id: string;
@@ -19,7 +20,7 @@ interface Template {
   language: string;
   category: string;
   status: string;
-  components: { type?: string; text?: string }[];
+  components: unknown[];
   rejected_reason?: string;
   quality_score?: { score?: string } | null;
 }
@@ -51,7 +52,8 @@ function normalizar(valor: string): string {
 }
 
 function corpoDoTemplate(components: Template["components"]): string {
-  const body = components.find((c) => c.type?.toUpperCase() === "BODY");
+  const body = (components as { type?: string; text?: string }[])
+    .find((c) => c.type?.toUpperCase() === "BODY");
   return body?.text ?? "(sem corpo)";
 }
 
@@ -68,6 +70,7 @@ export default function TemplatesList({
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(false);
   const [carregouAlguma, setCarregouAlguma] = useState(false);
+  const [editando, setEditando] = useState<TemplateParaEditar | null>(null);
 
   async function carregar(deQual: string | null = credentialId) {
     setLoading(true);
@@ -114,12 +117,20 @@ export default function TemplatesList({
         </p>
       </div>
 
+      {/* `key` força um componente NOVO a cada template diferente sendo
+          editado — o formulário deriva seu estado inicial das props no
+          próprio useState (sem useEffect), então precisa remontar quando o
+          alvo da edição muda, não só re-renderizar. */}
       <TemplateForm
+        key={editando?.id ?? "novo"}
         credentials={credentials}
         credentialId={credentialId}
         onCredentialChange={(id) => setCredentialId(id)}
         linkBaseUrl={linkBaseUrl}
         onCriado={() => void carregar()}
+        templateParaEditar={editando}
+        onEditado={() => { setEditando(null); void carregar(); }}
+        onFecharEdicao={() => setEditando(null)}
       />
 
       <div className="flex items-center justify-between">
@@ -159,6 +170,14 @@ export default function TemplatesList({
               <p className="text-xs text-red-400/90 bg-red-900/20 border border-red-900 rounded px-2 py-1">
                 {t.rejected_reason}
               </p>
+            )}
+            {t.status === "REJECTED" && (
+              <button
+                onClick={() => setEditando({ id: t.id, name: t.name, language: t.language, category: t.category, components: t.components })}
+                className="text-xs text-blue-400 hover:text-blue-300"
+              >
+                Editar e reenviar
+              </button>
             )}
           </div>
         ))}

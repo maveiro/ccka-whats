@@ -1,8 +1,8 @@
 # PRD: Criação de templates pela plataforma — wa-intelligence
 
 **Data:** 22/09/2026
-**Status:** Fase 1 e 2 implementadas (22/09/2026). Fase 3 (Flow/resposta
-rápida) e Fase 4 (fora de escopo) seguem em aberto.
+**Status:** Fases 1, 2 e 3 implementadas (22/09/2026). Fase 4 (fora de
+escopo do v1) segue em aberto.
 
 ## Contexto
 
@@ -151,6 +151,18 @@ sucesso ou rejeição) — é a auditoria, e é suficiente.
 - **Botão de URL rastreada sem o domínio no ar**: já não é mais risco —
   `link.plauz.com.br` está em produção desde 21/09/2026.
 
+## Segundo achado real, ao testar o botão de Flow (22/09/2026)
+
+Um `flow_id` inválido do lado da Meta (não deveria acontecer — a rota
+valida o Flow ANTES de montar o payload) não volta um erro claro tipo "Flow
+não encontrado": volta `(#2) Service temporarily unavailable`,
+`is_transient: true` — reproduzido duas vezes, mesmo erro as duas. Um texto
+que sugere "tente de novo" e nada indica que o problema é o `flow_id`.
+Documentado em comentário na rota, mas não tratado como caso especial: a
+validação prévia (mesmo tenant, mesmo número, ativo, publicado — regra 37)
+já cobre o caminho normal, e reescrever a mensagem de um erro que um usuário
+de verdade nunca deveria ver custaria mais do que vale.
+
 ## Achado real, não documentado em lugar nenhum (22/09/2026)
 
 Testando contra a Graph API de verdade (não só a doc): **o CORPO não pode
@@ -180,6 +192,10 @@ o formulário inteiro.
    contra a Graph API real: um template com header+body+footer+botão
    rastreado, seguindo as regras acima, foi criado (`status: PENDING`) e
    removido em seguida (era só teste).
-3. Botão de Flow e resposta rápida no formulário.
+3. **Feito (22/09/2026).** Botão de Flow (`flow_action: "navigate"`, tela
+   de entrada = `whatsapp_flows.tela_inicial` quando setada, senão o padrão
+   do tipo — a mesma que o `flow-engine` resolveria) e resposta rápida.
+   Validado ao vivo: botão de Flow (`Central de shows` do IB) e resposta
+   rápida foram criados de verdade (`PENDING`) e removidos em seguida.
 4. (Fora do v1, PRD próprio se necessário) cabeçalho de mídia, edição de
    template aprovado, categoria Authentication.

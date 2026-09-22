@@ -13,6 +13,19 @@ interface Credential {
   active: boolean;
 }
 
+// Flow abrível numa conversa, do mesmo número — mesma forma de
+// campaign-wizard.tsx (regra 37: template é aprovado na WABA, mas o botão
+// de Flow só faz sentido para o número dono daquele Flow).
+interface Flow {
+  id: string;
+  cloud_credential_id: string;
+  nome: string;
+  artista: string | null;
+  tipo: string;
+  ativo: boolean;
+  meta_flow_id: string | null;
+}
+
 const LIMITE_HEADER = 60;
 const LIMITE_BODY = 1024;
 const LIMITE_FOOTER = 60;
@@ -40,9 +53,11 @@ export default function TemplateForm({
   const [bodyExemplos, setBodyExemplos] = useState<string[]>([]);
   const [footerTexto, setFooterTexto] = useState("");
   const [temBotao, setTemBotao] = useState(false);
+  const [botaoModo, setBotaoModo] = useState<"rastreada" | "estatica" | "flow" | "quick_reply">("rastreada");
   const [botaoTexto, setBotaoTexto] = useState("Comprar Meu Ingresso");
-  const [botaoRastrear, setBotaoRastrear] = useState(true);
   const [botaoUrlEstatica, setBotaoUrlEstatica] = useState("");
+  const [botaoFlowId, setBotaoFlowId] = useState("");
+  const [flows, setFlows] = useState<Flow[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -54,6 +69,22 @@ export default function TemplateForm({
 
   const headerVars = useMemo(() => placeholders(headerTexto), [headerTexto]);
   const bodyVars = useMemo(() => placeholders(bodyTexto), [bodyTexto]);
+
+  // Só Flow ativo, publicado na Meta, do MESMO número e de tipo abrível numa
+  // conversa — mesmo filtro do assistente de campanha.
+  const flowsDisponiveis = flows.filter(
+    (f) => f.cloud_credential_id === credentialId && f.ativo && f.meta_flow_id &&
+      ["central", "agenda_shows"].includes(f.tipo),
+  );
+
+  async function carregarFlows() {
+    try {
+      const res = await fetch("/api/flows");
+      if (res.ok) setFlows(await res.json() as Flow[]);
+    } catch {
+      // Lista vazia já bloqueia a escolha com mensagem própria abaixo.
+    }
+  }
 
   function ajustarExemplos(qtd: number) {
     setBodyExemplos((atual) => {
@@ -81,8 +112,8 @@ export default function TemplateForm({
 
   function resetar() {
     setTitulo(""); setBodyTexto(""); setBodyExemplos([]); setHeaderTexto(""); setHeaderExemplo("");
-    setFooterTexto(""); setTemBotao(false); setBotaoTexto("Comprar Meu Ingresso"); setBotaoRastrear(true);
-    setBotaoUrlEstatica(""); setErro(null); setAberto(false);
+    setFooterTexto(""); setTemBotao(false); setBotaoModo("rastreada"); setBotaoTexto("Comprar Meu Ingresso");
+    setBotaoUrlEstatica(""); setBotaoFlowId(""); setErro(null); setAberto(false);
   }
 
   async function enviar() {
@@ -105,8 +136,9 @@ export default function TemplateForm({
           botao: temBotao
             ? {
                 texto: botaoTexto,
-                modo: botaoRastrear ? "rastreada" : "estatica",
-                ...(botaoRastrear ? {} : { urlEstatica: botaoUrlEstatica }),
+                modo: botaoModo,
+                ...(botaoModo === "estatica" ? { urlEstatica: botaoUrlEstatica } : {}),
+                ...(botaoModo === "flow" ? { flowId: botaoFlowId } : {}),
               }
             : null,
         }),
@@ -260,8 +292,15 @@ export default function TemplateForm({
 
       <div className="space-y-2">
         <label className="flex items-center gap-1.5 text-sm text-gray-300">
-          <input type="checkbox" checked={temBotao} onChange={(e) => setTemBotao(e.target.checked)} />
-          Botão de URL
+          <input
+            type="checkbox"
+            checked={temBotao}
+            onChange={(e) => {
+              setTemBotao(e.target.checked);
+              if (e.target.checked && flows.length === 0) void carregarFlows();
+            }}
+          />
+          Botão
         </label>
         {temBotao && (
           <div className="pl-5 space-y-2">
@@ -271,11 +310,31 @@ export default function TemplateForm({
               placeholder="Texto do botão"
               className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
             />
-            <label className="flex items-center gap-1.5 text-xs text-gray-400">
-              <input type="checkbox" checked={botaoRastrear} onChange={(e) => setBotaoRastrear(e.target.checked)} />
-              Rastrear clique (recomendado)
-            </label>
-            {botaoRastrear ? (
+
+            <div className="flex flex-wrap gap-3 text-xs text-gray-400">
+              <label className="flex items-center gap-1.5">
+                <input type="radio" checked={botaoModo === "rastreada"} onChange={() => setBotaoModo("rastreada")} />
+                URL rastreada
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input type="radio" checked={botaoModo === "estatica"} onChange={() => setBotaoModo("estatica")} />
+                URL fixa
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  checked={botaoModo === "flow"}
+                  onChange={() => { setBotaoModo("flow"); if (flows.length === 0) void carregarFlows(); }}
+                />
+                Abrir Flow (central)
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input type="radio" checked={botaoModo === "quick_reply"} onChange={() => setBotaoModo("quick_reply")} />
+                Resposta rápida
+              </label>
+            </div>
+
+            {botaoModo === "rastreada" && (
               urlRastreadaPreview ? (
                 <p className="text-[11px] text-gray-500 font-mono">{urlRastreadaPreview}</p>
               ) : (
@@ -283,13 +342,41 @@ export default function TemplateForm({
                   NEXT_PUBLIC_LINK_BASE_URL não configurado — não dá para montar a URL rastreada.
                 </p>
               )
-            ) : (
+            )}
+
+            {botaoModo === "estatica" && (
               <input
                 value={botaoUrlEstatica}
                 onChange={(e) => setBotaoUrlEstatica(e.target.value)}
                 placeholder="https://exemplo.com/ingressos"
                 className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
               />
+            )}
+
+            {botaoModo === "flow" && (
+              flowsDisponiveis.length > 0 ? (
+                <select
+                  value={botaoFlowId}
+                  onChange={(e) => setBotaoFlowId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+                >
+                  <option value="">Escolha o Flow</option>
+                  {flowsDisponiveis.map((f) => (
+                    <option key={f.id} value={f.id}>{f.nome}</option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-[11px] text-amber-400">
+                  Nenhum Flow ativo e publicado neste número — crie/publique um em Automações.
+                </p>
+              )
+            )}
+
+            {botaoModo === "quick_reply" && (
+              <p className="text-[11px] text-gray-500">
+                Sem link — a resposta chega como mensagem, rastreável do mesmo jeito que os
+                botões de opt-out.
+              </p>
             )}
           </div>
         )}

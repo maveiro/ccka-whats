@@ -129,6 +129,45 @@ export async function POST(req: Request) {
 
   const language = (body.language ?? "pt_BR").trim();
 
+  // Botão de Flow: mesma validação de POST /api/campaigns (regra 37) — Flow
+  // do mesmo tenant, mesmo número, ativo e publicado na Meta. Aqui é a
+  // pessoa que MONTA o template quem escolhe, então a checagem acontece
+  // antes de montar o payload, não só quando a campanha for criada depois.
+  let botaoResolvido = body.botao ?? null;
+  if (botaoResolvido?.modo === "flow") {
+    if (!botaoResolvido.flowId) {
+      return NextResponse.json({ error: "Escolha qual Flow o botão abre" }, { status: 400 });
+    }
+    const { data: flow } = await admin
+      .from("whatsapp_flows")
+      .select("id, tipo, ativo, meta_flow_id, cloud_credential_id, tenant_id, tela_inicial")
+      .eq("id", botaoResolvido.flowId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (!flow || flow.tenant_id !== operator.tenant_id) {
+      return NextResponse.json({ error: "Flow não encontrado" }, { status: 400 });
+    }
+    if (flow.cloud_credential_id !== credential.id) {
+      return NextResponse.json(
+        { error: "O Flow escolhido é de outro número — abriria a central errada" },
+        { status: 400 },
+      );
+    }
+    if (!flow.ativo || !flow.meta_flow_id) {
+      return NextResponse.json({ error: "O Flow escolhido não está ativo e publicado na Meta" }, { status: 400 });
+    }
+    if (!["central", "agenda_shows"].includes(flow.tipo)) {
+      return NextResponse.json({ error: "Esse Flow não é do tipo que se abre numa conversa" }, { status: 400 });
+    }
+
+    // Mesma tela que o flow-engine abriria no INIT (index.ts,
+    // telaInicialDaSessao): tela_inicial quando setada, senão o padrão do
+    // tipo. O botão do template precisa cair no MESMO lugar.
+    const navigateScreen = flow.tela_inicial ?? (flow.tipo === "central" ? "APRESENTACAO" : "AGENDA");
+    botaoResolvido = { ...botaoResolvido, flowId: flow.meta_flow_id, navigateScreen };
+  }
+
   const montagem = montarComponentes(
     {
       headerTexto: body.headerTexto ?? null,
@@ -136,7 +175,7 @@ export async function POST(req: Request) {
       footerTexto: body.footerTexto ?? null,
       headerExemplo: body.headerExemplo ?? null,
       bodyExemplos: body.bodyExemplos ?? [],
-      botao: body.botao ?? null,
+      botao: botaoResolvido,
     },
     env.NEXT_PUBLIC_LINK_BASE_URL ?? null,
   );
@@ -167,6 +206,14 @@ export async function POST(req: Request) {
     // Erro da Graph API repassado como veio (nome duplicado, exemplo
     // inválido, limite de criação/hora) — não vale reescrever uma mensagem
     // que muda mais rápido do que este código.
+    // Um flow_id inválido/desativado do LADO DA META (não deveria acontecer
+    // — validamos antes, acima) volta como "(#2) Service temporarily
+    // unavailable", is_transient: true — texto que sugere "tente de novo" e
+    // NÃO diz que o Flow é o problema. Confirmado reproduzindo de propósito
+    // em 22/09/2026 (duas tentativas, mesmo erro as duas vezes). Repassado
+    // como veio mesmo assim: reescrever a mensagem por cima de um erro raro
+    // e nunca visto por um usuário de verdade (a validação acima cobre o
+    // caminho normal) custaria mais do que vale.
     const mensagem = err instanceof GraphApiError ? err.message : "Falha ao criar template na Graph API";
     await admin.from("events_log").insert({
       tenant_id: operator.tenant_id,

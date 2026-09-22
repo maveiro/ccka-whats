@@ -1388,7 +1388,7 @@ incluir `|| !atual?.imagem_path` — **coluna nova precisa de um caminho de
 autocorreção**, não de alguém lembrar.
 
 ### Pendente / próximos passos
-- **Criação de templates pela plataforma — Fases 1 e 2 no ar (22/09/2026).**
+- **Criação de templates pela plataforma — Fases 1, 2 e 3 no ar (22/09/2026).**
   `docs/prd/prd-criacao-de-templates.md`. `GET /api/templates` lista TODO
   status de uma WABA (não só `APPROVED`, ao contrário de
   `/api/campaigns/templates`), com `rejected_reason` e `quality_score` —
@@ -1414,6 +1414,17 @@ autocorreção**, não de alguém lembrar.
     `{"type":"URL","url":"https://…/c/{{1}}","example":["https://…/c/k7Qm2xR9tA"]}`
     — o `example` repete a URL inteira com a variável já substituída, não só
     o valor da variável. Confirmado contra a doc e contra a API real.
+66. **Botão de Flow no TEMPLATE tem forma própria** (diferente do balão
+    interativo que o `flow-engine` oferece numa resposta):
+    `{"type":"FLOW","flow_id":"<id da Meta>","flow_action":"navigate",
+    "navigate_screen":"<tela>"}`. A tela precisa ser a MESMA que o
+    `flow-endpoint` abriria no INIT — `whatsapp_flows.tela_inicial` quando
+    setada (regra 61), senão o padrão do tipo (`central` → `APRESENTACAO`,
+    `agenda_shows` → `AGENDA`, os ids literais das telas de entrada dos dois
+    JSONs). Validado ao vivo contra a WABA do IB. Um `flow_id` inválido do
+    lado da Meta (não deveria acontecer — valida-se antes) não erra claro:
+    volta `(#2) Service temporarily unavailable`, `is_transient: true` —
+    texto que sugere "tente de novo" e não aponta o Flow como problema.
 - **Central de shows — Sprint C4: código pronto (15/09/2026), falta a Meta.**
   `campaign-sender` preenche o botão de Flow com o `flow_token` de cada
   destinatário e cria as sessões em lote; a UI de campanha escolhe qual central

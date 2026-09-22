@@ -25,9 +25,12 @@ export interface TemplateFormInput {
   bodyExemplos: string[];
   botao: null | {
     texto: string;
-    modo: "rastreada" | "estatica";
+    modo: "rastreada" | "estatica" | "flow" | "quick_reply";
     /** Só usado quando modo === "estatica". */
     urlEstatica?: string;
+    /** Só usados quando modo === "flow". */
+    flowId?: string;
+    navigateScreen?: string;
   };
 }
 
@@ -170,7 +173,37 @@ export function montarComponentes(
     const texto = input.botao.texto.trim();
     if (!texto) return { ok: false, erro: "Falta o texto do botão." };
 
-    if (input.botao.modo === "rastreada") {
+    if (input.botao.modo === "quick_reply") {
+      // Simples: sem URL, sem exemplo — a Meta só quer o texto. É este
+      // botão que vira `button_reply` rastreável na resposta (mesma
+      // mecânica de opt-out por texto de botão, migration 0022).
+      components.push({ type: "BUTTONS", buttons: [{ type: "QUICK_REPLY", text: texto }] });
+    } else if (input.botao.modo === "flow") {
+      // Botão de Flow no TEMPLATE (diferente do Flow oferecido pelo
+      // flow-engine numa resposta): quem monta o template escolhe qual
+      // central abrir, e a validação de "é o mesmo número, está ativo, está
+      // publicado" já aconteceu na rota antes de chegar aqui (mesma
+      // checagem de POST /api/campaigns, regra 37).
+      //
+      // `flow_action: "navigate"` exige `navigate_screen` — a tela de
+      // entrada do Flow. Usamos a mesma que `flow-endpoint` resolveria no
+      // INIT (whatsapp_flows.tela_inicial quando setada, senão o padrão do
+      // tipo), para o botão do template abrir NO MESMO lugar que o balão
+      // interativo abriria.
+      if (!input.botao.flowId || !input.botao.navigateScreen) {
+        return { ok: false, erro: "Falta escolher o Flow (e a tela de entrada) do botão." };
+      }
+      components.push({
+        type: "BUTTONS",
+        buttons: [{
+          type: "FLOW",
+          text: texto,
+          flow_id: input.botao.flowId,
+          flow_action: "navigate",
+          navigate_screen: input.botao.navigateScreen,
+        }],
+      });
+    } else if (input.botao.modo === "rastreada") {
       // Convenção da regra 32/37 do CLAUDE.md: a Graph API ANEXA o valor no
       // fim da URL, então ela precisa TERMINAR em /c/{{1}} — nunca no meio.
       if (!linkBaseUrl) {

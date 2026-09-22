@@ -197,6 +197,41 @@ cenario("botão estática válida monta sem example", () => {
   checar(botoes?.[0]?.example === undefined, "URL estática não deveria ter example");
 });
 
+cenario("botão resposta rápida: só o texto, sem URL nem example", () => {
+  const r = montarComponentes({ ...base, botao: { texto: "Vou sim!", modo: "quick_reply" } }, null);
+  checar(r.ok, r.erro ?? "");
+  const botoes = (r.components as { type: string; buttons?: Record<string, unknown>[] }[])
+    .find((c) => c.type === "BUTTONS")?.buttons;
+  checar(
+    JSON.stringify(botoes?.[0]) === JSON.stringify({ type: "QUICK_REPLY", text: "Vou sim!" }),
+    `formato errado: ${JSON.stringify(botoes?.[0])}`,
+  );
+});
+
+cenario("botão de Flow sem flowId/navigateScreen é recusado", () => {
+  const r = montarComponentes({ ...base, botao: { texto: "Ver agenda", modo: "flow" } }, null);
+  checar(!r.ok, "deveria recusar sem flowId/navigateScreen");
+});
+
+cenario("botão de Flow: monta flow_action navigate com o flow_id e a tela — formato confirmado contra a Meta real", () => {
+  // Testado ao vivo em 22/09/2026 contra a WABA do IB (status PENDING) e
+  // removido em seguida — a Meta aceitou este formato exato.
+  const r = montarComponentes(
+    { ...base, botao: { texto: "Ver agenda", modo: "flow", flowId: "2344396869431043", navigateScreen: "APRESENTACAO" } },
+    null,
+  );
+  checar(r.ok, r.erro ?? "");
+  const botoes = (r.components as { type: string; buttons?: Record<string, unknown>[] }[])
+    .find((c) => c.type === "BUTTONS")?.buttons;
+  checar(
+    JSON.stringify(botoes?.[0]) === JSON.stringify({
+      type: "FLOW", text: "Ver agenda", flow_id: "2344396869431043",
+      flow_action: "navigate", navigate_screen: "APRESENTACAO",
+    }),
+    `formato errado: ${JSON.stringify(botoes?.[0])}`,
+  );
+});
+
 cenario("slugify: título vira name só com minúsculo, dígito e underscore", () => {
   checar(slugifyNomeTemplate("Vendas Abertas — Natal!") === "vendas_abertas_natal", slugifyNomeTemplate("Vendas Abertas — Natal!"));
   checar(slugifyNomeTemplate("Índio Behn 2ª turnê") === "indio_behn_2_turne", slugifyNomeTemplate("Índio Behn 2ª turnê"));

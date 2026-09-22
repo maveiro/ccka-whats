@@ -153,15 +153,32 @@ export interface MessageTemplate {
   category: string;
   status: string;
   components: unknown[];
+  /** Só vem preenchido quando status é REJECTED. */
+  rejected_reason?: string;
+  /** "GREEN" | "YELLOW" | "RED" | "UNKNOWN" — não vem em template recém-criado. */
+  quality_score?: { score?: string } | null;
 }
 
-/** GET /{waba_id}/message_templates — lista templates aprovados/pendentes. */
+// `rejected_reason` e `quality_score` NÃO vêm no retorno padrão da Graph
+// API — é preciso pedir explicitamente em `fields`. Descoberto montando a
+// tela de status (22/09/2026): sem isto, um template rejeitado aparecia na
+// lista sem dizer o motivo, obrigando a abrir o WhatsApp Manager para saber
+// por quê — exatamente o que esta tela existe para evitar.
+const CAMPOS_TEMPLATE = "id,name,language,category,status,components,rejected_reason,quality_score";
+
+/**
+ * GET /{waba_id}/message_templates — lista TODO template da WABA, qualquer
+ * status (aprovado, pendente, rejeitado). Quem filtra por status é o
+ * chamador: `/api/campaigns/templates` quer só APPROVED (é o que se pode
+ * disparar); `/api/templates` quer todos (é a tela de gestão).
+ */
 export async function listMessageTemplates(
   wabaId: string,
   accessToken: string,
 ): Promise<MessageTemplate[]> {
   const url = new URL(`${GRAPH_API_BASE}/${wabaId}/message_templates`);
   url.searchParams.set("access_token", accessToken);
+  url.searchParams.set("fields", CAMPOS_TEMPLATE);
   url.searchParams.set("limit", "100");
 
   const results: MessageTemplate[] = [];
@@ -176,6 +193,52 @@ export async function listMessageTemplates(
   }
 
   return results;
+}
+
+export interface CreateMessageTemplateParams {
+  wabaId: string;
+  accessToken: string;
+  name: string;
+  language: string;
+  category: "MARKETING" | "UTILITY";
+  components: unknown[];
+}
+
+export interface CreateMessageTemplateResult {
+  id: string;
+  status: string;
+  category: string;
+}
+
+/**
+ * POST /{waba_id}/message_templates — cria e submete um template para
+ * revisão (docs/prd/prd-criacao-de-templates.md). A Meta pode devolver uma
+ * `category` diferente da pedida já na criação — sinalizado ao chamador
+ * como qualquer outro campo da resposta, não é tratado como erro.
+ *
+ * Erros comuns que o CALLER precisa exibir como veio, sem reescrever: nome
+ * duplicado (name+language já existe nesta WABA), variável sem exemplo, e
+ * limite de 100 criações/hora por WABA — nenhum dos três compensa duplicar
+ * a validação da Meta aqui, ela muda mais rápido do que este arquivo.
+ */
+export async function createMessageTemplate(
+  params: CreateMessageTemplateParams,
+): Promise<CreateMessageTemplateResult> {
+  const { wabaId, accessToken, name, language, category, components } = params;
+
+  const response = await fetchWithRetry(`${GRAPH_API_BASE}/${wabaId}/message_templates`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ name, language, category, components }),
+  });
+
+  if (!response.ok) throw await parseGraphError(response, `${wabaId}/message_templates (criar)`);
+
+  const json = (await response.json()) as CreateMessageTemplateResult;
+  return json;
 }
 
 export interface SendTemplateMessageParams {

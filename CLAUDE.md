@@ -1388,6 +1388,14 @@ incluir `|| !atual?.imagem_path` — **coluna nova precisa de um caminho de
 autocorreção**, não de alguém lembrar.
 
 ### Pendente / próximos passos
+- **Criação de templates pela plataforma — Fase 1 no ar (22/09/2026).**
+  `docs/prd/prd-criacao-de-templates.md`. `GET /api/templates` lista TODO
+  status de uma WABA (não só `APPROVED`, ao contrário de
+  `/api/campaigns/templates`), com `rejected_reason` e `quality_score` —
+  campos que a Graph API só devolve se pedidos explicitamente em `fields`
+  (achado montando a rota: sem isso, template rejeitado aparecia sem dizer o
+  motivo). Tela em `/dashboard/admin/templates`. `createMessageTemplate` já
+  existe em `graphClient.ts`, ainda sem formulário que a chame — é a Fase 2.
 - **Central de shows — Sprint C4: código pronto (15/09/2026), falta a Meta.**
   `campaign-sender` preenche o botão de Flow com o `flow_token` de cada
   destinatário e cria as sessões em lote; a UI de campanha escolhe qual central

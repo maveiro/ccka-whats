@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { listMessageTemplates } from "@/lib/whatsapp-cloud/graphClient";
+import { env } from "@/lib/env";
+import { createMessageTemplate, GraphApiError, listMessageTemplates } from "@/lib/whatsapp-cloud/graphClient";
 import { getCloudCredential, getCloudCredentialById } from "@/lib/whatsapp-cloud/getCloudCredential";
+import {
+  montarComponentes,
+  slugifyNomeTemplate,
+  type TemplateFormInput,
+} from "@/lib/whatsapp-cloud/templateComponents";
 
 // GET — lista TODO template da WABA (qualquer status), para a tela de
 // gestão (/dashboard/admin/templates). Irmã de /api/campaigns/templates,
@@ -55,5 +61,120 @@ export async function GET(req: Request) {
       error: String(err),
     });
     return NextResponse.json({ error: "Falha ao buscar templates na Graph API" }, { status: 502 });
+  }
+}
+
+interface CreateBody {
+  credentialId?: string;
+  titulo?: string;
+  category?: string;
+  language?: string;
+  headerTexto?: string | null;
+  headerExemplo?: string | null;
+  bodyTexto?: string;
+  bodyExemplos?: string[];
+  footerTexto?: string | null;
+  botao?: TemplateFormInput["botao"];
+}
+
+// POST — cria e submete um template para revisão da Meta (Fase 2 do PRD).
+// A validação de formato (limites de caractere, contagem de variável,
+// convenção da URL rastreada) mora em templateComponents.ts, puro e
+// testado — esta rota só resolve credencial, monta `name`/`category` e
+// repassa o erro da Graph API como veio, sem reescrever.
+export async function POST(req: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: operator } = await supabase.from("operators").select("role, tenant_id").eq("id", user.id).single();
+  if (operator?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const body = (await req.json()) as CreateBody;
+
+  if (!body.credentialId) {
+    return NextResponse.json({ error: "Escolha a conta (WABA) que vai submeter o template" }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+  const { data: dono } = await admin
+    .from("whatsapp_cloud_credentials")
+    .select("tenant_id")
+    .eq("id", body.credentialId)
+    .maybeSingle();
+  if (dono?.tenant_id !== operator.tenant_id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const credential = await getCloudCredentialById(body.credentialId);
+  if (!credential) {
+    return NextResponse.json({ error: "Credencial não encontrada" }, { status: 404 });
+  }
+
+  const titulo = (body.titulo ?? "").trim();
+  if (!titulo) return NextResponse.json({ error: "Falta o título do template" }, { status: 400 });
+
+  const name = slugifyNomeTemplate(titulo);
+  if (!name) {
+    return NextResponse.json(
+      { error: "O título precisa ter pelo menos uma letra ou número para virar o nome do template" },
+      { status: 400 },
+    );
+  }
+
+  const category = (body.category ?? "").toUpperCase();
+  if (!["MARKETING", "UTILITY"].includes(category)) {
+    return NextResponse.json({ error: "Categoria precisa ser Marketing ou Utility" }, { status: 400 });
+  }
+
+  const language = (body.language ?? "pt_BR").trim();
+
+  const montagem = montarComponentes(
+    {
+      headerTexto: body.headerTexto ?? null,
+      bodyTexto: body.bodyTexto ?? "",
+      footerTexto: body.footerTexto ?? null,
+      headerExemplo: body.headerExemplo ?? null,
+      bodyExemplos: body.bodyExemplos ?? [],
+      botao: body.botao ?? null,
+    },
+    env.NEXT_PUBLIC_LINK_BASE_URL ?? null,
+  );
+
+  if (!montagem.ok) {
+    return NextResponse.json({ error: montagem.erro }, { status: 400 });
+  }
+
+  try {
+    const criado = await createMessageTemplate({
+      wabaId: credential.waba_id,
+      accessToken: credential.access_token,
+      name,
+      language,
+      category: category as "MARKETING" | "UTILITY",
+      components: montagem.components!,
+    });
+
+    await admin.from("events_log").insert({
+      tenant_id: operator.tenant_id,
+      session_id: null,
+      event_type: "template_criado",
+      payload: { name, language, category, credentialId: credential.id, metaId: criado.id, status: criado.status },
+    });
+
+    return NextResponse.json({ ok: true, ...criado });
+  } catch (err) {
+    // Erro da Graph API repassado como veio (nome duplicado, exemplo
+    // inválido, limite de criação/hora) — não vale reescrever uma mensagem
+    // que muda mais rápido do que este código.
+    const mensagem = err instanceof GraphApiError ? err.message : "Falha ao criar template na Graph API";
+    await admin.from("events_log").insert({
+      tenant_id: operator.tenant_id,
+      session_id: null,
+      event_type: "template_criado",
+      payload: { name, language, category, credentialId: credential.id },
+      error: mensagem,
+    });
+    return NextResponse.json({ error: mensagem }, { status: 502 });
   }
 }

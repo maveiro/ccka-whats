@@ -1,7 +1,8 @@
 # PRD: Criação de templates pela plataforma — wa-intelligence
 
 **Data:** 22/09/2026
-**Status:** proposto, não implementado
+**Status:** Fase 1 e 2 implementadas (22/09/2026). Fase 3 (Flow/resposta
+rápida) e Fase 4 (fora de escopo) seguem em aberto.
 
 ## Contexto
 
@@ -150,13 +151,35 @@ sucesso ou rejeição) — é a auditoria, e é suficiente.
 - **Botão de URL rastreada sem o domínio no ar**: já não é mais risco —
   `link.plauz.com.br` está em produção desde 21/09/2026.
 
+## Achado real, não documentado em lugar nenhum (22/09/2026)
+
+Testando contra a Graph API de verdade (não só a doc): **o CORPO não pode
+começar nem terminar em variável.** `"Seu show é dia {{1}}."` foi recusado
+(`error_subcode 2388299`, *"As variáveis não podem estar no início ou no fim
+do modelo"*); `"Seu show é dia {{1}} às 20h."` foi aceito — pontuação sozinha
+depois da variável não conta como "ter conteúdo", só letra/dígito conta.
+
+Confirmado que a regra **não vale para o cabeçalho** — `"Olá, {{1}}!"`
+(variável no fim) e `"{{1}}, seu horário chegou"` (no início) foram aceitos
+os dois. Nenhuma doc consultada (oficial ou de terceiros) menciona essa
+assimetria entre cabeçalho e corpo.
+
+Consequência: `montarComponentes()` recusa ANTES de chamar a Meta
+(`variavelNaBordaDoCorpo`, com teste dedicado que espelha os quatro casos
+reais testados), e o formulário avisa em tempo real enquanto a pessoa
+digita — sem isso, o primeiro sinal seria um 400 críptico depois de preencher
+o formulário inteiro.
+
 ## Plano de implementação (fases)
 
-1. `createMessageTemplate` em `graphClient.ts` + `GET /api/templates`
-   (extensão da rota existente) + tela de lista, sem criação ainda —
-   entrega visibilidade (rejeitado e por quê) mesmo antes do formulário.
-2. Formulário completo (cabeçalho texto, corpo, rodapé, botão de URL
-   rastreada) — cobre o caso de uso real de hoje (campanhas de show).
+1. **Feito (22/09/2026).** `createMessageTemplate` em `graphClient.ts` +
+   `GET /api/templates` (extensão da rota existente) + tela de lista —
+   status, categoria, motivo de rejeição, nota de qualidade.
+2. **Feito (22/09/2026).** Formulário completo (cabeçalho texto, corpo com
+   preview ao vivo, rodapé, botão de URL rastreada). Validado ponta a ponta
+   contra a Graph API real: um template com header+body+footer+botão
+   rastreado, seguindo as regras acima, foi criado (`status: PENDING`) e
+   removido em seguida (era só teste).
 3. Botão de Flow e resposta rápida no formulário.
 4. (Fora do v1, PRD próprio se necessário) cabeçalho de mídia, edição de
    template aprovado, categoria Authentication.

@@ -1388,14 +1388,32 @@ incluir `|| !atual?.imagem_path` — **coluna nova precisa de um caminho de
 autocorreção**, não de alguém lembrar.
 
 ### Pendente / próximos passos
-- **Criação de templates pela plataforma — Fase 1 no ar (22/09/2026).**
+- **Criação de templates pela plataforma — Fases 1 e 2 no ar (22/09/2026).**
   `docs/prd/prd-criacao-de-templates.md`. `GET /api/templates` lista TODO
   status de uma WABA (não só `APPROVED`, ao contrário de
   `/api/campaigns/templates`), com `rejected_reason` e `quality_score` —
-  campos que a Graph API só devolve se pedidos explicitamente em `fields`
-  (achado montando a rota: sem isso, template rejeitado aparecia sem dizer o
-  motivo). Tela em `/dashboard/admin/templates`. `createMessageTemplate` já
-  existe em `graphClient.ts`, ainda sem formulário que a chame — é a Fase 2.
+  campos que a Graph API só devolve se pedidos explicitamente em `fields`.
+  `POST /api/templates` cria e submete. Tela em `/dashboard/admin/templates`.
+
+64. **O CORPO do template não pode começar nem terminar em variável — achado
+    testando contra a Graph API de verdade, 22/09/2026, sem menção em
+    NENHUMA doc consultada (nem a oficial).** `"Seu show é dia {{1}}."` foi
+    recusado (`error_subcode 2388299`, *"As variáveis não podem estar no
+    início ou no fim do modelo"*); `"Seu show é dia {{1}} às 20h."` foi
+    aceito — pontuação sozinha depois da variável não conta como "ter
+    conteúdo", só letra/dígito conta (`variavelNaBordaDoCorpo` em
+    `templateComponents.ts`). **A regra NÃO vale para o cabeçalho**:
+    `"Olá, {{1}}!"` (fim) e `"{{1}}, seu horário chegou"` (início) foram os
+    dois aceitos. `montarComponentes()` recusa antes de chamar a Meta, e o
+    formulário avisa em tempo real — sem isso, o primeiro sinal seria um 400
+    críptico depois do formulário inteiro preenchido. Validado também o
+    caminho feliz: header + body + footer + botão de URL rastreada,
+    respeitando essa regra, foi criado de verdade na WABA do IB
+    (`status: PENDING`) e removido em seguida — era só teste.
+65. **`example` de botão de URL dinâmica é a URL RESOLVIDA, não o token.**
+    `{"type":"URL","url":"https://…/c/{{1}}","example":["https://…/c/k7Qm2xR9tA"]}`
+    — o `example` repete a URL inteira com a variável já substituída, não só
+    o valor da variável. Confirmado contra a doc e contra a API real.
 - **Central de shows — Sprint C4: código pronto (15/09/2026), falta a Meta.**
   `campaign-sender` preenche o botão de Flow com o `flow_token` de cada
   destinatário e cria as sessões em lote; a UI de campanha escolhe qual central

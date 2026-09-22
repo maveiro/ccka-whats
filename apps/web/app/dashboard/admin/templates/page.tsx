@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import TemplatesList from "./templates-list";
+import { env } from "@/lib/env";
 
 // Fase 1 do PRD (docs/prd/prd-criacao-de-templates.md): visibilidade do que
 // já existe na Meta — status, categoria, motivo de rejeição — antes de
@@ -32,12 +33,12 @@ export default async function TemplatesPage() {
       <div>
         <h1 className="text-lg font-semibold text-white">Templates — WhatsApp Cloud API</h1>
         <p className="text-sm text-gray-400 mt-1">
-          Status de aprovação na Meta, por conta (WABA). Criar template pela plataforma
-          entra numa fase seguinte — ver docs/prd/prd-criacao-de-templates.md.
+          Crie, submeta e acompanhe a revisão da Meta — por conta (WABA). Botão de URL
+          rastreada já sai com a convenção certa; ver docs/prd/prd-criacao-de-templates.md.
         </p>
       </div>
 
-      <TemplatesList credentials={credentials ?? []} />
+      <TemplatesList credentials={credentials ?? []} linkBaseUrl={env.NEXT_PUBLIC_LINK_BASE_URL ?? null} />
     </div>
   );
 }

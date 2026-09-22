@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import TemplateForm from "./template-form";
 
 interface Credential {
   id: string;
@@ -56,8 +57,10 @@ function corpoDoTemplate(components: Template["components"]): string {
 
 export default function TemplatesList({
   credentials: iniciais,
+  linkBaseUrl,
 }: {
   credentials: Credential[];
+  linkBaseUrl: string | null;
 }) {
   const [credentials] = useState(iniciais);
   const hasCredential = credentials.length > 0;
@@ -110,6 +113,14 @@ export default function TemplatesList({
           compartilham a mesma lista.
         </p>
       </div>
+
+      <TemplateForm
+        credentials={credentials}
+        credentialId={credentialId}
+        onCredentialChange={(id) => setCredentialId(id)}
+        linkBaseUrl={linkBaseUrl}
+        onCriado={() => void carregar()}
+      />
 
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-white">Templates</p>

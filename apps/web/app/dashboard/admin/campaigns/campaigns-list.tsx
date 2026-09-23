@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { formatCurrency } from "@/lib/utils";
+import EmptyState from "@/components/ui/empty-state";
 
 interface Campaign {
   id: string;
@@ -142,7 +143,7 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
   }
 
   if (campaigns.length === 0) {
-    return <p className="text-sm text-gray-500">Nenhuma campanha criada ainda.</p>;
+    return <EmptyState title="Nenhuma campanha criada ainda." />;
   }
 
   return (

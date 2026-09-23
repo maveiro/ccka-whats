@@ -2,6 +2,7 @@
 
 import Papa from "papaparse";
 import { formatPhone } from "@/lib/chat-display";
+import EmptyState from "@/components/ui/empty-state";
 
 interface OptOut {
   id: string;
@@ -29,7 +30,7 @@ export default function OptOutsList({ optOuts }: { optOuts: OptOut[] }) {
   }
 
   if (optOuts.length === 0) {
-    return <p className="text-sm text-gray-500">Nenhum opt-out registrado ainda.</p>;
+    return <EmptyState title="Nenhum opt-out registrado ainda." />;
   }
 
   return (

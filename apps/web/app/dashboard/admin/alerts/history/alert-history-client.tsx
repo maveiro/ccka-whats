@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import EmptyState from "@/components/ui/empty-state";
 
 interface AlertEvent {
   id: string;
@@ -46,7 +47,7 @@ export default function AlertHistoryClient({ initialEvents, total }: Props) {
 
   if (events.length === 0) {
     return (
-      <p className="text-sm text-gray-500 py-8 text-center">Nenhum evento registrado ainda.</p>
+      <EmptyState title="Nenhum evento registrado ainda." />
     );
   }
 

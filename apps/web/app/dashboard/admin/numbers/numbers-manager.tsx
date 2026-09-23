@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import EmptyState from "@/components/ui/empty-state";
 
 interface Numero {
   id: string;
@@ -78,7 +79,7 @@ export default function NumbersManager({
     <div className="space-y-8">
       <div className="space-y-3">
         {numeros.length === 0 && !mostrarForm && (
-          <p className="text-sm text-gray-500">Nenhum número cadastrado.</p>
+          <EmptyState title="Nenhum número cadastrado." />
         )}
 
         {numeros.map((n) => (

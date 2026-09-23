@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import TemplateForm from "./template-form";
 import type { TemplateParaEditar } from "./template-form";
+import EmptyState from "@/components/ui/empty-state";
 
 interface Credential {
   id: string;
@@ -145,7 +146,7 @@ export default function TemplatesList({
       )}
 
       {carregouAlguma && templates.length === 0 && (
-        <p className="text-sm text-gray-500">Nenhum template nesta conta ainda.</p>
+        <EmptyState title="Nenhum template nesta conta ainda." />
       )}
 
       <div className="space-y-2">

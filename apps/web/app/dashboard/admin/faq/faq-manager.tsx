@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import EmptyState from "@/components/ui/empty-state";
 
 interface Item {
   id: string;
@@ -119,7 +120,7 @@ export default function FaqManager({
         <h2 className="text-sm font-semibold text-white">
           Perguntas <span className="text-gray-500 font-normal">({itens.length})</span>
         </h2>
-        {itens.length === 0 && <p className="text-sm text-gray-500">Nenhuma pergunta cadastrada.</p>}
+        {itens.length === 0 && <EmptyState title="Nenhuma pergunta cadastrada." />}
 
         {itens.map((item) => (
           <div key={item.id} className={`border border-gray-800 rounded p-4 space-y-2 ${item.ativo ? "" : "opacity-60"}`}>

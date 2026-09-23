@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import EmptyState from "@/components/ui/empty-state";
 
 interface Keyword {
   id: string;
@@ -211,7 +212,7 @@ export default function FlowsManager({
 
       <div className="space-y-4">
         {automacoes.length === 0 && (
-          <p className="text-sm text-gray-500">Nenhuma automação criada ainda.</p>
+          <EmptyState title="Nenhuma automação criada ainda." />
         )}
 
         {automacoes.map((flow) => (

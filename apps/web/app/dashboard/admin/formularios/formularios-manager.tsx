@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import EmptyState from "@/components/ui/empty-state";
 
 interface Formulario {
   id: string;
@@ -122,7 +123,7 @@ export default function FormulariosManager({
       </form>
 
       {formularios.length === 0 && (
-        <p className="text-sm text-gray-500">Nenhum formulário criado ainda.</p>
+        <EmptyState title="Nenhum formulário criado ainda." />
       )}
 
       {formularios.map((f) => (

@@ -40,7 +40,7 @@ const STATUS_COLOR: Record<string, string> = {
   PENDING: "text-yellow-400 border-yellow-800",
   REJECTED: "text-red-400 border-red-800",
   PAUSED: "text-orange-400 border-orange-800",
-  DISABLED: "text-gray-500 border-gray-700",
+  DISABLED: "text-gray-400 border-gray-700",
   IN_APPEAL: "text-blue-400 border-blue-800",
 };
 
@@ -91,7 +91,7 @@ export default function TemplatesList({
 
   if (!hasCredential) {
     return (
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-gray-400">
         Cadastre um número em Campanhas antes de gerenciar templates.
       </p>
     );
@@ -112,7 +112,7 @@ export default function TemplatesList({
             </option>
           ))}
         </select>
-        <p className="text-[11px] text-gray-500">
+        <p className="text-[11px] text-gray-400">
           Template é aprovado na CONTA, não no número — números da mesma WABA
           compartilham a mesma lista.
         </p>
@@ -142,7 +142,7 @@ export default function TemplatesList({
       </div>
 
       {!carregouAlguma && !loading && (
-        <p className="text-sm text-gray-500">Clique em &quot;Atualizar status&quot; para carregar.</p>
+        <p className="text-sm text-gray-400">Clique em &quot;Atualizar status&quot; para carregar.</p>
       )}
 
       {carregouAlguma && templates.length === 0 && (
@@ -162,7 +162,7 @@ export default function TemplatesList({
                 {STATUS_LABEL[t.status] ?? t.status}
               </span>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-400">
               {t.language} · {normalizar(t.category)}
               {t.quality_score?.score ? ` · qualidade ${t.quality_score.score}` : ""}
             </p>

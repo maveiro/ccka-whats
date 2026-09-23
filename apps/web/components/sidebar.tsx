@@ -181,7 +181,7 @@ export default function Sidebar({ operatorName, role }: SidebarProps) {
         {!collapsed && <span className="text-sm font-semibold text-green-400 truncate">WA Intelligence</span>}
         <button
           onClick={toggle}
-          className="text-gray-500 hover:text-white transition-colors p-1.5 rounded-md hover:bg-gray-900"
+          className="text-gray-400 hover:text-white transition-colors p-1.5 rounded-md hover:bg-gray-900"
           aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
           title={collapsed ? "Expandir menu" : "Recolher menu"}
         >
@@ -258,7 +258,7 @@ export default function Sidebar({ operatorName, role }: SidebarProps) {
           )}
           <button
             onClick={handleSignOut}
-            className="shrink-0 text-gray-500 hover:text-white transition-colors p-2 rounded-md hover:bg-gray-900 flex items-center justify-center"
+            className="shrink-0 text-gray-400 hover:text-white transition-colors p-2 rounded-md hover:bg-gray-900 flex items-center justify-center"
             aria-label="Sair da conta"
             title="Sair"
           >

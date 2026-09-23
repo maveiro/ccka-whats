@@ -53,7 +53,7 @@ export default async function OperatorsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-white">{op.name ?? op.email}</p>
-                <p className="text-xs text-gray-500">{op.email}</p>
+                <p className="text-xs text-gray-400">{op.email}</p>
               </div>
               <div className="flex items-center gap-3">
                 <span

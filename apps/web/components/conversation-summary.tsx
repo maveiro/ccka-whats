@@ -66,7 +66,7 @@ export default function ConversationSummary({ chatId }: { chatId: string }) {
                 <Sparkles size={15} className="text-green-400" />
                 Resumo da conversa
               </h2>
-              <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-white transition-colors">
+              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-white transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -86,7 +86,7 @@ export default function ConversationSummary({ chatId }: { chatId: string }) {
                 <button
                   onClick={generate}
                   disabled={loading}
-                  className="px-4 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm rounded-md transition-colors shrink-0"
+                  className="px-4 py-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-sm rounded-md transition-colors shrink-0"
                 >
                   {loading ? "Gerando..." : "Gerar"}
                 </button>
@@ -107,10 +107,10 @@ export default function ConversationSummary({ chatId }: { chatId: string }) {
                 <p className="text-sm px-3 py-2 rounded-md border bg-red-900/30 border-red-800 text-red-400">{error}</p>
               )}
               {loading && !summary && (
-                <p className="text-sm text-gray-500 animate-pulse">Analisando a conversa...</p>
+                <p className="text-sm text-gray-400 animate-pulse">Analisando a conversa...</p>
               )}
               {!loading && !summary && !error && (
-                <p className="text-sm text-gray-500">Escolha um período e clique em Gerar.</p>
+                <p className="text-sm text-gray-400">Escolha um período e clique em Gerar.</p>
               )}
               {summary && (
                 <>

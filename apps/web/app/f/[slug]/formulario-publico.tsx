@@ -64,7 +64,7 @@ export default function FormularioPublico({
             {/* target="_blank" porque a página costuma estar dentro de um
                 iframe na landing — sem isso a conversa abriria lá dentro. */}
             <a href={link} target="_blank" rel="noopener noreferrer"
-              className="block text-center bg-green-600 hover:bg-green-500 text-white text-sm rounded px-3 py-2">
+              className="block text-center bg-green-700 hover:bg-green-600 text-white text-sm rounded px-3 py-2">
               Abrir conversa no WhatsApp
             </a>
             <p className="text-[11px] text-gray-400 text-center">
@@ -119,7 +119,7 @@ export default function FormularioPublico({
       {erro && <p className="text-xs text-red-400">{erro}</p>}
 
       <button type="submit" disabled={enviando}
-        className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm rounded px-3 py-2">
+        className="w-full bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-sm rounded px-3 py-2">
         {enviando ? "Enviando…" : "Quero receber novidades"}
       </button>
     </form>

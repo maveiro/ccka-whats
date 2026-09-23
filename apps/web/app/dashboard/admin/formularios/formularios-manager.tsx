@@ -168,7 +168,7 @@ function Cartao({
               {form.ativo ? "Ativo" : "Desligado"}
             </span>
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-gray-400 mt-0.5">
             /f/{form.slug}
             {form.artista ? ` · ${form.artista}` : ""} · consentimento {form.versao_consentimento}
           </p>
@@ -178,7 +178,7 @@ function Cartao({
             className="text-xs text-gray-400 hover:text-white">
             {form.ativo ? "desligar" : "ligar"}
           </button>
-          <button onClick={onRemover} className="text-xs text-gray-500 hover:text-red-400">remover</button>
+          <button onClick={onRemover} className="text-xs text-gray-400 hover:text-red-400">remover</button>
         </div>
       </div>
 
@@ -197,7 +197,7 @@ function Cartao({
           <button onClick={() => copiar(`${origem}/api/public/cadastro/${form.slug}`, "Endpoint")}
             className="text-xs text-blue-400 hover:underline shrink-0">copiar endpoint</button>
         </div>
-        <p className="text-[11px] text-gray-500">
+        <p className="text-[11px] text-gray-400">
           O endpoint aceita <code>{"{ nome, email, telefone, consentiu: true }"}</code> — use se preferir
           montar o formulário no seu próprio site.
         </p>
@@ -219,7 +219,7 @@ function Cartao({
             placeholder="menu"
             className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white flex-1 min-w-[10rem]" />
         </div>
-        <p className="text-[11px] text-gray-500">
+        <p className="text-[11px] text-gray-400">
           Sem número, a tela de sucesso não mostra botão nenhum. O texto vai preenchido na
           conversa e precisa bater com uma palavra-chave da automação desse número — hoje
           &quot;menu&quot; abre a central.
@@ -239,7 +239,7 @@ function Cartao({
           className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white" />
       </label>
 
-      <p className="text-[11px] text-gray-500">
+      <p className="text-[11px] text-gray-400">
         Trocar o texto de consentimento exige informar uma versão nova — sem isso, quem
         aceitou o texto anterior apareceria como tendo aceitado este.
       </p>

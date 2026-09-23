@@ -127,7 +127,7 @@ export default function ClientesBusca({ numerosTeste }: { numerosTeste: NumeroTe
     <div className="space-y-8">
       <form onSubmit={cadastrar} className="border border-gray-800 rounded p-4 space-y-3">
         <h2 className="text-sm font-semibold text-white">Cadastrar cliente</h2>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-400">
           O telefone é normalizado automaticamente — digitar
           &quot;(41) 99999-9999&quot; ou &quot;5541999999999&quot; grava a mesma pessoa.
           Se já existir cadastro com esse número, os campos preenchidos aqui
@@ -170,7 +170,7 @@ export default function ClientesBusca({ numerosTeste }: { numerosTeste: NumeroTe
 
       <div className="border border-gray-800 rounded p-4 space-y-3">
         <h2 className="text-sm font-semibold text-white">Números de teste</h2>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-400">
           Números desta lista podem enviar <code className="text-gray-300">/reset</code> no
           WhatsApp para apagar o próprio cadastro e voltar a ser um visitante desconhecido —
           útil para testar o fluxo de cadastro de ponta a ponta. Quem não está na lista digita
@@ -192,9 +192,9 @@ export default function ClientesBusca({ numerosTeste }: { numerosTeste: NumeroTe
         {testes.map((t) => (
           <div key={t.id} className="flex items-center justify-between text-xs bg-gray-900/50 rounded px-2 py-1.5">
             <span className="text-gray-300">
-              {t.telefone}{t.nota ? <span className="text-gray-500"> · {t.nota}</span> : null}
+              {t.telefone}{t.nota ? <span className="text-gray-400"> · {t.nota}</span> : null}
             </span>
-            <button onClick={() => removerTeste(t.id)} className="text-gray-500 hover:text-red-400">remover</button>
+            <button onClick={() => removerTeste(t.id)} className="text-gray-400 hover:text-red-400">remover</button>
           </div>
         ))}
       </div>
@@ -216,15 +216,15 @@ export default function ClientesBusca({ numerosTeste }: { numerosTeste: NumeroTe
       </form>
 
       {resultados?.length === 0 && (
-        <p className="text-sm text-gray-500">Nenhum cliente com esse telefone.</p>
+        <p className="text-sm text-gray-400">Nenhum cliente com esse telefone.</p>
       )}
 
       {(resultados ?? []).map((c) => (
         <div key={c.id} className="border border-gray-800 rounded p-4 flex items-start justify-between gap-4">
           <div className="min-w-0 text-sm">
-            <p className="text-white">{c.nome ?? <span className="text-gray-500 italic">sem nome</span>}</p>
-            <p className="text-gray-400">{c.email ?? <span className="text-gray-500 italic">sem e-mail</span>}</p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-white">{c.nome ?? <span className="text-gray-400 italic">sem nome</span>}</p>
+            <p className="text-gray-400">{c.email ?? <span className="text-gray-400 italic">sem e-mail</span>}</p>
+            <p className="text-xs text-gray-400 mt-1">
               {c.telefone} · origem {c.origem}
               {c.pulou_cadastro && " · pulou cadastro"}
               {c.pii_apagada_em && ` · dados apagados em ${new Date(c.pii_apagada_em).toLocaleDateString("pt-BR")}`}

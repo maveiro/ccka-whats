@@ -148,7 +148,7 @@ export default function FlowsManager({
     return (
       <p className="text-sm text-gray-400 border border-gray-800 rounded p-4">
         Nenhum número WhatsApp Cloud API cadastrado neste tenant. Cadastre um em{" "}
-        <a href="/dashboard/admin/numbers" className="text-blue-400 hover:underline">Números</a>{" "}
+        <a href="/dashboard/admin/numbers" className="text-blue-400 underline hover:text-blue-300">Números</a>{" "}
         antes de criar uma automação.
       </p>
     );
@@ -204,7 +204,7 @@ export default function FlowsManager({
           >
             {criando ? "Criando…" : "Criar Flow"}
           </button>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-400">
             Nasce inativo — só responde depois que você ativar.
           </span>
         </div>
@@ -238,7 +238,7 @@ export default function FlowsManager({
         <div className="space-y-3">
           <div>
             <h2 className="text-sm font-semibold text-white">Flows publicados na Meta</h2>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-400 mt-1">
               Estes abrem no WhatsApp como tela (central, agenda) e não respondem a
               palavras-chave: o conteúdo vem da Agenda e do FAQ. Para que alguém os
               abra digitando algo, cadastre a palavra-chave num Flow de palavra-chave
@@ -259,7 +259,7 @@ export default function FlowsManager({
                     {flow.tipo}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-400 mt-0.5">
                   {nomeDoNumero(flow.cloud_credential_id)}
                   {flow.meta_flow_id
                     ? ` · publicado na Meta (${flow.meta_flow_id})`
@@ -385,7 +385,7 @@ function FlowCard({
               {flow.ativo ? "Ativo" : "Inativo"}
             </span>
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-gray-400 mt-0.5">
             {numero}
             {flow.artista ? ` · ${flow.artista}` : ""} · {keywords.length}{" "}
             {keywords.length === 1 ? "palavra-chave" : "palavras-chave"}
@@ -433,7 +433,7 @@ function FlowCard({
                   className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
                   placeholder={flow.nome}
                 />
-                <span className="text-[11px] text-gray-500 block">
+                <span className="text-[11px] text-gray-400 block">
                   Em branco, o balão usa o nome do Flow acima — que é rótulo do painel, não
                   texto escrito para o fã.
                 </span>
@@ -486,12 +486,12 @@ function FlowCard({
                 ))}
               </select>
             </label>
-            <p className="text-[11px] text-gray-500">
+            <p className="text-[11px] text-gray-400">
               Com um destino escolhido, quem escreve qualquer coisa que não casa
               palavra-chave recebe o texto <b>e</b> o balão da central — sem depender de
               palavra-chave. Palavra-chave continua tendo prioridade.
             </p>
-            <p className="text-[11px] text-gray-500">
+            <p className="text-[11px] text-gray-400">
               Depois de 3 fallbacks seguidos, a automação se cala sozinha e registra um
               alerta — para não repetir a mesma resposta genérica indefinidamente. Isso
               vale também para o balão: oferecer a central indefinidamente a quem está
@@ -503,7 +503,7 @@ function FlowCard({
             <h3 className="text-xs font-semibold text-gray-300">Palavras-chave</h3>
 
             {keywords.length === 0 && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-400">
                 Nenhuma ainda — é preciso ao menos uma para ativar o Flow.
               </p>
             )}
@@ -516,7 +516,7 @@ function FlowCard({
                 >
                   <div className="min-w-0">
                     <span className="text-white">{k.palavra_chave}</span>
-                    <span className="text-gray-500 text-xs"> → </span>
+                    <span className="text-gray-400 text-xs"> → </span>
                     <span className="text-gray-300 text-xs break-words">
                       {k.tipo_resposta === "abrir_flow"
                         ? `abre: ${destinos.find((d) => d.id === k.flow_destino_id)?.nome ?? "Flow"}`
@@ -526,7 +526,7 @@ function FlowCard({
                   {isAdmin && (
                     <button
                       onClick={() => removerKeyword(k.id)}
-                      className="text-xs text-gray-500 hover:text-red-400 shrink-0"
+                      className="text-xs text-gray-400 hover:text-red-400 shrink-0"
                     >
                       remover
                     </button>
@@ -579,7 +579,7 @@ function FlowCard({
                 Adicionar
               </button>
             </form>
-            <p className="text-[11px] text-gray-500">
+            <p className="text-[11px] text-gray-400">
               O match ignora acento, maiúscula e plural, e casa palavra inteira. Quando
               duas keywords batem, vence a mais específica (mais palavras).
             </p>
@@ -598,13 +598,13 @@ function FlowCard({
                 {fallbacksLoading ? "Carregando…" : fallbacks ? "Atualizar" : "Ver"}
               </button>
             </div>
-            <p className="text-[11px] text-gray-500">
+            <p className="text-[11px] text-gray-400">
               Cada linha é alguém que perguntou algo que nenhuma palavra-chave cobre.
               Clique em &quot;usar&quot; para começar uma keyword com esse texto.
             </p>
 
             {fallbacks && fallbacks.length === 0 && (
-              <p className="text-xs text-gray-500">Nada em fallback por enquanto.</p>
+              <p className="text-xs text-gray-400">Nada em fallback por enquanto.</p>
             )}
 
             {fallbacks && fallbacks.length > 0 && (
@@ -613,7 +613,7 @@ function FlowCard({
                   <li key={f.id} className="flex items-start justify-between gap-3 text-sm bg-gray-900/50 rounded px-2 py-1.5">
                     <div className="min-w-0">
                       <p className="text-gray-200 break-words">{f.texto || "(sem texto)"}</p>
-                      <p className="text-[11px] text-gray-500">
+                      <p className="text-[11px] text-gray-400">
                         {new Date(f.createdAt).toLocaleString("pt-BR")}
                         {f.chatId && (
                           <>
@@ -627,7 +627,7 @@ function FlowCard({
                     </div>
                     <button
                       onClick={() => setNovaPalavra(f.texto.split(/\s+/).slice(0, 3).join(" "))}
-                      className="text-xs text-gray-500 hover:text-blue-400 shrink-0"
+                      className="text-xs text-gray-400 hover:text-blue-400 shrink-0"
                     >
                       usar
                     </button>

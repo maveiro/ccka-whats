@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
+import Button from "@/components/ui/button";
 
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   oauth_missing_code: "Falha ao entrar com Google. Tente novamente.",
@@ -121,7 +122,7 @@ export default function LoginForm() {
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors p-1"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors p-1"
                 aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -130,7 +131,7 @@ export default function LoginForm() {
             <div className="flex justify-end">
               <Link
                 href="/forgot-password"
-                className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                className="text-xs text-gray-400 underline hover:text-gray-300 transition-colors"
               >
                 Esqueceu a senha?
               </Link>
@@ -147,13 +148,9 @@ export default function LoginForm() {
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-2 px-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
-        >
+        <Button type="submit" variant="primary" size="md" disabled={loading} className="w-full justify-center">
           {loading ? "Entrando..." : "Entrar"}
-        </button>
+        </Button>
 
         <div className="text-center pt-1">
           <Link

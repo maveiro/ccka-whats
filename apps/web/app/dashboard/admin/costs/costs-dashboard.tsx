@@ -185,7 +185,7 @@ export default function CostsDashboard({ sessions }: { sessions: SessionOpt[] })
           </select>
         )}
 
-        {loading && <span className="text-xs text-gray-500 animate-pulse">Carregando...</span>}
+        {loading && <span className="text-xs text-gray-400 animate-pulse">Carregando...</span>}
       </div>
 
       {erro && (
@@ -223,7 +223,7 @@ export default function CostsDashboard({ sessions }: { sessions: SessionOpt[] })
                   <span className="ml-2 text-xs font-normal text-orange-400">estimativa</span>
                 )}
               </h2>
-              <span className="text-xs text-gray-500">mesmo volume, regras novas</span>
+              <span className="text-xs text-gray-400">mesmo volume, regras novas</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
               <Card label="Custo do período" value={formatCurrency(data.total)} plain />
@@ -236,7 +236,7 @@ export default function CostsDashboard({ sessions }: { sessions: SessionOpt[] })
                 accent={data.projection.delta > 0 ? "text-orange-400" : undefined}
               />
             </div>
-            <p className="text-xs text-gray-500 mt-3">
+            <p className="text-xs text-gray-400 mt-3">
               {data.projection.newlyBillable.toLocaleString("pt-BR")} mensagem(ns) que hoje são grátis
               passam a ser cobradas: resposta livre dentro da janela de 24h (com franquia de 1.000 por
               número por mês) e template de utilidade dentro da janela, que perde a gratuidade.
@@ -248,7 +248,7 @@ export default function CostsDashboard({ sessions }: { sessions: SessionOpt[] })
           <section className="bg-gray-800 rounded-xl p-5">
             <h2 className="text-white font-semibold mb-4">Custo por dia</h2>
             {data.byDay.length === 0 ? (
-              <p className="text-xs text-gray-500 py-6 text-center">Nenhum disparo registrado no período.</p>
+              <p className="text-xs text-gray-400 py-6 text-center">Nenhum disparo registrado no período.</p>
             ) : (
               <div className="flex items-end gap-1" style={{ height: 120 }}>
                 {data.byDay.map((d) => (
@@ -259,7 +259,7 @@ export default function CostsDashboard({ sessions }: { sessions: SessionOpt[] })
                         style={{ height: `${Math.max(Math.round((d.cost / maxDia) * 100), d.cost > 0 ? 4 : 0)}%` }}
                       />
                     </div>
-                    <span className="text-xs text-gray-500">{d.day.slice(8)}</span>
+                    <span className="text-xs text-gray-400">{d.day.slice(8)}</span>
                   </div>
                 ))}
               </div>
@@ -308,7 +308,7 @@ export default function CostsDashboard({ sessions }: { sessions: SessionOpt[] })
                   <div key={c.campaignId} className="flex items-baseline justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm text-gray-300 truncate">{c.name}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-400">
                         {c.messages.toLocaleString("pt-BR")} disparos
                         {c.templateCategory ? ` · ${c.templateCategory.toLowerCase()}` : ""}
                         {c.delivered > 0 && ` · ${formatCurrency(c.cost / c.delivered)} por entrega`}
@@ -324,7 +324,7 @@ export default function CostsDashboard({ sessions }: { sessions: SessionOpt[] })
           {/* Conferência com a Meta */}
           <section className="bg-gray-800 rounded-xl p-5">
             <h2 className="text-white font-semibold mb-1">Conferência com a Meta</h2>
-            <p className="text-xs text-gray-500 mb-4">
+            <p className="text-xs text-gray-400 mb-4">
               Agregado oficial (pricing_analytics). A Meta avisa que o valor é aproximado e pode
               divergir da fatura; WABA faturada por Solution Partner não devolve custo nenhum.
             </p>
@@ -363,7 +363,7 @@ function Card({ label, value, sub, plain, accent }: {
     <div className={plain ? "" : "bg-gray-800 rounded-xl p-5"}>
       <p className="text-gray-400 text-sm">{label}</p>
       <p className={`text-2xl font-bold mt-1 tabular-nums ${accent ?? "text-white"}`}>{value}</p>
-      {sub && <p className="text-gray-500 text-xs mt-1">{sub}</p>}
+      {sub && <p className="text-gray-400 text-xs mt-1">{sub}</p>}
     </div>
   );
 }
@@ -377,7 +377,7 @@ function Breakdown({ title, rows }: {
     <section className="bg-gray-800 rounded-xl p-5">
       <h2 className="text-white font-semibold mb-4">{title}</h2>
       {rows.length === 0 ? (
-        <p className="text-xs text-gray-500 py-4 text-center">Sem dados no período.</p>
+        <p className="text-xs text-gray-400 py-4 text-center">Sem dados no período.</p>
       ) : (
         <div className="space-y-3">
           {rows.map((r) => (

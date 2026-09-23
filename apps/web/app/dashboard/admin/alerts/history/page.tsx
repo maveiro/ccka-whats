@@ -35,7 +35,7 @@ export default async function AlertHistoryPage() {
         </a>
         <h1 className="text-lg font-semibold text-white">Histórico de alertas</h1>
         {(total ?? 0) > 0 && (
-          <span className="text-xs text-gray-500">{total} evento{total !== 1 ? "s" : ""}</span>
+          <span className="text-xs text-gray-400">{total} evento{total !== 1 ? "s" : ""}</span>
         )}
       </div>
       <AlertHistoryClient

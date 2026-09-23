@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import Papa from "papaparse";
 
 interface Credential {
@@ -328,7 +328,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
           <p className="text-sm font-medium text-white">
             {hasCredential ? "Cadastrar outro número do WhatsApp Cloud API" : "Conectar WhatsApp Cloud API"}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-400">
             Dados do WhatsApp Business Account (WABA) no Meta Business Manager. O token de
             acesso nunca é reexibido depois de salvo.
             {hasCredential && " Cadastrar aqui NÃO mexe nos outros números do tenant — para administrá-los, use Números."}
@@ -341,7 +341,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
             <button
               onClick={handleSaveCredential}
               disabled={savingCredential || !wabaId || !phoneNumberId || !accessToken}
-              className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+              className="flex-1 py-2 px-4 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
             >
               {savingCredential ? "Salvando..." : "Salvar e continuar"}
             </button>
@@ -388,7 +388,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
                   </option>
                 ))}
               </select>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[11px] text-gray-400">
                 É este número que aparece para quem recebe, e é o limite e a nota de
                 qualidade dele que valem no disparo. Os modelos vêm da conta (WABA), então
                 números da mesma conta oferecem a mesma lista.{" "}
@@ -414,7 +414,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
                 className="w-full text-left bg-gray-800 hover:bg-gray-750 border border-gray-700 rounded-md px-3 py-2 transition-colors"
               >
                 <p className="text-sm text-white">{t.name}</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-400">
                   {t.language} · {t.category} · {countPlaceholders(t.components)} variável(is)
                   {contarVariaveis(t.components).header > 0 ? " (1 no cabeçalho)" : ""}
                   {headerDeMidia(t.components) ? ` · cabeçalho de ${headerDeMidia(t.components)}` : ""}
@@ -428,7 +428,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
       {step === "csv" && selectedTemplate && (
         <div className="space-y-3">
           <p className="text-sm font-medium text-white">Base de contatos — {selectedTemplate.name}</p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-400">
             CSV com coluna <code className="font-mono">phone</code> (E.164 sem &quot;+&quot;) e, se o
             template tiver variáveis, colunas adicionais na ordem dos placeholders {"{{1}}"}, {"{{2}}"}...
             (template tem {countPlaceholders(selectedTemplate.components)} variável(is)).
@@ -464,7 +464,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
             className="text-sm text-gray-300"
           />
           {csvError && <p className="text-xs text-red-400">{csvError}</p>}
-          <button onClick={() => setStep("template")} className="text-xs text-gray-500 hover:text-white">
+          <button onClick={() => setStep("template")} className="text-xs text-gray-400 hover:text-white">
             ← Voltar
           </button>
         </div>
@@ -481,7 +481,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
                 value={clickTargetUrl}
                 onChange={setClickTargetUrl}
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-400">
                 Para onde a pessoa vai depois do clique (ex: a página do evento no Sympla).
                 O link do template passa pelo nosso redirect, que registra quem clicou.
               </p>
@@ -504,7 +504,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-400">
                 Cada destinatário recebe um token próprio, então quem já é cadastrado abre a
                 central direto no menu, sem se cadastrar de novo.
               </p>
@@ -544,7 +544,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
             <button
               onClick={handleCreate}
               disabled={creating || !name.trim() || missingTargetUrl || missingFlow}
-              className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+              className="flex-1 py-2 px-4 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
             >
               {creating ? "Criando..." : "Criar campanha"}
             </button>
@@ -577,10 +577,12 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
 function Field({
   label, value, onChange, type = "text",
 }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
+  const id = useId();
   return (
     <div>
-      <label className="block text-xs text-gray-400 mb-1">{label}</label>
+      <label htmlFor={id} className="block text-xs text-gray-400 mb-1">{label}</label>
       <input
+        id={id}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}

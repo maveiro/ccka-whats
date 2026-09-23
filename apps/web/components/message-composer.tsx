@@ -116,7 +116,7 @@ export default function MessageComposer({ chatId, onSent, quotedMessage, onClear
         <button
           onClick={() => fileRef.current?.click()}
           disabled={sending}
-          className="shrink-0 text-gray-500 hover:text-white p-1.5 rounded transition-colors"
+          className="shrink-0 text-gray-400 hover:text-white p-1.5 rounded transition-colors"
           title="Enviar arquivo"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -142,7 +142,7 @@ export default function MessageComposer({ chatId, onSent, quotedMessage, onClear
         <button
           onClick={handleSendText}
           disabled={sending || !text.trim()}
-          className="shrink-0 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white rounded-lg p-2 transition-colors"
+          className="shrink-0 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white rounded-lg p-2 transition-colors"
           title="Enviar (Enter)"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

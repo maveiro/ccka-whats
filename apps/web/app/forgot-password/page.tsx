@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import Button from "@/components/ui/button";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -31,7 +32,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950">
+    <main className="min-h-screen flex items-center justify-center bg-gray-950">
       <div className="w-full max-w-sm space-y-6 px-6">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold text-white">Recuperar senha</h1>
@@ -47,7 +48,7 @@ export default function ForgotPasswordPage() {
             </div>
             <Link
               href="/login"
-              className="block text-center text-sm text-gray-400 hover:text-white transition-colors"
+              className="block text-center text-sm text-gray-400 underline hover:text-white transition-colors"
             >
               ← Voltar para o login
             </Link>
@@ -73,23 +74,19 @@ export default function ForgotPasswordPage() {
 
             {error && <p className="text-red-400 text-sm">{error}</p>}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2 px-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
-            >
+            <Button type="submit" variant="primary" size="md" disabled={loading} className="w-full justify-center">
               {loading ? "Enviando..." : "Enviar link de recuperação"}
-            </button>
+            </Button>
 
             <Link
               href="/login"
-              className="block text-center text-sm text-gray-500 hover:text-gray-300 transition-colors"
+              className="block text-center text-sm text-gray-400 underline hover:text-gray-300 transition-colors"
             >
               ← Voltar para o login
             </Link>
           </form>
         )}
       </div>
-    </div>
+    </main>
   );
 }

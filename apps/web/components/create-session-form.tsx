@@ -98,7 +98,7 @@ export default function CreateSessionForm({ onCreated }: CreateSessionFormProps)
             placeholder="comercial-sp"
             className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-green-500"
           />
-          <p className="text-xs text-gray-500 mt-1">Auto-gerado a partir do label. Apenas letras, números e hífens.</p>
+          <p className="text-xs text-gray-400 mt-1">Auto-gerado a partir do label. Apenas letras, números e hífens.</p>
         </div>
       </div>
 
@@ -112,7 +112,7 @@ export default function CreateSessionForm({ onCreated }: CreateSessionFormProps)
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+          className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
         >
           {loading ? "Criando..." : "Criar Sessão"}
         </button>

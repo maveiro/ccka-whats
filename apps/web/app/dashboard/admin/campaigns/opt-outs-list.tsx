@@ -36,7 +36,7 @@ export default function OptOutsList({ optOuts }: { optOuts: OptOut[] }) {
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-gray-500">{optOuts.length} contato(s) pediram para não receber mais campanhas.</p>
+        <p className="text-xs text-gray-400">{optOuts.length} contato(s) pediram para não receber mais campanhas.</p>
         <button onClick={handleExport} className="text-xs text-green-400 hover:text-green-300">
           Exportar CSV
         </button>
@@ -54,8 +54,8 @@ export default function OptOutsList({ optOuts }: { optOuts: OptOut[] }) {
             {optOuts.map((o) => (
               <tr key={o.id} className="border-t border-gray-800 text-gray-300">
                 <td className="px-2 py-1.5">{formatPhone(o.phone_e164)}</td>
-                <td className="px-2 py-1.5 text-gray-500">{o.reason ?? "—"}</td>
-                <td className="px-2 py-1.5 text-gray-500">{new Date(o.created_at).toLocaleString("pt-BR")}</td>
+                <td className="px-2 py-1.5 text-gray-400">{o.reason ?? "—"}</td>
+                <td className="px-2 py-1.5 text-gray-400">{new Date(o.created_at).toLocaleString("pt-BR")}</td>
               </tr>
             ))}
           </tbody>

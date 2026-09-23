@@ -104,7 +104,7 @@ export default function NumbersManager({
       {mostrarForm && (
         <form onSubmit={cadastrar} className="border border-gray-800 rounded p-4 space-y-3">
           <h2 className="text-sm font-semibold text-white">Cadastrar número</h2>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-400">
             Dados do WhatsApp Business Account (WABA) no Meta Business Manager. O token é
             verificado na Graph API antes de salvar e nunca é reexibido depois.
             Cadastrar um número não mexe nos demais.
@@ -123,7 +123,7 @@ export default function NumbersManager({
             <button
               type="submit"
               disabled={salvando || !wabaId || !phoneNumberId || !accessToken}
-              className="bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm rounded px-3 py-1.5"
+              className="bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-sm rounded px-3 py-1.5"
             >
               {salvando ? "Verificando…" : "Cadastrar"}
             </button>
@@ -171,7 +171,7 @@ function NumeroCard({
               {numero.active ? "Ativo" : "Inativo"}
             </span>
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-gray-400 mt-0.5">
             {numero.display_phone_number ?? "—"} · ID {numero.phone_number_id}
             {flowsAtivos > 0 && ` · ${flowsAtivos} automação ativa`}
           </p>

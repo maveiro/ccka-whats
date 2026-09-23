@@ -57,7 +57,7 @@ export default function MetricasPagina({ paginaId, slug }: { paginaId: string; s
               key={p}
               onClick={() => setDias(p)}
               className={`text-xs px-2 py-1 rounded ${
-                p === dias ? "bg-gray-800 text-white" : "text-gray-500 hover:text-white"
+                p === dias ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white"
               }`}
             >
               {p}d
@@ -66,7 +66,7 @@ export default function MetricasPagina({ paginaId, slug }: { paginaId: string; s
         </div>
       </div>
 
-      <Suspense fallback={<p className="text-xs text-gray-500">carregando...</p>}>
+      <Suspense fallback={<p className="text-xs text-gray-400">carregando...</p>}>
         <Conteudo promessa={promessa} />
       </Suspense>
     </section>
@@ -117,7 +117,7 @@ function Conteudo({ promessa }: { promessa: Promise<Resposta> }) {
                   </div>
                 ))}
               </div>
-              <div className="flex gap-3 mt-1 text-[11px] text-gray-500">
+              <div className="flex gap-3 mt-1 text-[11px] text-gray-400">
                 <span className="flex items-center gap-1"><i className="inline-block w-2 h-2 bg-gray-700" /> aberturas</span>
                 <span className="flex items-center gap-1"><i className="inline-block w-2 h-2 bg-green-600/80" /> cliques</span>
               </div>
@@ -154,7 +154,7 @@ function Conteudo({ promessa }: { promessa: Promise<Resposta> }) {
                     <span className="text-gray-300 truncate">
                       {s.cidade ?? "—"}
                       {s.data_show && (
-                        <span className="text-gray-500">
+                        <span className="text-gray-400">
                           {" · "}
                           {new Date(s.data_show).toLocaleDateString("pt-BR", {
                             timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit",
@@ -176,7 +176,7 @@ function Conteudo({ promessa }: { promessa: Promise<Resposta> }) {
 function Numero({ titulo, valor, nota }: { titulo: string; valor: number | string; nota?: string }) {
   return (
     <div className="bg-gray-800/50 rounded-md px-3 py-2">
-      <p className="text-[11px] text-gray-500">{titulo}</p>
+      <p className="text-[11px] text-gray-400">{titulo}</p>
       <p className="text-lg text-white">{valor}</p>
       {nota && <p className="text-[11px] text-gray-400">{nota}</p>}
     </div>

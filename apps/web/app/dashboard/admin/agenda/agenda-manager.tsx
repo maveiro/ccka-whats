@@ -134,7 +134,7 @@ export default function AgendaManager({
           <button
             onClick={publicarTodos}
             disabled={publicandoTodos}
-            className="shrink-0 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white rounded px-3 py-1.5"
+            className="shrink-0 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white rounded px-3 py-1.5"
           >
             {publicandoTodos ? "Publicando…" : "Publicar todos"}
           </button>
@@ -153,9 +153,9 @@ export default function AgendaManager({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-white">
-            Shows na agenda <span className="text-gray-500 font-normal">({visiveis.length})</span>
+            Shows na agenda <span className="text-gray-400 font-normal">({visiveis.length})</span>
             {sincronizados > 0 && (
-              <span className="text-gray-500 font-normal text-xs ml-2">
+              <span className="text-gray-400 font-normal text-xs ml-2">
                 {sincronizados} do Monday{manuais.length > 0 && `, ${manuais.length} fora do board`}
                 {aguardando.length > 0 && `, ${aguardando.length} aguardando publicação`}
               </span>
@@ -171,7 +171,7 @@ export default function AgendaManager({
         </div>
 
         {visiveis.length === 0 && (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-400">
             Nenhum show na agenda. Crie uma agenda sincronizada acima e clique em
             &quot;sincronizar agora&quot;.
           </p>
@@ -222,7 +222,7 @@ function ShowLinha({
           <p className="text-sm text-white">
             {show.cidade ?? "—"}
             {show.teatro ? <span className="text-gray-400"> · {show.teatro}</span> : null}
-            {passado && <span className="text-[11px] text-gray-500 ml-2">(já passou)</span>}
+            {passado && <span className="text-[11px] text-gray-400 ml-2">(já passou)</span>}
             {!doBoard && (
               <span className="text-[11px] text-amber-400/80 ml-2">fora do board</span>
             )}
@@ -230,7 +230,7 @@ function ShowLinha({
               <span className="text-[11px] text-amber-400 ml-2">não publicado</span>
             )}
           </p>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-gray-400 mt-0.5">
             {show.artista} ·{" "}
             {show.data_show
               ? new Date(show.data_show).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })
@@ -258,7 +258,7 @@ function ShowLinha({
             <>
               <button onClick={() => setEditando(true)} className="text-xs text-gray-400 hover:text-white">editar</button>
               {isAdmin && (
-                <button onClick={onRemover} className="text-xs text-gray-500 hover:text-red-400">remover</button>
+                <button onClick={onRemover} className="text-xs text-gray-400 hover:text-red-400">remover</button>
               )}
             </>
           )}

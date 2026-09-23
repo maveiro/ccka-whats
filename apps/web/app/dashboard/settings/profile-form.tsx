@@ -81,8 +81,9 @@ export default function ProfileForm({ initialName, email, role }: Props) {
 
         <form onSubmit={handleSaveName} className="flex items-end gap-3">
           <div className="flex-1">
-            <label className="block text-xs text-gray-400 mb-1">Nome de exibição</label>
+            <label htmlFor="profile-name" className="block text-xs text-gray-400 mb-1">Nome de exibição</label>
             <input
+              id="profile-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -93,7 +94,7 @@ export default function ProfileForm({ initialName, email, role }: Props) {
           <button
             type="submit"
             disabled={saving || !name.trim() || name.trim() === initialName}
-            className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm rounded-md transition-colors shrink-0"
+            className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-sm rounded-md transition-colors shrink-0"
           >
             Salvar
           </button>
@@ -106,8 +107,9 @@ export default function ProfileForm({ initialName, email, role }: Props) {
 
         <form onSubmit={handleChangePassword} className="space-y-3">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Senha atual</label>
+            <label htmlFor="profile-current-pw" className="block text-xs text-gray-400 mb-1">Senha atual</label>
             <input
+              id="profile-current-pw"
               type="password"
               value={currentPw}
               onChange={(e) => setCurrentPw(e.target.value)}
@@ -117,8 +119,9 @@ export default function ProfileForm({ initialName, email, role }: Props) {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Nova senha</label>
+            <label htmlFor="profile-new-pw" className="block text-xs text-gray-400 mb-1">Nova senha</label>
             <input
+              id="profile-new-pw"
               type="password"
               value={newPw}
               onChange={(e) => setNewPw(e.target.value)}
@@ -129,8 +132,9 @@ export default function ProfileForm({ initialName, email, role }: Props) {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Confirmar nova senha</label>
+            <label htmlFor="profile-confirm-pw" className="block text-xs text-gray-400 mb-1">Confirmar nova senha</label>
             <input
+              id="profile-confirm-pw"
               type="password"
               value={confirmPw}
               onChange={(e) => setConfirmPw(e.target.value)}
@@ -143,7 +147,7 @@ export default function ProfileForm({ initialName, email, role }: Props) {
           <button
             type="submit"
             disabled={saving || !currentPw || !newPw || !confirmPw}
-            className="w-full py-2 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm rounded-md transition-colors"
+            className="w-full py-2 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-sm rounded-md transition-colors"
           >
             {saving ? "Salvando..." : "Alterar senha"}
           </button>

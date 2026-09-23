@@ -253,7 +253,7 @@ export default function TemplateForm({
     return (
       <button
         onClick={() => setAberto(true)}
-        className="text-sm px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-md transition-colors"
+        className="text-sm px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded-md transition-colors"
       >
         + Novo template
       </button>
@@ -266,7 +266,7 @@ export default function TemplateForm({
         <p className="text-sm font-medium text-white">
           {editando ? `Editando "${editando.name}"` : "Novo template"}
         </p>
-        <button onClick={resetar} className="text-xs text-gray-500 hover:text-white">Cancelar</button>
+        <button onClick={resetar} className="text-xs text-gray-400 hover:text-white">Cancelar</button>
       </div>
 
       {editando && (
@@ -302,7 +302,7 @@ export default function TemplateForm({
               placeholder="Vendas abertas — Natal"
               className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
             />
-            {titulo && <p className="text-[11px] text-gray-500 mt-1 font-mono">name: {nomeGerado || "(precisa de letra ou número)"}</p>}
+            {titulo && <p className="text-[11px] text-gray-400 mt-1 font-mono">name: {nomeGerado || "(precisa de letra ou número)"}</p>}
           </div>
           <div>
             <label className="block text-xs text-gray-400 mb-1">Idioma</label>
@@ -323,7 +323,7 @@ export default function TemplateForm({
             Utility
           </label>
         </div>
-        <p className="text-[11px] text-gray-500 mt-1">
+        <p className="text-[11px] text-gray-400 mt-1">
           A Meta pode reclassificar depois de revisar — se o texto tiver tom promocional,
           Utility pode sair aprovado como Marketing, e o preço segue a categoria final.
         </p>
@@ -355,7 +355,7 @@ export default function TemplateForm({
               placeholder="Olá, {{1}}!"
               className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
             />
-            <p className="text-[11px] text-gray-500 mt-1">{headerTexto.length}/{LIMITE_HEADER} · no máximo 1 variável</p>
+            <p className="text-[11px] text-gray-400 mt-1">{headerTexto.length}/{LIMITE_HEADER} · no máximo 1 variável</p>
             {headerVars.length === 1 && (
               <input
                 value={headerExemplo}
@@ -381,7 +381,7 @@ export default function TemplateForm({
               onChange={(e) => { const f = e.target.files?.[0]; if (f) void subirMidia(f); }}
               className="text-xs text-gray-300"
             />
-            <p className="text-[11px] text-gray-500">JPEG/PNG até 5MB · MP4/3GPP até 16MB · PDF até 5MB</p>
+            <p className="text-[11px] text-gray-400">JPEG/PNG até 5MB · MP4/3GPP até 16MB · PDF até 5MB</p>
             {enviandoMidia && <p className="text-[11px] text-gray-400">Enviando…</p>}
             {headerMidiaHandle && (
               <p className="text-[11px] text-green-400">✓ {headerMidiaNome} ({headerMidiaFormato.toLowerCase()}) pronto</p>
@@ -400,7 +400,7 @@ export default function TemplateForm({
           placeholder="O show {{1}} chega em {{2}}. Garanta seu ingresso!"
           className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
         />
-        <p className="text-[11px] text-gray-500 mt-1">{bodyTexto.length}/{LIMITE_BODY}</p>
+        <p className="text-[11px] text-gray-400 mt-1">{bodyTexto.length}/{LIMITE_BODY}</p>
         {bodyVars.length > 0 && variavelNaBordaDoCorpo(bodyTexto) && (
           <p className="text-[11px] text-amber-400 mt-1">
             A Meta recusa variável logo no início ou no fim do corpo — falta uma palavra
@@ -479,7 +479,7 @@ export default function TemplateForm({
 
             {botaoModo === "rastreada" && (
               urlRastreadaPreview ? (
-                <p className="text-[11px] text-gray-500 font-mono">{urlRastreadaPreview}</p>
+                <p className="text-[11px] text-gray-400 font-mono">{urlRastreadaPreview}</p>
               ) : (
                 <p className="text-[11px] text-red-400">
                   NEXT_PUBLIC_LINK_BASE_URL não configurado — não dá para montar a URL rastreada.
@@ -525,7 +525,7 @@ export default function TemplateForm({
             )}
 
             {botaoModo === "quick_reply" && (
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[11px] text-gray-400">
                 Sem link — a resposta chega como mensagem, rastreável do mesmo jeito que os
                 botões de opt-out.
               </p>
@@ -536,13 +536,13 @@ export default function TemplateForm({
 
       {bodyTexto.trim() && (
         <div className="bg-gray-800/40 border border-gray-800 rounded-md p-3 space-y-1">
-          <p className="text-[11px] text-gray-500 uppercase tracking-wide">Como o fã vê</p>
+          <p className="text-[11px] text-gray-400 uppercase tracking-wide">Como o fã vê</p>
           {headerTipo === "texto" && headerTexto.trim() && <p className="text-sm text-white font-semibold">{previewHeader}</p>}
           {headerTipo === "midia" && (
-            <p className="text-xs text-gray-500">🖼 {headerMidiaNome ?? `cabeçalho de ${headerMidiaFormato.toLowerCase()}`}</p>
+            <p className="text-xs text-gray-400">🖼 {headerMidiaNome ?? `cabeçalho de ${headerMidiaFormato.toLowerCase()}`}</p>
           )}
           <p className="text-sm text-gray-200 whitespace-pre-wrap">{previewBody}</p>
-          {footerTexto.trim() && <p className="text-xs text-gray-500">{footerTexto}</p>}
+          {footerTexto.trim() && <p className="text-xs text-gray-400">{footerTexto}</p>}
           {temBotao && botaoTexto.trim() && (
             <p className="text-xs text-green-400 pt-1 border-t border-gray-800 mt-1">↗ {botaoTexto}</p>
           )}
@@ -554,7 +554,7 @@ export default function TemplateForm({
       <button
         onClick={() => void enviar()}
         disabled={enviando || (!editando && !titulo.trim()) || !bodyTexto.trim() || !credentialId || faltaMidia}
-        className="w-full text-sm px-3 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white rounded-md transition-colors"
+        className="w-full text-sm px-3 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white rounded-md transition-colors"
       >
         {enviando ? "Enviando..." : editando ? "Reenviar edição" : "Enviar para revisão"}
       </button>

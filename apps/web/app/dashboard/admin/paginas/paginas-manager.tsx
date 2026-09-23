@@ -240,7 +240,7 @@ export default function PaginasManager({
         <button
           onClick={criarPagina}
           disabled={criando || slug.length < 3 || !titulo.trim()}
-          className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm rounded-md"
+          className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm rounded-md"
         >
           {criando ? "Criando..." : "Criar página"}
         </button>
@@ -308,7 +308,7 @@ export default function PaginasManager({
                         await salvarPagina({ avatarPath: "" });
                         await apagarImagem(antigo);
                       }}
-                      className="ml-2 text-gray-500 hover:text-red-400"
+                      className="ml-2 text-gray-400 hover:text-red-400"
                     >
                       remover
                     </button>
@@ -425,7 +425,7 @@ export default function PaginasManager({
             ))}
 
             {daPagina.length === 0 && (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-400">
                 Nenhum bloco ainda. Comece por <b>Agenda de shows</b> — ele já vem preenchido
                 com as datas do board.
               </p>
@@ -451,7 +451,7 @@ export default function PaginasManager({
                   toast.error(err instanceof Error ? err.message : String(err));
                 }
               }}
-              className="text-xs text-gray-500 hover:text-red-400"
+              className="text-xs text-gray-400 hover:text-red-400"
             >
               remover esta página
             </button>
@@ -496,7 +496,7 @@ function BlocoEditor({
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-gray-300">
           {ROTULO_TIPO[bloco.tipo]}
-          {bloco.cliques > 0 && <span className="text-gray-500"> · {bloco.cliques} clique(s)</span>}
+          {bloco.cliques > 0 && <span className="text-gray-400"> · {bloco.cliques} clique(s)</span>}
         </p>
         <div className="flex items-center gap-2 text-xs">
           <button onClick={() => onMover(-1)} disabled={primeiro} className="text-gray-400 hover:text-white disabled:opacity-30">↑</button>
@@ -504,7 +504,7 @@ function BlocoEditor({
           <button onClick={() => onSalvar({ ativo: !bloco.ativo })} className="text-gray-400 hover:text-white">
             {bloco.ativo ? "esconder" : "mostrar"}
           </button>
-          <button onClick={onRemover} className="text-gray-500 hover:text-red-400">remover</button>
+          <button onClick={onRemover} className="text-gray-400 hover:text-red-400">remover</button>
         </div>
       </div>
 
@@ -570,7 +570,7 @@ function BlocoEditor({
 
           {/* Bloco de agenda que não casa com nenhum show é invisível na
               página e não dá erro nenhum — então a contagem aparece aqui. */}
-          <p className={`text-xs ${quantos > 0 ? "text-gray-500" : "text-amber-400"}`}>
+          <p className={`text-xs ${quantos > 0 ? "text-gray-400" : "text-amber-400"}`}>
             {artistaDaPagina
               ? quantos > 0
                 ? `${quantos} show(s) no ar entram neste bloco`
@@ -610,7 +610,7 @@ function ImagemDoBloco({
                 onSalvar("");
                 await onApagar(path);
               }}
-              className="ml-2 text-gray-500 hover:text-red-400"
+              className="ml-2 text-gray-400 hover:text-red-400"
             >
               remover imagem
             </button>
@@ -670,7 +670,7 @@ function Cor({ label, valor, onSalvar }: { label: string; valor: string; onSalva
           onChange={(e) => onSalvar(e.target.value)}
           className="h-9 w-12 rounded bg-gray-800 border border-gray-700"
         />
-        <span className="font-mono text-gray-500">{valor}</span>
+        <span className="font-mono text-gray-400">{valor}</span>
       </div>
     </label>
   );

@@ -64,7 +64,7 @@ export default function AlertHistoryClient({ initialEvents, total }: Props) {
                 Alerta:{" "}
                 <span className="text-white font-medium">{event.alerts?.name ?? event.alert_id}</span>
               </span>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-400">
                 {new Date(event.created_at).toLocaleString("pt-BR")}
               </span>
             </div>

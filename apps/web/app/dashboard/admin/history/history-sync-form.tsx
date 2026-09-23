@@ -108,8 +108,9 @@ export default function HistorySyncForm({ sessions }: { sessions: Session[] }) {
     <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-5">
       <div className="space-y-3">
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Número WhatsApp</label>
+          <label htmlFor="history-session" className="block text-xs text-gray-400 mb-1">Número WhatsApp</label>
           <select
+            id="history-session"
             value={sessionId}
             onChange={(e) => setSessionId(e.target.value)}
             className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
@@ -123,10 +124,11 @@ export default function HistorySyncForm({ sessions }: { sessions: Session[] }) {
         </div>
 
         <div>
-          <label className="block text-xs text-gray-400 mb-1">
+          <label htmlFor="history-limit" className="block text-xs text-gray-400 mb-1">
             Máximo de mensagens por conversa
           </label>
           <select
+            id="history-limit"
             value={limit}
             onChange={(e) => setLimit(e.target.value)}
             className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
@@ -142,7 +144,7 @@ export default function HistorySyncForm({ sessions }: { sessions: Session[] }) {
       <button
         onClick={handleSync}
         disabled={loading || !sessionId}
-        className="w-full py-2 px-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+        className="w-full py-2 px-4 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
       >
         {status === "starting" && "Iniciando..."}
         {status === "running" && (
@@ -159,7 +161,7 @@ export default function HistorySyncForm({ sessions }: { sessions: Session[] }) {
 
       {/* Estado running sem chatsFound ainda */}
       {status === "running" && chatsFound == null && (
-        <p className="text-xs text-gray-500 text-center">
+        <p className="text-xs text-gray-400 text-center">
           Aguardando início — pode levar alguns segundos...
         </p>
       )}

@@ -42,7 +42,7 @@ const STATUS_COLOR: Record<string, string> = {
   paused: "text-orange-400 border-orange-800",
   completed: "text-green-400 border-green-800",
   failed: "text-red-400 border-red-800",
-  cancelled: "text-gray-500 border-gray-700",
+  cancelled: "text-gray-400 border-gray-700",
 };
 
 export default function CampaignsList({ initial }: { initial: Campaign[] }) {
@@ -153,7 +153,7 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-white">{c.name}</p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-400">
                 {c.template_name} {c.template_category ? `· ${c.template_category}` : ""}
               </p>
               {/* O motivo da pausa fica na TELA, não só no events_log: uma
@@ -170,7 +170,7 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
               {c.status === "ready" && (
                 <button
                   onClick={() => handleFire(c.id)}
-                  className="text-xs px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded-md transition-colors"
+                  className="text-xs px-3 py-1 bg-green-700 hover:bg-green-600 text-white rounded-md transition-colors"
                 >
                   Disparar
                 </button>
@@ -225,7 +225,7 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
 
           {c.total_recipients > 0 && (
             <div className="mt-2 space-y-1">
-              <div className="flex justify-between text-xs text-gray-500">
+              <div className="flex justify-between text-xs text-gray-400">
                 <span>{c.sent_count + c.failed_count}/{c.total_recipients} processados</span>
                 <span>
                   {c.delivered_count} entregues · {c.read_count} lidos · {c.failed_count} falhas

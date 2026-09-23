@@ -101,6 +101,7 @@ export default function FaqManager({
           <select
             value={artista}
             onChange={(e) => setArtista(e.target.value)}
+            aria-label="Artista (opcional)"
             className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
           >
             <option value="">Todos os artistas</option>
@@ -118,7 +119,7 @@ export default function FaqManager({
 
       <div className="space-y-3">
         <h2 className="text-sm font-semibold text-white">
-          Perguntas <span className="text-gray-500 font-normal">({itens.length})</span>
+          Perguntas <span className="text-gray-400 font-normal">({itens.length})</span>
         </h2>
         {itens.length === 0 && <EmptyState title="Nenhuma pergunta cadastrada." />}
 
@@ -134,7 +135,7 @@ export default function FaqManager({
                   {item.ativo ? "desativar" : "ativar"}
                 </button>
                 {isAdmin && (
-                  <button onClick={() => remover(item.id)} className="text-xs text-gray-500 hover:text-red-400">
+                  <button onClick={() => remover(item.id)} className="text-xs text-gray-400 hover:text-red-400">
                     remover
                   </button>
                 )}
@@ -150,7 +151,7 @@ export default function FaqManager({
               }}
               className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200"
             />
-            <p className="text-[11px] text-gray-500">
+            <p className="text-[11px] text-gray-400">
               {item.artista ?? "todos os artistas"} · ordem {item.ordem}
               {!item.ativo && " · inativa (não aparece na central)"}
             </p>

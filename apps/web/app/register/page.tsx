@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
+import Button from '@/components/ui/button'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -39,7 +40,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+    <main className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <h1 className="text-2xl font-bold text-white mb-2">Criar conta</h1>
         <p className="text-gray-400 mb-6">Comece a monitorar suas comunicações WhatsApp</p>
@@ -90,7 +91,7 @@ export default function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(v => !v)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors p-1"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors p-1"
                 aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -111,7 +112,7 @@ export default function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setShowConfirm(v => !v)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors p-1"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors p-1"
                 aria-label={showConfirm ? 'Ocultar confirmação' : 'Mostrar confirmação'}
               >
                 {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -121,19 +122,16 @@ export default function RegisterPage() {
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
 
-          <button
-            type="submit" disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors"
-          >
+          <Button type="submit" variant="primary" size="md" disabled={loading} className="w-full justify-center">
             {loading ? 'Criando conta...' : 'Criar conta'}
-          </button>
+          </Button>
 
           <p className="text-center text-gray-400 text-sm">
             Já tem conta?{' '}
-            <Link href="/login" className="text-green-400 hover:underline">Entrar</Link>
+            <Link href="/login" className="text-green-400 underline hover:text-green-300">Entrar</Link>
           </p>
         </form>
       </div>
-    </div>
+    </main>
   )
 }

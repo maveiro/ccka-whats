@@ -63,7 +63,7 @@ export default function SaudeManager({ iniciais, temWebhook }: { iniciais: Erro[
               key={p.horas}
               onClick={() => { setHoras(p.horas); setVersao((v) => v + 1); }}
               className={`text-xs px-2 py-1 rounded ${
-                p.horas === horas ? "bg-gray-800 text-white" : "text-gray-500 hover:text-white"
+                p.horas === horas ? "bg-gray-800 text-white" : "text-gray-300 hover:text-white"
               }`}
             >
               {p.rotulo}
@@ -75,13 +75,13 @@ export default function SaudeManager({ iniciais, temWebhook }: { iniciais: Erro[
           // de 18/09/2026 (aviso ativo em standby), não um defeito — por isso
           // a frase é neutra e não um alerta em âmbar, que lido todo dia
           // pareceria problema.
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-400">
             aviso ativo não configurado — a leitura é por esta tela
           </span>
         )}
       </div>
 
-      <Suspense fallback={<p className="text-sm text-gray-500">carregando...</p>}>
+      <Suspense fallback={<p className="text-sm text-gray-400">carregando...</p>}>
         <Lista promessa={promessa} onReconhecer={reconhecer} />
       </Suspense>
     </div>
@@ -99,7 +99,7 @@ function Lista({
 
   const erros = resposta.erros;
   if (erros.length === 0) {
-    return <p className="text-sm text-gray-500">Nenhum erro no período. É o estado que a gente quer.</p>;
+    return <p className="text-sm text-gray-400">Nenhum erro no período. É o estado que a gente quer.</p>;
   }
 
   return (
@@ -116,7 +116,7 @@ function Lista({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm text-white">
-                  <span className="text-gray-500">{e.event_type}</span>{" "}
+                  <span className="text-gray-400">{e.event_type}</span>{" "}
                   <b>{Number(e.ocorrencias)}×</b>
                   {e.reconhecido && Number(e.novo_desde_ack) > 0 && (
                     <span className="text-amber-400"> · {Number(e.novo_desde_ack)} depois de reconhecido</span>

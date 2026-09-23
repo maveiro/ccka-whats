@@ -69,8 +69,9 @@ export default function InviteOperatorForm({ tenantId }: Props) {
       </div>
 
       <div>
-        <label className="block text-xs text-gray-400 mb-1">Papel</label>
+        <label htmlFor="invite-role" className="block text-xs text-gray-400 mb-1">Papel</label>
         <select
+          id="invite-role"
           value={role}
           onChange={(e) => setRole(e.target.value as "operator" | "admin")}
           className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
@@ -83,7 +84,7 @@ export default function InviteOperatorForm({ tenantId }: Props) {
       <button
         onClick={handleInvite}
         disabled={loading || !email}
-        className="w-full py-2 px-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+        className="w-full py-2 px-4 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
       >
         {loading ? "Enviando convite..." : "Convidar"}
       </button>

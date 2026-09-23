@@ -134,7 +134,7 @@ export default function AlertsManager({
 
           <div>
             <label className="block text-xs text-gray-400 mb-1">
-              Palavras-chave <span className="text-gray-500">(separadas por vírgula)</span>
+              Palavras-chave <span className="text-gray-400">(separadas por vírgula)</span>
             </label>
             <input
               type="text"
@@ -147,10 +147,11 @@ export default function AlertsManager({
           </div>
 
           <div>
-            <label className="block text-xs text-gray-400 mb-1">
-              Sessão <span className="text-gray-500">(opcional)</span>
+            <label htmlFor="alert-session" className="block text-xs text-gray-400 mb-1">
+              Sessão <span className="text-gray-400">(opcional)</span>
             </label>
             <select
+              id="alert-session"
               value={sessionId}
               onChange={(e) => setSessionId(e.target.value)}
               className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500"
@@ -174,7 +175,7 @@ export default function AlertsManager({
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+          className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
         >
           {loading ? "Criando..." : "Criar Alerta"}
         </button>
@@ -203,7 +204,7 @@ export default function AlertsManager({
                       className={`text-xs rounded px-2 py-0.5 ${
                         alert.active
                           ? "bg-green-900/50 text-green-400"
-                          : "bg-gray-700 text-gray-500"
+                          : "bg-gray-700 text-gray-400"
                       }`}
                     >
                       {alert.active ? "ativo" : "inativo"}
@@ -263,7 +264,7 @@ export default function AlertsManager({
                     Alerta:{" "}
                     <span className="text-white">{event.alerts?.name ?? event.alert_id}</span>
                   </span>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-gray-400">
                     {new Date(event.created_at).toLocaleString("pt-BR")}
                   </span>
                 </div>

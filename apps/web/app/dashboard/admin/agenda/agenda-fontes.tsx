@@ -279,7 +279,7 @@ export default function AgendaFontes({
     <section className="space-y-4">
       <div>
         <h2 className="text-sm font-medium text-white">Sincronização com o Monday</h2>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-gray-400 mt-1">
           A agenda vem do board de shows, pelo painel-shows. Cada número declara como o
           board é filtrado para ele. O nome do artista na central não é digitado aqui: vem
           do próprio número, que é o mesmo valor que o Flow usa para montar a lista do fã.
@@ -315,7 +315,7 @@ export default function AgendaFontes({
           <button
             onClick={salvarConexao}
             disabled={salvandoConexao || !baseUrl || !token}
-            className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm rounded-md"
+            className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm rounded-md"
           >
             {salvandoConexao ? "Salvando..." : temConexao ? "Substituir conexão" : "Salvar conexão"}
           </button>
@@ -334,9 +334,9 @@ export default function AgendaFontes({
                   <div>
                     <p className="text-sm text-white">
                       {f.artista_central ?? "(número sem artista)"}{" "}
-                      <span className="text-gray-500">· {f.numero ?? "—"}</span>
+                      <span className="text-gray-400">· {f.numero ?? "—"}</span>
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-xs text-gray-400 mt-0.5">
                       board: artista <b className="text-gray-300">{f.artista_origem}</b>
                       {" · status "}
                       <b className="text-gray-300">{f.status_permitidos.join(", ")}</b>
@@ -362,14 +362,14 @@ export default function AgendaFontes({
                       {f.ativo ? "pausar" : "retomar"}
                     </button>
                     {isAdmin && (
-                      <button onClick={() => remover(f)} className="text-xs text-gray-500 hover:text-red-400">
+                      <button onClick={() => remover(f)} className="text-xs text-gray-400 hover:text-red-400">
                         remover
                       </button>
                     )}
                   </div>
                 </div>
 
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-400">
                   {f.ultima_sync_em
                     ? <>última sincronização {new Date(f.ultima_sync_em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} · {naAgenda} show(s) na agenda{(r?.removidos ?? 0) > 0 && `, ${r?.removidos} removido(s)`}</>
                     : "nunca sincronizada"}
@@ -386,7 +386,7 @@ export default function AgendaFontes({
                   </p>
                 )}
                 {!f.ativo && (
-                  <p className="text-xs text-gray-500">Pausada: o cron não atualiza esta agenda.</p>
+                  <p className="text-xs text-gray-400">Pausada: o cron não atualiza esta agenda.</p>
                 )}
 
                 {editando === f.id && (
@@ -409,7 +409,7 @@ export default function AgendaFontes({
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
           <div>
             <p className="text-xs font-medium text-white">Espetáculos (arte e sinopse na tela do show)</p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-400 mt-1">
               Vêm do board de espetáculos. O show diz qual é o espetáculo; o espetáculo
               carrega a arte e o texto. A arte precisa ser JPEG ou PNG anexado na coluna de
               arquivo — reduzimos para caber no limite do WhatsApp.
@@ -421,7 +421,7 @@ export default function AgendaFontes({
               <div>
                 <p className="text-gray-200">
                   {t.nome}
-                  {t.artista_nome && <span className="text-gray-500"> · {t.artista_nome}</span>}
+                  {t.artista_nome && <span className="text-gray-400"> · {t.artista_nome}</span>}
                 </p>
                 {t.imagem_erro && (
                   <p className="text-amber-400 mt-0.5">arte recusada: {t.imagem_erro}</p>
@@ -551,7 +551,7 @@ export default function AgendaFontes({
           <button
             onClick={criarAgenda}
             disabled={criando || !credencialId || !artistaOrigem || statusEscolhidos.length === 0}
-            className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm rounded-md"
+            className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm rounded-md"
           >
             {criando ? "Criando..." : "Criar agenda"}
           </button>
@@ -676,7 +676,7 @@ function FiltroEditor({
             setSalvando(false);
           }}
           disabled={salvando || status.length === 0 || !artistaOrigem}
-          className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm rounded-md"
+          className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm rounded-md"
         >
           {salvando ? "Salvando..." : "Salvar filtro"}
         </button>

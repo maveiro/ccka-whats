@@ -76,7 +76,7 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
               <option key={s.id} value={s.id}>{sessionLabel(s)}</option>
             ))}
           </select>
-          {loading && <span className="text-xs text-gray-500 animate-pulse">Atualizando...</span>}
+          {loading && <span className="text-xs text-gray-400 animate-pulse">Atualizando...</span>}
         </div>
       )}
 
@@ -106,7 +106,7 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
         aria-labelledby="chart-by-day-title"
       >
         <h2 id="chart-by-day-title" className="text-white font-semibold mb-4">
-          Mensagens por dia <span className="text-gray-500 font-normal text-sm">(últimos 14 dias)</span>
+          Mensagens por dia <span className="text-gray-400 font-normal text-sm">(últimos 14 dias)</span>
         </h2>
 
         {data.messagesByDay.length === 0 || data.messagesByDay.every(d => d.count === 0) ? (
@@ -155,7 +155,7 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
                       aria-label={`${d.date}: ${d.count} mensagens`}
                     />
                   </div>
-                  <span className="text-xs text-gray-500 select-none">{day}</span>
+                  <span className="text-xs text-gray-400 select-none">{day}</span>
                 </div>
               )
             })}
@@ -223,7 +223,7 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
                     <span className="text-gray-400 text-sm tabular-nums w-4 shrink-0">{i + 1}.</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-gray-300 text-sm truncate">
-                        {c.isGroup && <span className="text-xs text-gray-500 mr-1">[grupo]</span>}
+                        {c.isGroup && <span className="text-xs text-gray-400 mr-1">[grupo]</span>}
                         {c.name || c.jid}
                       </p>
                       <div
@@ -260,7 +260,7 @@ function StatCard({ label, value, sub }: { label: string; value: number; sub?: s
       <p className="text-white text-3xl font-bold mt-1 tabular-nums">
         {value.toLocaleString("pt-BR")}
       </p>
-      {sub && <p className="text-gray-500 text-xs mt-1">{sub}</p>}
+      {sub && <p className="text-gray-400 text-xs mt-1">{sub}</p>}
     </div>
   )
 }
@@ -288,11 +288,11 @@ function EmptyChart({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-8 gap-2">
       <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400" aria-hidden="true">
           <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
         </svg>
       </div>
-      <p className="text-xs text-gray-500 text-center">{message}</p>
+      <p className="text-xs text-gray-400 text-center">{message}</p>
     </div>
   )
 }

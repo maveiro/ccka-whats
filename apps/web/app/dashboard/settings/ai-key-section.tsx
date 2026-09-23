@@ -89,7 +89,7 @@ export default function AiKeySection({ hasKey, source, maskedKey, features }: Pr
     <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-4">
       <div>
         <h2 className="text-sm font-medium text-gray-300">Inteligência Artificial</h2>
-        <p className="text-xs text-gray-500 mt-0.5">
+        <p className="text-xs text-gray-400 mt-0.5">
           {source === "byok"
             ? "Usando a sua chave OpenAI."
             : source === "platform"
@@ -104,7 +104,7 @@ export default function AiKeySection({ hasKey, source, maskedKey, features }: Pr
           <div key={f.name} className="flex items-start gap-3">
             <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${hasKey ? "bg-green-500" : "bg-gray-600"}`} />
             <div>
-              <p className={`text-sm ${hasKey ? "text-white" : "text-gray-500"}`}>{f.name}</p>
+              <p className={`text-sm ${hasKey ? "text-white" : "text-gray-400"}`}>{f.name}</p>
               <p className="text-xs text-gray-400">{f.description}</p>
             </div>
           </div>
@@ -153,7 +153,7 @@ export default function AiKeySection({ hasKey, source, maskedKey, features }: Pr
             </div>
             <div className="flex items-center gap-2">
               <button onClick={handleSave} disabled={busy || !apiKey.trim()}
-                className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm rounded-md transition-colors">
+                className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-sm rounded-md transition-colors">
                 {busy ? "Salvando..." : "Salvar"}
               </button>
               <button onClick={handleTest} disabled={busy}
@@ -161,7 +161,7 @@ export default function AiKeySection({ hasKey, source, maskedKey, features }: Pr
                 Testar conexão
               </button>
               <button onClick={() => { setShowInput(false); setApiKey(""); setMsg(null); }} disabled={busy}
-                className="text-xs text-gray-500 hover:text-gray-300 transition-colors ml-auto">
+                className="text-xs text-gray-400 hover:text-gray-300 transition-colors ml-auto">
                 Cancelar
               </button>
             </div>

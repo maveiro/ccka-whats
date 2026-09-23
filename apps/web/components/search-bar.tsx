@@ -111,7 +111,7 @@ export default function SearchBar() {
           />
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400"
             fill="none" viewBox="0 0 24 24" stroke="currentColor"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -158,12 +158,12 @@ export default function SearchBar() {
           )}
 
           {!hasResults && !loading && (
-            <p className="text-center text-xs text-gray-500 py-4">Nenhum resultado para &ldquo;{query}&rdquo;</p>
+            <p className="text-center text-xs text-gray-400 py-4">Nenhum resultado para &ldquo;{query}&rdquo;</p>
           )}
 
           {results?.chats && results.chats.length > 0 && (
             <div>
-              <p className="text-xs text-gray-500 px-3 pt-2 pb-1 uppercase tracking-wider">Conversas</p>
+              <p className="text-xs text-gray-400 px-3 pt-2 pb-1 uppercase tracking-wider">Conversas</p>
               {results.chats.map((chat) => (
                 <Link
                   key={chat.id}
@@ -172,7 +172,7 @@ export default function SearchBar() {
                   className="block px-3 py-2 hover:bg-gray-800 transition-colors"
                 >
                   <p className="text-sm text-white">{highlight(displayChatName(chat.name, chat.jid), query)}</p>
-                  {chat.name && chat.name !== chat.jid && <p className="text-xs text-gray-500">{chat.jid}</p>}
+                  {chat.name && chat.name !== chat.jid && <p className="text-xs text-gray-400">{chat.jid}</p>}
                 </Link>
               ))}
             </div>
@@ -180,7 +180,7 @@ export default function SearchBar() {
 
           {results?.messages && results.messages.length > 0 && (
             <div>
-              <p className="text-xs text-gray-500 px-3 pt-2 pb-1 uppercase tracking-wider">Mensagens</p>
+              <p className="text-xs text-gray-400 px-3 pt-2 pb-1 uppercase tracking-wider">Mensagens</p>
               {results.messages.map((msg) => {
                 const text = msg.body ?? msg.caption;
                 const sender = msg.from_me ? "Você" : (msg.contacts?.push_name ?? msg.contacts?.name ?? "");
@@ -195,7 +195,7 @@ export default function SearchBar() {
                       <div className="min-w-0">
                         <p className="text-xs text-gray-400 truncate">
                           {msg.chats ? displayChatName(msg.chats.name, msg.chats.jid) : "Chat"}
-                          {sender && <span className="ml-1 text-gray-500">· {sender}</span>}
+                          {sender && <span className="ml-1 text-gray-400">· {sender}</span>}
                           {searchMode === "semantic" && msg.similarity != null && (
                             <span className="ml-1 text-green-500/70">
                               · {Math.round(msg.similarity * 100)}%
@@ -208,7 +208,7 @@ export default function SearchBar() {
                             : highlight(text ?? `[${msg.type}]`, query)}
                         </p>
                       </div>
-                      <span className="text-xs text-gray-500 shrink-0">{formatTime(msg.timestamp)}</span>
+                      <span className="text-xs text-gray-400 shrink-0">{formatTime(msg.timestamp)}</span>
                     </div>
                   </Link>
                 );

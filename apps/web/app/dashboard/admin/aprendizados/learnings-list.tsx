@@ -102,7 +102,7 @@ export default function LearningsList({ initial }: { initial: Learning[] }) {
             <button
               onClick={handleSave}
               disabled={saving || !title.trim() || !description.trim()}
-              className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+              className="flex-1 py-2 px-4 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
             >
               {saving ? "Salvando..." : "Salvar"}
             </button>

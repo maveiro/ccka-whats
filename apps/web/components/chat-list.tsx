@@ -202,7 +202,7 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
                   className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors ${
                     selectedSession === s.id
                       ? "bg-gray-800 text-white"
-                      : "text-gray-500 hover:bg-gray-900 hover:text-gray-300"
+                      : "text-gray-400 hover:bg-gray-900 hover:text-gray-300"
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[s.status] ?? "bg-gray-500"}`} />
@@ -227,7 +227,7 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
               key={tab.key}
               onClick={() => setFilter(tab.key)}
               className={`flex-1 text-xs py-1 rounded-md font-medium transition-colors ${
-                filter === tab.key ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"
+                filter === tab.key ? "bg-gray-700 text-white" : "text-gray-400 hover:text-gray-300"
               }`}
             >
               {tab.label}
@@ -267,7 +267,7 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
                   </p>
                   <div className="flex flex-col items-end shrink-0 gap-1">
                     {chat.last_message_at && (
-                      <span className="text-xs text-gray-500" title={formatFullDateTime(chat.last_message_at)}>
+                      <span className="text-xs text-gray-400" title={formatFullDateTime(chat.last_message_at)}>
                         {formatDistanceToNow(chat.last_message_at)}
                       </span>
                     )}
@@ -279,7 +279,7 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
                   </div>
                 </div>
                 {chat.last_message_body && (
-                  <p className="text-xs text-gray-500 truncate mt-0.5">
+                  <p className="text-xs text-gray-400 truncate mt-0.5">
                     {chat.last_message_body}
                   </p>
                 )}

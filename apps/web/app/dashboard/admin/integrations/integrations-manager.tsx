@@ -87,7 +87,7 @@ export default function IntegrationsManager({ integrations: initial, tenantId }:
         >
           <div>
             <p className="text-sm font-medium text-white">{integration.label ?? integration.type}</p>
-            <p className="text-xs text-gray-500 capitalize">{integration.type}</p>
+            <p className="text-xs text-gray-400 capitalize">{integration.type}</p>
             {typeof integration.config["api_key"] === "string" && (
               <p className="text-xs text-gray-400 font-mono mt-0.5">
                 ••••••••{integration.config["api_key"].slice(-4)}
@@ -100,7 +100,7 @@ export default function IntegrationsManager({ integrations: initial, tenantId }:
               className={`text-xs px-2 py-1 rounded border transition-colors ${
                 integration.active
                   ? "border-green-700 text-green-400 hover:bg-green-900/30"
-                  : "border-gray-700 text-gray-500 hover:bg-gray-800"
+                  : "border-gray-700 text-gray-400 hover:bg-gray-800"
               }`}
             >
               {integration.active ? "Ativo" : "Inativo"}
@@ -161,7 +161,7 @@ export default function IntegrationsManager({ integrations: initial, tenantId }:
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+              className="flex-1 py-2 px-4 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
             >
               {saving ? "Salvando..." : "Salvar"}
             </button>

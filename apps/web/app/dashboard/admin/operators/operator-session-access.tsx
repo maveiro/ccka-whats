@@ -59,7 +59,7 @@ export default function OperatorSessionAccess({ operatorId, sessions, initialSco
     <div className="border-t border-gray-800 mt-3 -mx-4 -mb-3">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-2 text-xs text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-2 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-800/50 transition-colors"
         aria-expanded={open}
       >
         <span className="font-medium">
@@ -74,7 +74,7 @@ export default function OperatorSessionAccess({ operatorId, sessions, initialSco
             <button
               onClick={() => setScope("all")}
               className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                scope === "all" ? "border-green-700 text-green-400 bg-green-950/30" : "border-gray-700 text-gray-500 hover:text-gray-300"
+                scope === "all" ? "border-green-700 text-green-400 bg-green-950/30" : "border-gray-700 text-gray-400 hover:text-gray-300"
               }`}
             >
               Todos os números
@@ -82,7 +82,7 @@ export default function OperatorSessionAccess({ operatorId, sessions, initialSco
             <button
               onClick={() => setScope("restricted")}
               className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                scope === "restricted" ? "border-green-700 text-green-400 bg-green-950/30" : "border-gray-700 text-gray-500 hover:text-gray-300"
+                scope === "restricted" ? "border-green-700 text-green-400 bg-green-950/30" : "border-gray-700 text-gray-400 hover:text-gray-300"
               }`}
             >
               Restrito a números específicos
@@ -112,7 +112,7 @@ export default function OperatorSessionAccess({ operatorId, sessions, initialSco
           <button
             onClick={handleSave}
             disabled={!dirty || saving}
-            className="text-xs px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white rounded-md transition-colors"
+            className="text-xs px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white rounded-md transition-colors"
           >
             {saving ? "Salvando..." : "Salvar"}
           </button>

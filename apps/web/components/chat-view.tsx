@@ -254,7 +254,7 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
           <ChatAvatar name={chatName} jid={chat.jid} avatarUrl={avatarUrl} size={36} />
           <div className="min-w-0">
             <p className="text-sm font-medium text-white truncate">{displayChatName(chatName, chat.jid)}</p>
-            <p className="text-xs text-gray-500 truncate">{chat.jid}</p>
+            <p className="text-xs text-gray-400 truncate">{chat.jid}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -274,7 +274,7 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
         <div ref={topSentinelRef} className="h-1" />
         {loadingMore && (
           <div className="flex justify-center py-2">
-            <span className="text-xs text-gray-500 animate-pulse">Carregando...</span>
+            <span className="text-xs text-gray-400 animate-pulse">Carregando...</span>
           </div>
         )}
         {(() => {

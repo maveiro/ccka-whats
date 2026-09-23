@@ -170,9 +170,9 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
           <p className="text-sm font-semibold text-white truncate">
             {session.label ?? session.phone_number}
           </p>
-          <p className="text-xs text-gray-500 mt-0.5">{session.phone_number}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{session.phone_number}</p>
           {session.evolution_instance_name && (
-            <p className="text-xs text-gray-500 mt-0.5">{session.evolution_instance_name}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{session.evolution_instance_name}</p>
           )}
           {isCloudApi && (
             <p className="text-xs text-blue-400 mt-0.5">WhatsApp Cloud API (oficial)</p>
@@ -194,7 +194,7 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
       </div>
 
       {session.last_seen_at && (
-        <p className="px-4 pb-2 text-xs text-gray-500">
+        <p className="px-4 pb-2 text-xs text-gray-400">
           Visto: {new Date(session.last_seen_at).toLocaleString("pt-BR")}
         </p>
       )}
@@ -236,7 +236,7 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
       <div className="border-t border-gray-800">
         <button
           onClick={() => setWebhookOpen((v) => !v)}
-          className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-800/50 transition-colors"
           aria-expanded={webhookOpen}
         >
           <span className="font-medium">Configuração do Webhook</span>
@@ -247,7 +247,7 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
           <div className="px-4 pb-4 space-y-3">
             {/* URL */}
             <div className="space-y-1">
-              <p className="text-xs text-gray-500">URL</p>
+              <p className="text-xs text-gray-400">URL</p>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-400 font-mono truncate flex-1 bg-gray-800 px-2 py-1.5 rounded">
                   {webhookUrl}
@@ -265,7 +265,7 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
             {/* Secret */}
             {maskedSecret && (
               <div className="space-y-1">
-                <p className="text-xs text-gray-500">Secret</p>
+                <p className="text-xs text-gray-400">Secret</p>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-400 font-mono flex-1 bg-gray-800 px-2 py-1.5 rounded">
                     {revealedSecret ?? maskedSecret}
@@ -298,7 +298,7 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
       {/* ── Zona de perigo (só admin) ── */}
       {isAdmin && (
       <div className="border-t border-gray-800 px-4 py-3 flex items-center justify-between">
-        <p className="text-xs text-gray-500">Zona de perigo</p>
+        <p className="text-xs text-gray-400">Zona de perigo</p>
         <div className="flex items-center gap-2">
           {deleteConfirm && (
             <span className="text-xs text-red-400">Tem certeza?</span>

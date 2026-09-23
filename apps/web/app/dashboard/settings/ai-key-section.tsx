@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Button from "@/components/ui/button";
 
 type Source = "byok" | "platform" | null;
 
@@ -152,14 +153,12 @@ export default function AiKeySection({ hasKey, source, maskedKey, features }: Pr
               />
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={handleSave} disabled={busy || !apiKey.trim()}
-                className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-sm rounded-md transition-colors">
+              <Button variant="primary" size="md" onClick={handleSave} disabled={busy || !apiKey.trim()}>
                 {busy ? "Salvando..." : "Salvar"}
-              </button>
-              <button onClick={handleTest} disabled={busy}
-                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-gray-200 text-sm rounded-md transition-colors">
+              </Button>
+              <Button variant="secondary" size="md" onClick={handleTest} disabled={busy}>
                 Testar conexão
-              </button>
+              </Button>
               <button onClick={() => { setShowInput(false); setApiKey(""); setMsg(null); }} disabled={busy}
                 className="text-xs text-gray-400 hover:text-gray-300 transition-colors ml-auto">
                 Cancelar

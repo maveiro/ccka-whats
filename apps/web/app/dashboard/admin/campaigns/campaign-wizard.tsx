@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import Papa from "papaparse";
+import Button from "@/components/ui/button";
 
 interface Credential {
   id: string;
@@ -338,20 +339,19 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
           <Field label="Número exibido (opcional)" value={displayPhoneNumber} onChange={setDisplayPhoneNumber} />
           <Field label="Access Token (permanente)" value={accessToken} onChange={setAccessToken} type="password" />
           <div className="flex gap-2">
-            <button
+            <Button
+              variant="primary"
+              size="md"
               onClick={handleSaveCredential}
               disabled={savingCredential || !wabaId || !phoneNumberId || !accessToken}
-              className="flex-1 py-2 px-4 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+              className="flex-1 justify-center"
             >
               {savingCredential ? "Salvando..." : "Salvar e continuar"}
-            </button>
+            </Button>
             {hasCredential && (
-              <button
-                onClick={() => { setStep("template"); setError(null); }}
-                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-md transition-colors"
-              >
+              <Button variant="secondary" size="md" onClick={() => { setStep("template"); setError(null); }}>
                 Cancelar
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -541,16 +541,18 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
             )}
           </div>
           <div className="flex gap-2">
-            <button
+            <Button
+              variant="primary"
+              size="md"
               onClick={handleCreate}
               disabled={creating || !name.trim() || missingTargetUrl || missingFlow}
-              className="flex-1 py-2 px-4 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+              className="flex-1 justify-center"
             >
               {creating ? "Criando..." : "Criar campanha"}
-            </button>
-            <button onClick={() => setStep("csv")} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-md transition-colors">
+            </Button>
+            <Button variant="secondary" size="md" onClick={() => setStep("csv")}>
               ← Voltar
-            </button>
+            </Button>
           </div>
         </div>
       )}

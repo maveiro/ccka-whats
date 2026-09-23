@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Button from "@/components/ui/button";
 
 interface Session {
   id: string;
@@ -141,10 +142,12 @@ export default function HistorySyncForm({ sessions }: { sessions: Session[] }) {
         </div>
       </div>
 
-      <button
+      <Button
+        variant="primary"
+        size="md"
         onClick={handleSync}
         disabled={loading || !sessionId}
-        className="w-full py-2 px-4 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+        className="w-full justify-center"
       >
         {status === "starting" && "Iniciando..."}
         {status === "running" && (
@@ -157,7 +160,7 @@ export default function HistorySyncForm({ sessions }: { sessions: Session[] }) {
         )}
         {(status === "idle" || status === "completed" || status === "error") &&
           "Importar histórico"}
-      </button>
+      </Button>
 
       {/* Estado running sem chatsFound ainda */}
       {status === "running" && chatsFound == null && (

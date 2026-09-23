@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import Button from "@/components/ui/button";
 
 interface Show {
   id: string;
@@ -131,13 +132,9 @@ export default function AgendaManager({
             chega fora do ar de propósito — enquanto estiver assim, o fã não vê, mesmo
             estando à venda.
           </p>
-          <button
-            onClick={publicarTodos}
-            disabled={publicandoTodos}
-            className="shrink-0 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white rounded px-3 py-1.5"
-          >
+          <Button variant="primary" size="md" onClick={publicarTodos} disabled={publicandoTodos} className="shrink-0">
             {publicandoTodos ? "Publicando…" : "Publicar todos"}
-          </button>
+          </Button>
         </div>
       )}
 

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import Button from "@/components/ui/button";
 import {
   formularioAPartirDeComponentes,
   placeholders,
@@ -251,12 +252,9 @@ export default function TemplateForm({
 
   if (!aberto) {
     return (
-      <button
-        onClick={() => setAberto(true)}
-        className="text-sm px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded-md transition-colors"
-      >
+      <Button variant="primary" size="md" onClick={() => setAberto(true)}>
         + Novo template
-      </button>
+      </Button>
     );
   }
 
@@ -551,13 +549,15 @@ export default function TemplateForm({
 
       {erro && <p className="text-xs text-red-400 bg-red-900/20 border border-red-900 rounded px-2 py-1">{erro}</p>}
 
-      <button
+      <Button
+        variant="primary"
+        size="md"
         onClick={() => void enviar()}
         disabled={enviando || (!editando && !titulo.trim()) || !bodyTexto.trim() || !credentialId || faltaMidia}
-        className="w-full text-sm px-3 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white rounded-md transition-colors"
+        className="w-full justify-center"
       >
         {enviando ? "Enviando..." : editando ? "Reenviar edição" : "Enviar para revisão"}
-      </button>
+      </Button>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import Button from "@/components/ui/button";
 
 interface Session {
   id: string;
@@ -109,13 +110,9 @@ export default function OperatorSessionAccess({ operatorId, sessions, initialSco
             </div>
           )}
 
-          <button
-            onClick={handleSave}
-            disabled={!dirty || saving}
-            className="text-xs px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white rounded-md transition-colors"
-          >
+          <Button variant="primary" onClick={handleSave} disabled={!dirty || saving}>
             {saving ? "Salvando..." : "Salvar"}
-          </button>
+          </Button>
         </div>
       )}
     </div>

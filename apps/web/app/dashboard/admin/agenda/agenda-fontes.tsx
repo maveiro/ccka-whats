@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import Button from "@/components/ui/button";
 
 // Agendas sincronizadas com o board do Monday, pela ponte com o painel-shows
 // (PRD docs/prd/prd-agenda-via-painel-shows.md).
@@ -312,13 +313,9 @@ export default function AgendaFontes({
           <p className="text-xs text-gray-400">
             O token nunca é reexibido depois de salvo.
           </p>
-          <button
-            onClick={salvarConexao}
-            disabled={salvandoConexao || !baseUrl || !token}
-            className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm rounded-md"
-          >
+          <Button variant="primary" size="md" onClick={salvarConexao} disabled={salvandoConexao || !baseUrl || !token}>
             {salvandoConexao ? "Salvando..." : temConexao ? "Substituir conexão" : "Salvar conexão"}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -548,13 +545,9 @@ export default function AgendaFontes({
             />
           </label>
 
-          <button
-            onClick={criarAgenda}
-            disabled={criando || !credencialId || !artistaOrigem || statusEscolhidos.length === 0}
-            className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm rounded-md"
-          >
+          <Button variant="primary" size="md" onClick={criarAgenda} disabled={criando || !credencialId || !artistaOrigem || statusEscolhidos.length === 0}>
             {criando ? "Criando..." : "Criar agenda"}
-          </button>
+          </Button>
         </div>
       )}
     </section>
@@ -664,7 +657,9 @@ function FiltroEditor({
       </label>
 
       <div className="flex gap-2">
-        <button
+        <Button
+          variant="primary"
+          size="md"
           onClick={async () => {
             setSalvando(true);
             await onSalvar({
@@ -676,13 +671,12 @@ function FiltroEditor({
             setSalvando(false);
           }}
           disabled={salvando || status.length === 0 || !artistaOrigem}
-          className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm rounded-md"
         >
           {salvando ? "Salvando..." : "Salvar filtro"}
-        </button>
-        <button onClick={onCancelar} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-md">
+        </Button>
+        <Button variant="secondary" size="md" onClick={onCancelar}>
           Cancelar
-        </button>
+        </Button>
       </div>
       {status.length === 0 && (
         <p className="text-xs text-amber-400">

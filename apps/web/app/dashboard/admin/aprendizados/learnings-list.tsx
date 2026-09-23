@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import EmptyState from "@/components/ui/empty-state";
+import Button from "@/components/ui/button";
 
 interface Learning {
   id: string;
@@ -99,19 +100,12 @@ export default function LearningsList({ initial }: { initial: Learning[] }) {
           </div>
           {error && <p className="text-xs text-red-400">{error}</p>}
           <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              disabled={saving || !title.trim() || !description.trim()}
-              className="flex-1 py-2 px-4 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
-            >
+            <Button variant="primary" size="md" onClick={handleSave} disabled={saving || !title.trim() || !description.trim()} className="flex-1 justify-center">
               {saving ? "Salvando..." : "Salvar"}
-            </button>
-            <button
-              onClick={() => { setAdding(false); setError(null); }}
-              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-md transition-colors"
-            >
+            </Button>
+            <Button variant="secondary" size="md" onClick={() => { setAdding(false); setError(null); }}>
               Cancelar
-            </button>
+            </Button>
           </div>
         </div>
       ) : (

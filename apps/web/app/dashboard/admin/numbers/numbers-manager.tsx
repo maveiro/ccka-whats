@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import EmptyState from "@/components/ui/empty-state";
+import Button from "@/components/ui/button";
 
 interface Numero {
   id: string;
@@ -120,13 +121,9 @@ export default function NumbersManager({
           </div>
 
           <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={salvando || !wabaId || !phoneNumberId || !accessToken}
-              className="bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-sm rounded px-3 py-1.5"
-            >
+            <Button type="submit" variant="primary" size="md" disabled={salvando || !wabaId || !phoneNumberId || !accessToken}>
               {salvando ? "Verificando…" : "Cadastrar"}
-            </button>
+            </Button>
             {numeros.length > 0 && (
               <button
                 type="button"

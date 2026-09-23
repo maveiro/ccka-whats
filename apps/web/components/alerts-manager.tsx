@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Button from "@/components/ui/button";
 
 interface Alert {
   id: string;
@@ -172,13 +173,9 @@ export default function AlertsManager({
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
-        >
+        <Button type="submit" variant="primary" size="md" disabled={loading}>
           {loading ? "Criando..." : "Criar Alerta"}
-        </button>
+        </Button>
       </form>
 
       {/* Alert list */}

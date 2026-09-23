@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Sparkles, X } from "lucide-react";
+import Button from "@/components/ui/button";
 
 type Period = "last50" | "today" | "7d" | "30d" | "all";
 
@@ -83,13 +84,9 @@ export default function ConversationSummary({ chatId }: { chatId: string }) {
                     <option key={p} value={p}>{PERIOD_LABELS[p]}</option>
                   ))}
                 </select>
-                <button
-                  onClick={generate}
-                  disabled={loading}
-                  className="px-4 py-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-sm rounded-md transition-colors shrink-0"
-                >
+                <Button variant="primary" size="md" onClick={generate} disabled={loading} className="shrink-0">
                   {loading ? "Gerando..." : "Gerar"}
-                </button>
+                </Button>
               </div>
               <input
                 type="text"

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import CreateSessionForm from "@/components/create-session-form";
+import Button from "@/components/ui/button";
 
 export default function SessionsPageHeader() {
   const router = useRouter();
@@ -17,12 +18,9 @@ export default function SessionsPageHeader() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-white">Sessões WhatsApp</h1>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white text-sm font-medium rounded-md transition-colors"
-        >
+        <Button variant={showForm ? "secondary" : "primary"} size="md" onClick={() => setShowForm((v) => !v)}>
           {showForm ? "Cancelar" : "Nova Sessão"}
-        </button>
+        </Button>
       </div>
       {showForm && <CreateSessionForm onCreated={handleCreated} />}
     </div>

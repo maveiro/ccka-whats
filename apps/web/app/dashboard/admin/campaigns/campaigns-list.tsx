@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import Papa from "papaparse";
 import { formatCurrency } from "@/lib/utils";
 import EmptyState from "@/components/ui/empty-state";
+import Button from "@/components/ui/button";
 
 interface Campaign {
   id: string;
@@ -168,12 +169,9 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
                 {STATUS_LABEL[c.status] ?? c.status}
               </span>
               {c.status === "ready" && (
-                <button
-                  onClick={() => handleFire(c.id)}
-                  className="text-xs px-3 py-1 bg-green-700 hover:bg-green-600 text-white rounded-md transition-colors"
-                >
+                <Button variant="primary" onClick={() => handleFire(c.id)}>
                   Disparar
-                </button>
+                </Button>
               )}
               {c.status === "paused" && (
                 <button
@@ -199,26 +197,18 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
                 </button>
               )}
               {c.total_recipients > 0 && (
-                <button
-                  onClick={() => handleReport(c)}
-                  disabled={reportLoading === c.id}
-                  className="text-xs px-2.5 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-md disabled:opacity-50 transition-colors"
-                >
+                <Button variant="secondary" onClick={() => handleReport(c)} disabled={reportLoading === c.id}>
                   {reportLoading === c.id ? "Gerando..." : "Relatório"}
-                </button>
+                </Button>
               )}
               {["draft", "ready"].includes(c.status) && (
-                <button
+                <Button
+                  variant={deleteConfirm === c.id ? "danger" : "dangerOutline"}
                   onClick={() => handleDelete(c.id)}
                   disabled={deleteLoading === c.id}
-                  className={`text-xs px-2.5 py-1 rounded-md disabled:opacity-50 transition-colors ${
-                    deleteConfirm === c.id
-                      ? "bg-red-700 hover:bg-red-600 text-white"
-                      : "bg-transparent border border-red-800 text-red-500 hover:bg-red-900/30"
-                  }`}
                 >
                   {deleteLoading === c.id ? "Excluindo..." : deleteConfirm === c.id ? "Confirmar?" : "Excluir"}
-                </button>
+                </Button>
               )}
             </div>
           </div>

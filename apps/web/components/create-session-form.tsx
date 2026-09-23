@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Button from "@/components/ui/button";
 
 interface CreateSessionFormProps {
   onCreated: () => void;
@@ -109,13 +110,9 @@ export default function CreateSessionForm({ onCreated }: CreateSessionFormProps)
       )}
 
       <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
-        >
+        <Button type="submit" variant="primary" size="md" disabled={loading}>
           {loading ? "Criando..." : "Criar Sessão"}
-        </button>
+        </Button>
       </div>
     </form>
   );

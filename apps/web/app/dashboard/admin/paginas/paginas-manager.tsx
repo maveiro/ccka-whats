@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { contraste, lerTema, type Tema } from "@/lib/pagina-tema";
+import Button from "@/components/ui/button";
 import { env } from "@/lib/env";
 import MetricasPagina from "./metricas-pagina";
 
@@ -237,13 +238,9 @@ export default function PaginasManager({
             className="px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
           />
         </div>
-        <button
-          onClick={criarPagina}
-          disabled={criando || slug.length < 3 || !titulo.trim()}
-          className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm rounded-md"
-        >
+        <Button variant="primary" size="md" onClick={criarPagina} disabled={criando || slug.length < 3 || !titulo.trim()}>
           {criando ? "Criando..." : "Criar página"}
-        </button>
+        </Button>
       </div>
 
       {pagina && (

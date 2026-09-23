@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Button from "@/components/ui/button";
 
 interface Props {
   tenantId: string;
@@ -81,13 +82,9 @@ export default function InviteOperatorForm({ tenantId }: Props) {
         </select>
       </div>
 
-      <button
-        onClick={handleInvite}
-        disabled={loading || !email}
-        className="w-full py-2 px-4 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
-      >
+      <Button variant="primary" size="md" onClick={handleInvite} disabled={loading || !email} className="w-full justify-center">
         {loading ? "Enviando convite..." : "Convidar"}
-      </button>
+      </Button>
 
       {success === "google" && (
         <div className="bg-green-900/30 border border-green-800 rounded-md p-3 text-sm text-green-300">

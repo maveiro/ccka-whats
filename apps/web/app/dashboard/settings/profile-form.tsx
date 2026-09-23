@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Button from "@/components/ui/button";
 
 interface Props {
   initialName: string;
@@ -91,13 +92,15 @@ export default function ProfileForm({ initialName, email, role }: Props) {
               className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500"
             />
           </div>
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            size="md"
             disabled={saving || !name.trim() || name.trim() === initialName}
-            className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-sm rounded-md transition-colors shrink-0"
+            className="shrink-0"
           >
             Salvar
-          </button>
+          </Button>
         </form>
       </div>
 
@@ -144,13 +147,9 @@ export default function ProfileForm({ initialName, email, role }: Props) {
               className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500"
             />
           </div>
-          <button
-            type="submit"
-            disabled={saving || !currentPw || !newPw || !confirmPw}
-            className="w-full py-2 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-sm rounded-md transition-colors"
-          >
+          <Button type="submit" variant="primary" size="md" disabled={saving || !currentPw || !newPw || !confirmPw} className="w-full justify-center">
             {saving ? "Salvando..." : "Alterar senha"}
-          </button>
+          </Button>
         </form>
       </div>
 

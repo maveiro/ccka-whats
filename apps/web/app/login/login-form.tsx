@@ -80,7 +80,7 @@ export default function LoginForm() {
 
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-gray-800" />
-        <span className="text-xs text-gray-600">ou</span>
+        <span className="text-xs text-gray-400">ou</span>
         <div className="h-px flex-1 bg-gray-800" />
       </div>
 

@@ -220,7 +220,7 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
                 const pct = Math.round((c.count / maxChatCount) * 100)
                 return (
                   <div key={c.jid} className="flex items-center gap-3" role="listitem">
-                    <span className="text-gray-600 text-sm tabular-nums w-4 shrink-0">{i + 1}.</span>
+                    <span className="text-gray-400 text-sm tabular-nums w-4 shrink-0">{i + 1}.</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-gray-300 text-sm truncate">
                         {c.isGroup && <span className="text-xs text-gray-500 mr-1">[grupo]</span>}
@@ -271,7 +271,7 @@ function SplitBar({ title, groups, contacts }: { title: string; groups: number; 
   const cPct = total ? 100 - gPct : 0
   return (
     <div>
-      <p className="text-gray-400 text-sm mb-2">{title} <span className="text-gray-600">({total.toLocaleString("pt-BR")})</span></p>
+      <p className="text-gray-400 text-sm mb-2">{title} <span className="text-gray-400">({total.toLocaleString("pt-BR")})</span></p>
       <div className="flex h-2.5 rounded-full overflow-hidden bg-gray-700">
         <div className="bg-emerald-500" style={{ width: `${gPct}%` }} title={`Grupos: ${groups}`} />
         <div className="bg-sky-500" style={{ width: `${cPct}%` }} title={`Contatos: ${contacts}`} />

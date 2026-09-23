@@ -107,7 +107,7 @@ export default function MessageComposer({ chatId, onSent, quotedMessage, onClear
             <span className="text-green-400 font-medium">{quotedMessage.senderName ?? "Você"}</span>
             <p className="truncate opacity-70">{quotedMessage.body ?? "Mídia"}</p>
           </div>
-          <button onClick={onClearQuote} className="text-gray-600 hover:text-white text-lg leading-none">×</button>
+          <button onClick={onClearQuote} className="text-gray-400 hover:text-white text-lg leading-none">×</button>
         </div>
       )}
 

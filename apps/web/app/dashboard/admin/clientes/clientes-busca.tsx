@@ -156,7 +156,7 @@ export default function ClientesBusca({ numerosTeste }: { numerosTeste: NumeroTe
             className="mt-0.5" />
           <span>
             A pessoa autorizou o uso dos dados para contato sobre shows.
-            <span className="block text-gray-600">
+            <span className="block text-gray-400">
               Sem marcar, o cadastro entra sem registro de consentimento — melhor isso
               do que registrar um aceite que não houve.
             </span>
@@ -188,7 +188,7 @@ export default function ClientesBusca({ numerosTeste }: { numerosTeste: NumeroTe
             Liberar
           </button>
         </form>
-        {testes.length === 0 && <p className="text-xs text-gray-600">Nenhum número liberado.</p>}
+        {testes.length === 0 && <p className="text-xs text-gray-400">Nenhum número liberado.</p>}
         {testes.map((t) => (
           <div key={t.id} className="flex items-center justify-between text-xs bg-gray-900/50 rounded px-2 py-1.5">
             <span className="text-gray-300">

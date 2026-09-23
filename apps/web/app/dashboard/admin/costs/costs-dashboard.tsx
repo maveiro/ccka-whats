@@ -345,7 +345,7 @@ export default function CostsDashboard({ sessions }: { sessions: SessionOpt[] })
             )}
           </section>
 
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-gray-400">
             {data.ledgerStart
               ? `O registro de custo por mensagem começa em ${new Date(data.ledgerStart).toLocaleDateString("pt-BR")} — disparos anteriores não têm como ser recuperados e aparecem só na conferência da Meta.`
               : "Nenhum custo registrado ainda: o registro só vale para disparos posteriores ao deploy desta funcionalidade."}
@@ -386,7 +386,7 @@ function Breakdown({ title, rows }: {
                 <span className="text-gray-300 truncate">{r.label}</span>
                 <span className="text-gray-400 tabular-nums shrink-0">
                   {formatCurrency(r.cost)}
-                  <span className="text-gray-600"> · {r.messages.toLocaleString("pt-BR")}</span>
+                  <span className="text-gray-400"> · {r.messages.toLocaleString("pt-BR")}</span>
                 </span>
               </div>
               <div className="w-full bg-gray-700 rounded-full h-1.5">

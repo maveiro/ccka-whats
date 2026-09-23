@@ -47,7 +47,7 @@ export default function OperatorActions({ operator, currentUserId }: Props) {
   }
 
   if (isSelf) {
-    return <span className="text-xs text-gray-600">(você)</span>;
+    return <span className="text-xs text-gray-400">(você)</span>;
   }
 
   return (
@@ -60,7 +60,7 @@ export default function OperatorActions({ operator, currentUserId }: Props) {
       >
         {operator.role === "admin" ? "→ Operador" : "→ Admin"}
       </button>
-      <span className="text-gray-700">·</span>
+      <span className="text-gray-400">·</span>
       <button
         onClick={() => patch({ active: !operator.active })}
         disabled={loading}
@@ -70,7 +70,7 @@ export default function OperatorActions({ operator, currentUserId }: Props) {
       >
         {operator.active ? "Desativar" : "Ativar"}
       </button>
-      <span className="text-gray-700">·</span>
+      <span className="text-gray-400">·</span>
       <button
         onClick={handleDelete}
         disabled={loading}

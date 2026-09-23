@@ -105,7 +105,7 @@ export default function AiKeySection({ hasKey, source, maskedKey, features }: Pr
             <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${hasKey ? "bg-green-500" : "bg-gray-600"}`} />
             <div>
               <p className={`text-sm ${hasKey ? "text-white" : "text-gray-500"}`}>{f.name}</p>
-              <p className="text-xs text-gray-600">{f.description}</p>
+              <p className="text-xs text-gray-400">{f.description}</p>
             </div>
           </div>
         ))}
@@ -165,7 +165,7 @@ export default function AiKeySection({ hasKey, source, maskedKey, features }: Pr
                 Cancelar
               </button>
             </div>
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-gray-400">
               A chave é validada antes de salvar e nunca é exibida novamente — só os últimos 4 dígitos.
             </p>
           </div>

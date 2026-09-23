@@ -125,7 +125,7 @@ function Lista({
                 {/* A amostra é uma mensagem REAL; a assinatura tem `#` no
                     lugar dos ids e serve para agrupar, não para investigar. */}
                 <p className="text-xs text-gray-400 mt-1 break-words">{e.amostra ?? e.assinatura}</p>
-                <p className="text-[11px] text-gray-600 mt-1">
+                <p className="text-[11px] text-gray-400 mt-1">
                   de {new Date(e.primeiro).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                   {" a "}
                   {new Date(e.ultimo).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}

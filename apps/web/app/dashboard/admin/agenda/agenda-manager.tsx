@@ -253,7 +253,7 @@ function ShowLinha({
             // Fora de `publicado`, sem ações: a próxima rodada do sync
             // desfaria qualquer edição, e remover aqui só faria o show voltar
             // na hora seguinte. Correção de show sincronizado se faz no board.
-            <span className="text-[11px] text-gray-600">vem do Monday</span>
+            <span className="text-[11px] text-gray-400">vem do Monday</span>
           ) : (
             <>
               <button onClick={() => setEditando(true)} className="text-xs text-gray-400 hover:text-white">editar</button>

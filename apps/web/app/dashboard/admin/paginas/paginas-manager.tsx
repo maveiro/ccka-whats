@@ -562,7 +562,7 @@ function BlocoEditor({
               deliberado (botão que não leva a nada é pior), mas quem edita
               precisa saber que é isso que está acontecendo. */}
           {!texto("url_lista_espera") && (
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-gray-400">
               Sem este link, show <b>confirmado</b> aparece sem botão. Costuma apontar para
               um formulário de interesse.
             </p>

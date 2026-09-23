@@ -537,7 +537,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
               </tbody>
             </table>
             {recipients.length > 10 && (
-              <p className="text-xs text-gray-600 px-2 py-1">+{recipients.length - 10} destinatário(s)</p>
+              <p className="text-xs text-gray-400 px-2 py-1">+{recipients.length - 10} destinatário(s)</p>
             )}
           </div>
           <div className="flex gap-2">

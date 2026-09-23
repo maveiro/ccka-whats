@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import EmptyState from "@/components/ui/empty-state";
 
 interface Integration {
   id: string;
@@ -76,7 +77,7 @@ export default function IntegrationsManager({ integrations: initial, tenantId }:
   return (
     <div className="space-y-4">
       {integrations.length === 0 && !adding && (
-        <p className="text-sm text-gray-500">Nenhuma integração configurada.</p>
+        <EmptyState title="Nenhuma integração configurada." />
       )}
 
       {integrations.map((integration) => (
@@ -88,7 +89,7 @@ export default function IntegrationsManager({ integrations: initial, tenantId }:
             <p className="text-sm font-medium text-white">{integration.label ?? integration.type}</p>
             <p className="text-xs text-gray-500 capitalize">{integration.type}</p>
             {typeof integration.config["api_key"] === "string" && (
-              <p className="text-xs text-gray-600 font-mono mt-0.5">
+              <p className="text-xs text-gray-400 font-mono mt-0.5">
                 ••••••••{integration.config["api_key"].slice(-4)}
               </p>
             )}

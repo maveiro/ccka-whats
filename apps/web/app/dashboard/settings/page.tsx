@@ -65,7 +65,7 @@ export default async function SettingsPage() {
                 <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${hasOpenAI ? "bg-green-500" : "bg-gray-600"}`} />
                 <div>
                   <p className={`text-sm ${hasOpenAI ? "text-white" : "text-gray-500"}`}>{f.name}</p>
-                  <p className="text-xs text-gray-600">{f.description}</p>
+                  <p className="text-xs text-gray-400">{f.description}</p>
                 </div>
               </div>
             ))}

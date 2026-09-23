@@ -92,7 +92,7 @@ export default function OperatorSessionAccess({ operatorId, sessions, initialSco
           {scope === "restricted" && (
             <div className="space-y-1.5">
               {sessions.length === 0 && (
-                <p className="text-xs text-gray-600">Nenhuma sessão cadastrada ainda.</p>
+                <p className="text-xs text-gray-400">Nenhuma sessão cadastrada ainda.</p>
               )}
               {sessions.map((s) => (
                 <label key={s.id} className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
@@ -103,7 +103,7 @@ export default function OperatorSessionAccess({ operatorId, sessions, initialSco
                     className="rounded border-gray-700 bg-gray-800 text-green-600 focus:ring-green-500 focus:ring-offset-0"
                   />
                   {s.label ?? s.phone_number}
-                  <span className="text-gray-600">{s.phone_number}</span>
+                  <span className="text-gray-400">{s.phone_number}</span>
                 </label>
               ))}
             </div>

@@ -149,11 +149,11 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
         </div>
         <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
           <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">
-            <Users size={22} className="text-gray-600" />
+            <Users size={22} className="text-gray-400" />
           </div>
           <div>
             <p className="text-sm font-medium text-gray-400">Nenhuma conversa ainda</p>
-            <p className="text-xs text-gray-600 mt-1">As conversas do WhatsApp aparecem aqui em tempo real</p>
+            <p className="text-xs text-gray-400 mt-1">As conversas do WhatsApp aparecem aqui em tempo real</p>
           </div>
         </div>
       </div>
@@ -239,12 +239,12 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
       <div className="flex-1 overflow-y-auto" role="list" aria-label="Lista de conversas">
         {carregandoSessao && (
           <div className="flex items-center justify-center py-12">
-            <p className="text-xs text-gray-600">Carregando conversas…</p>
+            <p className="text-xs text-gray-400">Carregando conversas…</p>
           </div>
         )}
         {!carregandoSessao && filteredChats.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-2 py-12 px-6 text-center">
-            <p className="text-xs text-gray-600">Nenhuma conversa nesta categoria</p>
+            <p className="text-xs text-gray-400">Nenhuma conversa nesta categoria</p>
           </div>
         )}
         {filteredChats.map((chat) => {
@@ -284,7 +284,7 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
                   </p>
                 )}
                 {operatorRole === "admin" && chat.wa_sessions && (
-                  <p className="text-xs text-gray-700 truncate mt-0.5">
+                  <p className="text-xs text-gray-400 truncate mt-0.5">
                     {chat.wa_sessions.label ?? formatPhone(chat.wa_sessions.phone_number)}
                   </p>
                 )}

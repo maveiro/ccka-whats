@@ -116,7 +116,7 @@ export default function ConversationSummary({ chatId }: { chatId: string }) {
                 <>
                   <SummaryRender text={summary} />
                   {meta && (
-                    <p className="text-xs text-gray-600 mt-4 pt-3 border-t border-gray-800">
+                    <p className="text-xs text-gray-400 mt-4 pt-3 border-t border-gray-800">
                       Baseado em {meta.messageCount} mensagens · {PERIOD_LABELS[period]}
                     </p>
                   )}

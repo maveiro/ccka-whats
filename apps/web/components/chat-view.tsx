@@ -263,7 +263,7 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
             onClick={handleSyncName}
             disabled={syncingName}
             title="Sincronizar nome do contato/grupo"
-            className="text-gray-600 hover:text-gray-300 disabled:opacity-40 transition-colors p-1"
+            className="text-gray-400 hover:text-gray-300 disabled:opacity-40 transition-colors p-1"
           >
             <RefreshCw size={14} className={syncingName ? "animate-spin" : ""} />
           </button>
@@ -359,7 +359,7 @@ function MessageBubble({ message, isGroup, reactions, onReply, highlighted }: { 
       {from_me && (
         <button
           onClick={() => onReply(message)}
-          className="text-gray-600 hover:text-gray-300 p-2 -m-1 transition-opacity opacity-0 group-hover:opacity-100 shrink-0"
+          className="text-gray-400 hover:text-gray-300 p-2 -m-1 transition-opacity opacity-0 group-hover:opacity-100 shrink-0"
           title="Responder"
           aria-label="Responder mensagem"
         >
@@ -418,7 +418,7 @@ function MessageBubble({ message, isGroup, reactions, onReply, highlighted }: { 
       {!from_me && (
         <button
           onClick={() => onReply(message)}
-          className="text-gray-600 hover:text-gray-300 p-2 -m-1 transition-opacity opacity-0 group-hover:opacity-100 shrink-0"
+          className="text-gray-400 hover:text-gray-300 p-2 -m-1 transition-opacity opacity-0 group-hover:opacity-100 shrink-0"
           title="Responder"
           aria-label="Responder mensagem"
         >

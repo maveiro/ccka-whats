@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import EmptyState from "@/components/ui/empty-state";
 
 interface Learning {
   id: string;
@@ -123,7 +124,7 @@ export default function LearningsList({ initial }: { initial: Learning[] }) {
       )}
 
       {learnings.length === 0 && !adding && (
-        <p className="text-sm text-gray-500">Nenhum aprendizado registrado ainda.</p>
+        <EmptyState title="Nenhum aprendizado registrado ainda." />
       )}
 
       <div className="space-y-3">
@@ -148,7 +149,7 @@ export default function LearningsList({ initial }: { initial: Learning[] }) {
                 </button>
               </div>
             </div>
-            <p className="text-xs text-gray-600 mt-2">
+            <p className="text-xs text-gray-400 mt-2">
               {new Date(l.created_at).toLocaleString("pt-BR")}
             </p>
           </div>

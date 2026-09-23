@@ -309,7 +309,7 @@ export default function AgendaFontes({
               className="px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
             />
           </div>
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-gray-400">
             O token nunca é reexibido depois de salvo.
           </p>
           <button
@@ -428,12 +428,12 @@ export default function AgendaFontes({
                 )}
               </div>
               <div className="shrink-0 flex items-center gap-2">
-                <span className={t.tem_arte ? "text-green-400" : "text-gray-600"}>
+                <span className={t.tem_arte ? "text-green-400" : "text-gray-400"}>
                   {t.tem_arte
                     ? `arte${t.imagem_bytes ? ` (${Math.round(t.imagem_bytes / 1024)}KB)` : ""}`
                     : "sem arte"}
                 </span>
-                <span className={t.tem_sinopse ? "text-green-400" : "text-gray-600"}>
+                <span className={t.tem_sinopse ? "text-green-400" : "text-gray-400"}>
                   {t.tem_sinopse ? "sinopse" : "sem sinopse"}
                 </span>
               </div>
@@ -511,7 +511,7 @@ export default function AgendaFontes({
                     />
                   ))}
                 </div>
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-gray-400">
                   O board é agenda de produção: bloqueio, pauta e corporativo ficam de fora
                   por padrão, e não devem chegar ao fã.
                 </p>

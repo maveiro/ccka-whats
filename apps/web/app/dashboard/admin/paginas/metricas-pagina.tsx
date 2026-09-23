@@ -101,7 +101,7 @@ function Conteudo({ promessa }: { promessa: Promise<Resposta> }) {
           {/* "Aberturas" e não "visitantes": não guardamos identificador de
               visitante, então o número é de aberturas de página. É escolha,
               não limitação — ver a nota abaixo. */}
-          <p className="text-[11px] text-gray-600">
+          <p className="text-[11px] text-gray-400">
             Aberturas contam a página sendo aberta (uma por aba). Não há
             identificação de visitante: nenhum cookie, IP ou user-agent é guardado.
           </p>
@@ -131,22 +131,22 @@ function Conteudo({ promessa }: { promessa: Promise<Resposta> }) {
                 <div key={b.bloco_id} className="flex items-center justify-between text-xs">
                   <span className="text-gray-300 truncate">
                     {b.rotulo}
-                    {!b.ativo && <span className="text-gray-600"> (escondido)</span>}
+                    {!b.ativo && <span className="text-gray-400"> (escondido)</span>}
                   </span>
                   <span className="text-gray-400 shrink-0 ml-3">{b.cliques}</span>
                 </div>
               ))}
-              {dados.por_bloco.length === 0 && <p className="text-xs text-gray-600">nenhum bloco</p>}
+              {dados.por_bloco.length === 0 && <p className="text-xs text-gray-400">nenhum bloco</p>}
             </div>
           </div>
 
           <div>
             <p className="text-xs text-gray-400 mb-2">
               Datas mais clicadas
-              <span className="text-gray-600"> · onde a demanda está</span>
+              <span className="text-gray-400"> · onde a demanda está</span>
             </p>
             {dados.por_show.length === 0 ? (
-              <p className="text-xs text-gray-600">nenhum clique em data ainda</p>
+              <p className="text-xs text-gray-400">nenhum clique em data ainda</p>
             ) : (
               <div className="space-y-1">
                 {dados.por_show.slice(0, 10).map((s) => (
@@ -161,7 +161,7 @@ function Conteudo({ promessa }: { promessa: Promise<Resposta> }) {
                           })}
                         </span>
                       )}
-                      {s.status_venda && <span className="text-gray-600"> · {s.status_venda}</span>}
+                      {s.status_venda && <span className="text-gray-400"> · {s.status_venda}</span>}
                     </span>
                     <span className="text-gray-400 shrink-0 ml-3">{s.cliques}</span>
                   </div>
@@ -178,7 +178,7 @@ function Numero({ titulo, valor, nota }: { titulo: string; valor: number | strin
     <div className="bg-gray-800/50 rounded-md px-3 py-2">
       <p className="text-[11px] text-gray-500">{titulo}</p>
       <p className="text-lg text-white">{valor}</p>
-      {nota && <p className="text-[11px] text-gray-600">{nota}</p>}
+      {nota && <p className="text-[11px] text-gray-400">{nota}</p>}
     </div>
   );
 }

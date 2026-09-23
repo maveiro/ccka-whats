@@ -187,7 +187,7 @@ export default function HistorySyncForm({ sessions }: { sessions: Session[] }) {
         </div>
       )}
 
-      <p className="text-xs text-gray-600">
+      <p className="text-xs text-gray-400">
         A importação é segura para repetir — mensagens duplicadas são ignoradas automaticamente.
       </p>
     </div>

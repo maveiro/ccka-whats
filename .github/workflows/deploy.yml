@@ -16,6 +16,14 @@ jobs:
         with:
           version: latest
 
+      # O deploy baixa ghcr.io/supabase/edge-runtime pra empacotar as
+      # functions. Mesmo motivo do login no ci.yml: pull anônimo é limitado
+      # por IP compartilhado entre todos os runners do Actions, não é sobre
+      # este repo. Autenticar com o GITHUB_TOKEN (leitura, já disponível,
+      # sem secret novo) resolve o 429.
+      - name: Login no GHCR (evita rate limit de pull anônimo)
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
       - name: Deploy Edge Functions
         run: |
           supabase functions deploy whatsapp-webhook      --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --no-verify-jwt

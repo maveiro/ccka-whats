@@ -54,6 +54,15 @@ jobs:
         with:
           deno-version: v2.x
 
+      # `supabase start` puxa várias imagens de ghcr.io/supabase/*. Pull
+      # anônimo é limitado por IP, e os runners do Actions compartilham
+      # faixa de IP com o mundo inteiro puxando as mesmas imagens — dá
+      # 429 (toomanyrequests) sem ter nada a ver com este repo. Logar com
+      # o GITHUB_TOKEN (perms de leitura, já disponível no job, sem
+      # secret novo) muda pra um limite autenticado bem maior.
+      - name: Login no GHCR (evita rate limit de pull anônimo)
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
       # `supabase start` sobe o Postgres e o PostgREST em Docker; `db reset`
       # aplica TODAS as migrations do zero. É o que pega migration que só
       # funciona no banco de quem escreveu (já aconteceu: função com JOIN

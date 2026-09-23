@@ -261,10 +261,15 @@ export default function Sidebar({ operatorName, role, mobileOpen = false, onClos
             </div>
           );
         })}
-        <div className={`mt-2 pt-2 border-t border-gray-800 light:border-gray-200 ${iconOnly ? "px-0" : "px-1"}`}>
-          <ThemeToggle collapsed={iconOnly} />
-        </div>
       </nav>
+
+      {/* Toggle de tema — fora do <nav> rolável de propósito: com 20 itens
+          de menu, ficar como último item da lista o deixava fora da tela
+          sem rolar até o fim (achado do fundador em produção, 23/09/2026).
+          Fica sempre visível, junto do rodapé fixo. */}
+      <div className={`pt-2 pb-1 border-t border-gray-800 light:border-gray-200 ${iconOnly ? "px-2" : "px-3"}`}>
+        <ThemeToggle collapsed={iconOnly} />
+      </div>
 
       {/* Operator footer */}
       <div className={`py-3 border-t border-gray-800 light:border-gray-200 ${iconOnly ? "px-2" : "px-3"}`}>

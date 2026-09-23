@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ChevronDown, Copy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import Button from "@/components/ui/button";
+import StatusDot from "@/components/ui/status-dot";
 
 interface Session {
   id: string;
@@ -17,11 +19,11 @@ interface Session {
   channel?: string; // "evolution" | "cloud_api" — ausente em sessões antigas, trata como evolution
 }
 
-const statusConfig: Record<string, { dot: string; label: string; text: string }> = {
-  connected:    { dot: "bg-green-500",  label: "Conectado",    text: "text-green-400" },
-  disconnected: { dot: "bg-gray-500",   label: "Desconectado", text: "text-gray-400" },
-  connecting:   { dot: "bg-yellow-400 animate-pulse", label: "Conectando", text: "text-yellow-400" },
-  banned:       { dot: "bg-red-500",    label: "Banido",       text: "text-red-400" },
+const statusConfig: Record<string, { tone: "green" | "gray" | "yellow" | "red"; label: string }> = {
+  connected:    { tone: "green",  label: "Conectado" },
+  disconnected: { tone: "gray",   label: "Desconectado" },
+  connecting:   { tone: "yellow", label: "Conectando" },
+  banned:       { tone: "red",    label: "Banido" },
 };
 
 export default function SessionCard({ session: initial, isAdmin = true }: { session: Session; isAdmin?: boolean }) {
@@ -155,7 +157,7 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
   if (deleted) {
     return (
       <div className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-6 flex items-center justify-center">
-        <p className="text-xs text-gray-600">Sessão excluída</p>
+        <p className="text-xs text-gray-400">Sessão excluída</p>
       </div>
     );
   }
@@ -170,32 +172,29 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
           </p>
           <p className="text-xs text-gray-500 mt-0.5">{session.phone_number}</p>
           {session.evolution_instance_name && (
-            <p className="text-xs text-gray-700 mt-0.5">{session.evolution_instance_name}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{session.evolution_instance_name}</p>
           )}
           {isCloudApi && (
             <p className="text-xs text-blue-400 mt-0.5">WhatsApp Cloud API (oficial)</p>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
-          <span className={`text-xs ${cfg.text}`}>{cfg.label}</span>
+          <StatusDot tone={cfg.tone} label={cfg.label} />
           {session.status === "disconnected" && session.evolution_instance_name && (
-            <button onClick={handleConnect} disabled={actionLoading}
-              className="text-xs px-2.5 py-1 bg-green-700 hover:bg-green-600 text-white rounded-md disabled:opacity-50 transition-colors">
+            <Button variant="primary" onClick={handleConnect} disabled={actionLoading}>
               Conectar
-            </button>
+            </Button>
           )}
           {session.status === "connected" && (
-            <button onClick={handleDisconnect} disabled={actionLoading}
-              className="text-xs px-2.5 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded-md disabled:opacity-50 transition-colors">
+            <Button variant="secondary" onClick={handleDisconnect} disabled={actionLoading}>
               Desconectar
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {session.last_seen_at && (
-        <p className="px-4 pb-2 text-xs text-gray-700">
+        <p className="px-4 pb-2 text-xs text-gray-500">
           Visto: {new Date(session.last_seen_at).toLocaleString("pt-BR")}
         </p>
       )}
@@ -212,11 +211,10 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
               <p className="text-xs text-gray-400 leading-relaxed">
                 Abra o WhatsApp no celular, vá em <strong className="text-gray-300">Dispositivos conectados</strong> e escaneie o código.
               </p>
-              <button onClick={handleRefreshQr} disabled={actionLoading}
-                className="flex items-center gap-1.5 text-xs px-2.5 py-1 bg-yellow-800 hover:bg-yellow-700 text-yellow-200 rounded-md disabled:opacity-50 transition-colors">
+              <Button variant="warning" onClick={handleRefreshQr} disabled={actionLoading}>
                 <RefreshCw size={11} />
                 {actionLoading ? "Atualizando..." : "Atualizar QR"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -225,11 +223,10 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
       {session.status === "connecting" && !session.qr_code && (
         <div className="px-4 pb-3 flex items-center gap-3">
           <p className="text-xs text-yellow-400 animate-pulse">Aguardando QR Code...</p>
-          <button onClick={handleRefreshQr} disabled={actionLoading}
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1 bg-yellow-800 hover:bg-yellow-700 text-yellow-200 rounded-md disabled:opacity-50 transition-colors">
+          <Button variant="warning" onClick={handleRefreshQr} disabled={actionLoading}>
             <RefreshCw size={11} />
             {actionLoading ? "..." : "Buscar QR"}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -250,39 +247,37 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
           <div className="px-4 pb-4 space-y-3">
             {/* URL */}
             <div className="space-y-1">
-              <p className="text-xs text-gray-600">URL</p>
+              <p className="text-xs text-gray-500">URL</p>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-400 font-mono truncate flex-1 bg-gray-800 px-2 py-1.5 rounded">
                   {webhookUrl}
                 </span>
-                <button
+                <Button
                   onClick={() => copyToClipboard(webhookUrl, "url")}
-                  className="shrink-0 flex items-center gap-1 text-xs px-2 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
                   aria-label="Copiar URL do webhook"
                 >
                   <Copy size={11} />
                   {copied === "url" ? "Copiado!" : "Copiar"}
-                </button>
+                </Button>
               </div>
             </div>
 
             {/* Secret */}
             {maskedSecret && (
               <div className="space-y-1">
-                <p className="text-xs text-gray-600">Secret</p>
+                <p className="text-xs text-gray-500">Secret</p>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-400 font-mono flex-1 bg-gray-800 px-2 py-1.5 rounded">
                     {revealedSecret ?? maskedSecret}
                   </span>
                   {revealedSecret && (
-                    <button
+                    <Button
                       onClick={() => copyToClipboard(revealedSecret, "secret")}
-                      className="shrink-0 flex items-center gap-1 text-xs px-2 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
                       aria-label="Copiar secret"
                     >
                       <Copy size={11} />
                       {copied === "secret" ? "Copiado!" : "Copiar"}
-                    </button>
+                    </Button>
                   )}
                 </div>
                 {revealedSecret && (
@@ -291,14 +286,10 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
               </div>
             )}
 
-            <button
-              onClick={handleRotateSecret}
-              disabled={rotateLoading}
-              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-md disabled:opacity-50 transition-colors"
-            >
+            <Button variant="secondary" onClick={handleRotateSecret} disabled={rotateLoading}>
               <RefreshCw size={11} />
               {rotateLoading ? "Regenerando..." : "Regenerar Secret"}
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -307,30 +298,23 @@ export default function SessionCard({ session: initial, isAdmin = true }: { sess
       {/* ── Zona de perigo (só admin) ── */}
       {isAdmin && (
       <div className="border-t border-gray-800 px-4 py-3 flex items-center justify-between">
-        <p className="text-xs text-gray-700">Zona de perigo</p>
+        <p className="text-xs text-gray-500">Zona de perigo</p>
         <div className="flex items-center gap-2">
           {deleteConfirm && (
             <span className="text-xs text-red-400">Tem certeza?</span>
           )}
           {deleteConfirm && (
-            <button
-              onClick={() => setDeleteConfirm(false)}
-              className="text-xs px-2.5 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-md transition-colors"
-            >
+            <Button variant="secondary" onClick={() => setDeleteConfirm(false)}>
               Cancelar
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            variant={deleteConfirm ? "danger" : "dangerOutline"}
             onClick={handleDelete}
             disabled={deleteLoading}
-            className={`text-xs px-2.5 py-1 rounded-md disabled:opacity-50 transition-colors ${
-              deleteConfirm
-                ? "bg-red-700 hover:bg-red-600 text-white"
-                : "bg-transparent border border-red-800 text-red-500 hover:bg-red-900/30"
-            }`}
           >
             {deleteLoading ? "Excluindo..." : deleteConfirm ? "Confirmar exclusão" : "Excluir sessão"}
-          </button>
+          </Button>
         </div>
       </div>
       )}

@@ -39,27 +39,45 @@ interface SidebarProps {
   role: string;
 }
 
+// Agrupado por domínio, não pela ordem em que cada módulo foi implementado
+// (achado na revisão de UX de 22/09/2026: 18 itens administrativos num bloco
+// só, sem refletir os módulos aditivos descritos no CLAUDE.md — mensagens,
+// campanhas, central/automação e governança). Cabeçalho novo entra sempre que
+// a `group` muda; "main" não ganha cabeçalho, fica solto no topo.
+const SECTION_LABELS: Record<string, string> = {
+  mensagens: "Mensagens",
+  campanhas: "Campanhas",
+  central: "Central & Automação",
+  governanca: "Governança",
+  conta: "Conta",
+};
+
 const navItems = [
   { label: "Mensagens",     href: "/dashboard",                      roles: ["admin", "operator"], icon: MessageSquare, section: "main" },
   { label: "Analytics",     href: "/dashboard/analytics",            roles: ["admin", "operator"], icon: BarChart2,     section: "main" },
-  { label: "Sessões",       href: "/dashboard/admin/sessions",       roles: ["admin", "operator"], icon: Smartphone,   section: "admin", showStatus: true },
-  { label: "Operadores",    href: "/dashboard/admin/operators",      roles: ["admin"],             icon: Users,        section: "admin" },
-  { label: "Alertas",       href: "/dashboard/admin/alerts",         roles: ["admin"],             icon: Bell,         section: "admin", showAlertBadge: true },
-  { label: "Campanhas",     href: "/dashboard/admin/campaigns",      roles: ["admin"],             icon: Megaphone,    section: "admin" },
-  { label: "Templates",     href: "/dashboard/admin/templates",      roles: ["admin"],             icon: FileText,     section: "admin" },
-  { label: "Custos",        href: "/dashboard/admin/costs",          roles: ["admin"],             icon: DollarSign,   section: "admin" },
-  { label: "Números",       href: "/dashboard/admin/numbers",        roles: ["admin"],             icon: Hash,         section: "admin" },
-  { label: "Automações",    href: "/dashboard/admin/flows",          roles: ["admin", "operator"], icon: Workflow,     section: "admin" },
-  { label: "Agenda",        href: "/dashboard/admin/agenda",         roles: ["admin", "operator"], icon: CalendarDays, section: "admin" },
-  { label: "FAQ",           href: "/dashboard/admin/faq",            roles: ["admin", "operator"], icon: HelpCircle,   section: "admin" },
-  { label: "Páginas",       href: "/dashboard/admin/paginas",        roles: ["admin", "operator"], icon: Link2,        section: "admin" },
-  { label: "Formulários",   href: "/dashboard/admin/formularios",    roles: ["admin"],             icon: ClipboardList, section: "admin" },
-  { label: "Clientes (LGPD)", href: "/dashboard/admin/clientes",     roles: ["admin"],             icon: ShieldCheck,  section: "admin" },
-  { label: "Integrações",   href: "/dashboard/admin/integrations",   roles: ["admin"],             icon: Plug,         section: "admin" },
-  { label: "Histórico",     href: "/dashboard/admin/history",        roles: ["admin"],             icon: History,      section: "admin" },
-  { label: "Aprendizados",  href: "/dashboard/admin/aprendizados",   roles: ["admin"],             icon: BookOpen,     section: "admin" },
-  { label: "Saúde",         href: "/dashboard/admin/saude",          roles: ["admin"],             icon: Activity,     section: "admin" },
-  { label: "Configurações", href: "/dashboard/settings",             roles: ["admin"],             icon: Settings,     section: "admin" },
+
+  { label: "Sessões",       href: "/dashboard/admin/sessions",       roles: ["admin", "operator"], icon: Smartphone,   section: "mensagens", showStatus: true },
+  { label: "Operadores",    href: "/dashboard/admin/operators",      roles: ["admin"],             icon: Users,        section: "mensagens" },
+  { label: "Alertas",       href: "/dashboard/admin/alerts",         roles: ["admin"],             icon: Bell,         section: "mensagens", showAlertBadge: true },
+  { label: "Histórico",     href: "/dashboard/admin/history",        roles: ["admin"],             icon: History,      section: "mensagens" },
+
+  { label: "Campanhas",     href: "/dashboard/admin/campaigns",      roles: ["admin"],             icon: Megaphone,    section: "campanhas" },
+  { label: "Templates",     href: "/dashboard/admin/templates",      roles: ["admin"],             icon: FileText,     section: "campanhas" },
+  { label: "Custos",        href: "/dashboard/admin/costs",          roles: ["admin"],             icon: DollarSign,   section: "campanhas" },
+  { label: "Números",       href: "/dashboard/admin/numbers",        roles: ["admin"],             icon: Hash,         section: "campanhas" },
+
+  { label: "Automações",    href: "/dashboard/admin/flows",          roles: ["admin", "operator"], icon: Workflow,     section: "central" },
+  { label: "Agenda",        href: "/dashboard/admin/agenda",         roles: ["admin", "operator"], icon: CalendarDays, section: "central" },
+  { label: "FAQ",           href: "/dashboard/admin/faq",            roles: ["admin", "operator"], icon: HelpCircle,   section: "central" },
+  { label: "Páginas",       href: "/dashboard/admin/paginas",        roles: ["admin", "operator"], icon: Link2,        section: "central" },
+  { label: "Formulários",   href: "/dashboard/admin/formularios",    roles: ["admin"],             icon: ClipboardList, section: "central" },
+
+  { label: "Clientes (LGPD)", href: "/dashboard/admin/clientes",     roles: ["admin"],             icon: ShieldCheck,  section: "governanca" },
+  { label: "Integrações",   href: "/dashboard/admin/integrations",   roles: ["admin"],             icon: Plug,         section: "governanca" },
+  { label: "Saúde",         href: "/dashboard/admin/saude",          roles: ["admin"],             icon: Activity,     section: "governanca" },
+  { label: "Aprendizados",  href: "/dashboard/admin/aprendizados",   roles: ["admin"],             icon: BookOpen,     section: "governanca" },
+
+  { label: "Configurações", href: "/dashboard/settings",             roles: ["admin"],             icon: Settings,     section: "conta" },
 ];
 
 const AVATAR_COLORS = [
@@ -176,21 +194,21 @@ export default function Sidebar({ operatorName, role }: SidebarProps) {
         {visibleItems.map((item, idx) => {
           const active = pathname === item.href;
           const Icon = item.icon;
-          const isFirstAdmin =
-            item.section === "admin" &&
-            (idx === 0 || visibleItems[idx - 1].section !== "admin");
+          const isNewSection =
+            item.section !== "main" &&
+            (idx === 0 || visibleItems[idx - 1].section !== item.section);
           const showStatus = item.showStatus && role === "admin";
           const showAlert = item.showAlertBadge && role === "admin";
 
           return (
             <div key={item.href}>
-              {isFirstAdmin && (
+              {isNewSection && (
                 collapsed ? (
                   <div className="my-2 mx-2 border-t border-gray-800" />
                 ) : (
                   <div className="px-3 pt-4 pb-1">
-                    <p className="text-xs font-medium text-gray-600 uppercase tracking-widest">
-                      Administração
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-widest">
+                      {SECTION_LABELS[item.section] ?? item.section}
                     </p>
                   </div>
                 )
@@ -235,7 +253,7 @@ export default function Sidebar({ operatorName, role }: SidebarProps) {
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-white truncate">{operatorName}</p>
-              <p className="text-xs text-gray-600 capitalize">{role}</p>
+              <p className="text-xs text-gray-400 capitalize">{role}</p>
             </div>
           )}
           <button

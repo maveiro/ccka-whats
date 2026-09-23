@@ -2,7 +2,7 @@ import { MessageSquare } from "lucide-react";
 
 export default function DashboardPage() {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8">
+    <div className="hidden md:flex flex-1 flex-col items-center justify-center gap-4 text-center px-8">
       <div className="w-14 h-14 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center">
         <MessageSquare size={26} className="text-gray-400" />
       </div>

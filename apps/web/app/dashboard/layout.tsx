@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import Sidebar from "@/components/sidebar";
-import AlertNotifier from "@/components/alert-notifier";
-import { Toaster } from "sonner";
+import DashboardShell from "@/components/dashboard-shell";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -21,15 +19,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!operator) redirect("/login");
 
   return (
-    <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
-      <Sidebar operatorName={operator.name ?? user.email ?? ""} role={operator.role} />
-      {/* overflow-y-auto (não overflow-hidden): páginas admin comuns (Campanhas,
-          Sessões, etc.) crescem com o conteúdo e precisam rolar. O inbox
-          ((inbox)/layout.tsx) usa h-full internamente e gerencia seu próprio
-          scroll por coluna, então não aciona a barra daqui. */}
-      <main className="flex-1 overflow-y-auto">{children}</main>
-      <Toaster position="top-right" theme="dark" richColors />
-      <AlertNotifier />
-    </div>
+    <DashboardShell operatorName={operator.name ?? user.email ?? ""} role={operator.role}>
+      {/* overflow-y-auto (não overflow-hidden) no <main> do shell: páginas
+          admin comuns (Campanhas, Sessões, etc.) crescem com o conteúdo e
+          precisam rolar. O inbox ((inbox)/layout.tsx) usa h-full internamente
+          e gerencia seu próprio scroll por coluna, então não aciona a barra ali. */}
+      {children}
+    </DashboardShell>
   );
 }

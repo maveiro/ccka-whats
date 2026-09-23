@@ -54,6 +54,11 @@ interface SessionInfo {
 
 export default function ChatList({ chats: initial, sessoes, operatorRole }: ChatListProps) {
   const pathname = usePathname();
+  // Mestre-detalhe no mobile: com um chat aberto, a lista sai da tela e a
+  // conversa ocupa a largura inteira — telas estreitas não cabem as duas
+  // colunas lado a lado como no desktop.
+  const onChatRoute = pathname.startsWith("/dashboard/chat/");
+  const rootWidthClass = onChatRoute ? "hidden md:flex" : "flex w-full";
   // `initial` são as 50 conversas mais recentes do tenant (visão "Todas").
   // `chatsDaSessao` guarda as conversas do número escolhido, buscadas à parte.
   // Manter as duas separadas é o que faz o filtro sobreviver à navegação: o
@@ -142,7 +147,7 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
 
   if (chats.length === 0) {
     return (
-      <div className="w-72 border-r border-gray-800 flex flex-col">
+      <div className={`${rootWidthClass} md:w-72 border-r border-gray-800 flex-col`}>
         <div className="px-4 py-3 border-b border-gray-800 space-y-2">
           <h2 className="text-sm font-medium text-gray-300">Conversas</h2>
           <SearchBar />
@@ -167,7 +172,7 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
   ];
 
   return (
-    <div className="w-72 border-r border-gray-800 flex flex-col overflow-hidden">
+    <div className={`${rootWidthClass} md:w-72 border-r border-gray-800 flex-col overflow-hidden`}>
       <div className="px-4 pt-3 pb-2 border-b border-gray-800 space-y-2">
         <h2 className="text-sm font-medium text-gray-300">Conversas</h2>
         <SearchBar />

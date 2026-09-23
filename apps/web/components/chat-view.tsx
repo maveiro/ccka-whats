@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { formatTime } from "@/lib/utils";
 import { displayChatName, dayKey, formatDateSeparator, formatFullDateTime } from "@/lib/chat-display";
 import MessageComposer from "@/components/message-composer";
@@ -22,6 +23,7 @@ import {
   BarChart2,
   Smile,
   RefreshCw,
+  ArrowLeft,
 } from "lucide-react";
 
 interface MediaFile {
@@ -251,6 +253,13 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-800 shrink-0 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
+          <Link
+            href="/dashboard"
+            className="md:hidden shrink-0 text-gray-400 hover:text-white transition-colors -ml-1 p-1"
+            aria-label="Voltar para a lista de conversas"
+          >
+            <ArrowLeft size={18} />
+          </Link>
           <ChatAvatar name={chatName} jid={chat.jid} avatarUrl={avatarUrl} size={36} />
           <div className="min-w-0">
             <p className="text-sm font-medium text-white truncate">{displayChatName(chatName, chat.jid)}</p>

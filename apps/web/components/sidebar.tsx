@@ -29,6 +29,7 @@ import {
   ClipboardList,
   DollarSign,
   FileText,
+  X,
 } from "lucide-react";
 import AlertBadge from "@/components/alert-badge";
 
@@ -37,6 +38,8 @@ const COLLAPSE_KEY = "wa-sidebar-collapsed";
 interface SidebarProps {
   operatorName: string;
   role: string;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 // Agrupado por domínio, não pela ordem em que cada módulo foi implementado
@@ -147,7 +150,7 @@ function SessionStatusDot() {
   );
 }
 
-export default function Sidebar({ operatorName, role }: SidebarProps) {
+export default function Sidebar({ operatorName, role, mobileOpen = false, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
@@ -171,22 +174,34 @@ export default function Sidebar({ operatorName, role }: SidebarProps) {
   }
 
   const visibleItems = navItems.filter((item) => item.roles.includes(role));
+  // No drawer mobile, o collapse por ícone (preferência de desktop, persistida
+  // à parte) não se aplica — a gaveta sempre abre larga.
+  const iconOnly = collapsed && !mobileOpen;
 
   return (
     <aside
-      className={`${collapsed ? "w-16" : "w-56"} flex flex-col border-r border-gray-800 bg-gray-950 shrink-0 transition-[width] duration-200`}
+      className={`${iconOnly ? "w-16" : "w-56"} flex flex-col border-r border-gray-800 bg-gray-950 shrink-0 transition-all duration-200 fixed inset-y-0 left-0 z-50 ${mobileOpen ? "translate-x-0" : "-translate-x-full"} md:static md:translate-x-0`}
     >
       {/* Logo + toggle */}
-      <div className={`h-[57px] border-b border-gray-800 flex items-center ${collapsed ? "justify-center" : "justify-between px-4"}`}>
-        {!collapsed && <span className="text-sm font-semibold text-green-400 truncate">WA Intelligence</span>}
-        <button
-          onClick={toggle}
-          className="text-gray-400 hover:text-white transition-colors p-1.5 rounded-md hover:bg-gray-900"
-          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-          title={collapsed ? "Expandir menu" : "Recolher menu"}
-        >
-          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-        </button>
+      <div className={`h-[57px] border-b border-gray-800 flex items-center ${iconOnly ? "justify-center" : "justify-between px-4"}`}>
+        {!iconOnly && <span className="text-sm font-semibold text-green-400 truncate">WA Intelligence</span>}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={toggle}
+            className="hidden md:inline-flex text-gray-400 hover:text-white transition-colors p-1.5 rounded-md hover:bg-gray-900"
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            title={collapsed ? "Expandir menu" : "Recolher menu"}
+          >
+            {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
+          <button
+            onClick={onCloseMobile}
+            className="md:hidden text-gray-400 hover:text-white transition-colors p-1.5 rounded-md hover:bg-gray-900"
+            aria-label="Fechar menu"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Nav */}
@@ -203,7 +218,7 @@ export default function Sidebar({ operatorName, role }: SidebarProps) {
           return (
             <div key={item.href}>
               {isNewSection && (
-                collapsed ? (
+                iconOnly ? (
                   <div className="my-2 mx-2 border-t border-gray-800" />
                 ) : (
                   <div className="px-3 pt-4 pb-1">
@@ -215,9 +230,10 @@ export default function Sidebar({ operatorName, role }: SidebarProps) {
               )}
               <Link
                 href={item.href}
-                title={collapsed ? item.label : undefined}
+                title={iconOnly ? item.label : undefined}
+                onClick={onCloseMobile}
                 className={`flex items-center min-h-[44px] rounded-md text-sm transition-colors ${
-                  collapsed ? "justify-center px-0" : "gap-2.5 px-3"
+                  iconOnly ? "justify-center px-0" : "gap-2.5 px-3"
                 } ${
                   active
                     ? "bg-gray-800 text-white"
@@ -226,14 +242,14 @@ export default function Sidebar({ operatorName, role }: SidebarProps) {
               >
                 <span className="relative shrink-0 flex items-center justify-center">
                   <Icon size={16} className={active ? "text-green-400" : ""} aria-hidden="true" />
-                  {collapsed && (showStatus || showAlert) && (
+                  {iconOnly && (showStatus || showAlert) && (
                     <span className="absolute -top-1.5 -right-1.5">
                       {showStatus && <SessionStatusDot />}
                       {showAlert && <AlertBadge />}
                     </span>
                   )}
                 </span>
-                {!collapsed && (
+                {!iconOnly && (
                   <>
                     <span className="flex-1">{item.label}</span>
                     {showStatus && <SessionStatusDot />}
@@ -247,10 +263,10 @@ export default function Sidebar({ operatorName, role }: SidebarProps) {
       </nav>
 
       {/* Operator footer */}
-      <div className={`py-3 border-t border-gray-800 ${collapsed ? "px-2" : "px-3"}`}>
-        <div className={`flex items-center ${collapsed ? "flex-col gap-2" : "gap-2.5"}`}>
+      <div className={`py-3 border-t border-gray-800 ${iconOnly ? "px-2" : "px-3"}`}>
+        <div className={`flex items-center ${iconOnly ? "flex-col gap-2" : "gap-2.5"}`}>
           <OperatorAvatar name={operatorName} />
-          {!collapsed && (
+          {!iconOnly && (
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-white truncate">{operatorName}</p>
               <p className="text-xs text-gray-400 capitalize">{role}</p>

@@ -23,8 +23,8 @@ export default async function HistoryPage() {
   return (
     <div className="p-6 max-w-xl space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-white">Importar Histórico</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Importar Histórico</h1>
+        <p className="text-sm text-gray-400 mt-1 light:text-gray-600">
           Importa mensagens antigas do WhatsApp para o banco. Só precisa ser feito uma vez por número.
         </p>
       </div>

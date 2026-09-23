@@ -26,25 +26,25 @@ export default function DashboardError({
           <AlertTriangle size={20} aria-hidden="true" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-white">Algo deu errado nesta tela</p>
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="text-sm font-semibold text-white light:text-gray-900">Algo deu errado nesta tela</p>
+          <p className="mt-1 text-xs text-gray-400 light:text-gray-600">
             O erro foi registrado. Você pode tentar de novo ou checar a página de Saúde
             para ver se é um problema conhecido.
           </p>
           {error.digest && (
-            <p className="mt-2 text-xs text-gray-400 font-mono">ref: {error.digest}</p>
+            <p className="mt-2 text-xs text-gray-400 font-mono light:text-gray-600">ref: {error.digest}</p>
           )}
         </div>
         <div className="flex items-center justify-center gap-2">
           <button
             onClick={reset}
-            className="text-xs px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors"
+            className="text-xs px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors light:bg-gray-200 light:text-gray-900"
           >
             Tentar de novo
           </button>
           <Link
             href="/dashboard/admin/saude"
-            className="text-xs px-3 py-1.5 border border-gray-700 hover:bg-gray-800 text-gray-300 rounded-md transition-colors"
+            className="text-xs px-3 py-1.5 border border-gray-700 hover:bg-gray-800 text-gray-300 rounded-md transition-colors light:border-gray-300 light:hover:bg-gray-100 light:text-gray-700"
           >
             Ver Saúde
           </Link>

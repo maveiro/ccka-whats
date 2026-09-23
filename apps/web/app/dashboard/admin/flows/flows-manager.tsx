@@ -146,9 +146,9 @@ export default function FlowsManager({
 
   if (credenciais.length === 0) {
     return (
-      <p className="text-sm text-gray-400 border border-gray-800 rounded p-4">
+      <p className="text-sm text-gray-400 border border-gray-800 rounded p-4 light:text-gray-600 light:border-gray-200">
         Nenhum número WhatsApp Cloud API cadastrado neste tenant. Cadastre um em{" "}
-        <a href="/dashboard/admin/numbers" className="text-blue-400 underline hover:text-blue-300">Números</a>{" "}
+        <a href="/dashboard/admin/numbers" className="text-blue-400 underline hover:text-blue-300 light:text-blue-700 light:hover:text-blue-800">Números</a>{" "}
         antes de criar uma automação.
       </p>
     );
@@ -156,10 +156,10 @@ export default function FlowsManager({
 
   return (
     <div className="space-y-8">
-      <form onSubmit={criarFlow} className="border border-gray-800 rounded p-4 space-y-3">
-        <h2 className="text-sm font-semibold text-white">Novo Flow</h2>
+      <form onSubmit={criarFlow} className="border border-gray-800 rounded p-4 space-y-3 light:border-gray-200">
+        <h2 className="text-sm font-semibold text-white light:text-gray-900">Novo Flow</h2>
         <div className="grid grid-cols-2 gap-3">
-          <label className="text-xs text-gray-400 space-y-1">
+          <label className="text-xs text-gray-400 space-y-1 light:text-gray-600">
             <span>Número</span>
             <select
               value={novoNumero}
@@ -168,7 +168,7 @@ export default function FlowsManager({
                 const c = credenciais.find((x) => x.id === e.target.value);
                 if (c?.artista) setNovoArtista(c.artista);
               }}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900"
             >
               {credenciais.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -177,22 +177,22 @@ export default function FlowsManager({
               ))}
             </select>
           </label>
-          <label className="text-xs text-gray-400 space-y-1">
+          <label className="text-xs text-gray-400 space-y-1 light:text-gray-600">
             <span>Artista (opcional)</span>
             <input
               value={novoArtista}
               onChange={(e) => setNovoArtista(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900"
               placeholder="Ex: Prof. Marli"
             />
           </label>
         </div>
-        <label className="text-xs text-gray-400 space-y-1 block">
+        <label className="text-xs text-gray-400 space-y-1 block light:text-gray-600">
           <span>Nome do Flow</span>
           <input
             value={novoNome}
             onChange={(e) => setNovoNome(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900"
             placeholder="Ex: FAQ da turnê 2026"
           />
         </label>
@@ -204,7 +204,7 @@ export default function FlowsManager({
           >
             {criando ? "Criando…" : "Criar Flow"}
           </button>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-gray-400 light:text-gray-600">
             Nasce inativo — só responde depois que você ativar.
           </span>
         </div>
@@ -237,8 +237,8 @@ export default function FlowsManager({
       {publicados.length > 0 && (
         <div className="space-y-3">
           <div>
-            <h2 className="text-sm font-semibold text-white">Flows publicados na Meta</h2>
-            <p className="text-xs text-gray-400 mt-1">
+            <h2 className="text-sm font-semibold text-white light:text-gray-900">Flows publicados na Meta</h2>
+            <p className="text-xs text-gray-400 mt-1 light:text-gray-600">
               Estes abrem no WhatsApp como tela (central, agenda) e não respondem a
               palavras-chave: o conteúdo vem da Agenda e do FAQ. Para que alguém os
               abra digitando algo, cadastre a palavra-chave num Flow de palavra-chave
@@ -246,20 +246,20 @@ export default function FlowsManager({
             </p>
           </div>
           {publicados.map((flow) => (
-            <div key={flow.id} className="border border-gray-800 rounded px-4 py-3 flex items-start justify-between gap-3">
+            <div key={flow.id} className="border border-gray-800 rounded px-4 py-3 flex items-start justify-between gap-3 light:border-gray-200">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-white">{flow.nome}</span>
+                  <span className="text-sm font-medium text-white light:text-gray-900">{flow.nome}</span>
                   <span className={`text-[11px] px-1.5 py-0.5 rounded border ${
-                    flow.ativo ? "text-green-400 border-green-800" : "text-gray-400 border-gray-700"
+                    flow.ativo ? "text-green-400 border-green-800 light:text-green-700 light:border-green-300" : "text-gray-400 border-gray-700 light:text-gray-600 light:border-gray-300"
                   }`}>
                     {flow.ativo ? "Ativo" : "Inativo"}
                   </span>
-                  <span className="text-[11px] px-1.5 py-0.5 rounded border text-gray-400 border-gray-700">
+                  <span className="text-[11px] px-1.5 py-0.5 rounded border text-gray-400 border-gray-700 light:text-gray-600 light:border-gray-300">
                     {flow.tipo}
                   </span>
                 </div>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs text-gray-400 mt-0.5 light:text-gray-600">
                   {nomeDoNumero(flow.cloud_credential_id)}
                   {flow.meta_flow_id
                     ? ` · publicado na Meta (${flow.meta_flow_id})`
@@ -372,20 +372,20 @@ function FlowCard({
   }
 
   return (
-    <div className="border border-gray-800 rounded">
+    <div className="border border-gray-800 rounded light:border-gray-200">
       <div className="flex items-center justify-between p-4">
         <button onClick={onToggleExpandir} className="text-left flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-white">{flow.nome}</span>
+            <span className="text-sm font-medium text-white light:text-gray-900">{flow.nome}</span>
             <span
               className={`text-[11px] px-1.5 py-0.5 rounded border ${
-                flow.ativo ? "text-green-400 border-green-800" : "text-gray-400 border-gray-700"
+                flow.ativo ? "text-green-400 border-green-800 light:text-green-700 light:border-green-300" : "text-gray-400 border-gray-700 light:text-gray-600 light:border-gray-300"
               }`}
             >
               {flow.ativo ? "Ativo" : "Inativo"}
             </span>
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-gray-400 mt-0.5 light:text-gray-600">
             {numero}
             {flow.artista ? ` · ${flow.artista}` : ""} · {keywords.length}{" "}
             {keywords.length === 1 ? "palavra-chave" : "palavras-chave"}
@@ -398,8 +398,8 @@ function FlowCard({
             disabled={salvando}
             className={`text-xs rounded px-2 py-1 border ${
               flow.ativo
-                ? "border-gray-700 text-gray-300 hover:bg-gray-800"
-                : "border-green-800 text-green-400 hover:bg-green-950"
+                ? "border-gray-700 text-gray-300 hover:bg-gray-800 light:border-gray-300 light:text-gray-700 light:hover:bg-gray-100"
+                : "border-green-800 text-green-400 hover:bg-green-950 light:border-green-300 light:text-green-700 light:hover:bg-green-50"
             }`}
           >
             {flow.ativo ? "Desativar" : "Ativar"}
@@ -416,10 +416,10 @@ function FlowCard({
       </div>
 
       {expandido && (
-        <div className="border-t border-gray-800 p-4 space-y-5">
+        <div className="border-t border-gray-800 p-4 space-y-5 light:border-gray-200">
           <div className="space-y-3">
             {flow.meta_flow_id && (
-              <label className="text-xs text-gray-400 space-y-1 block">
+              <label className="text-xs text-gray-400 space-y-1 block light:text-gray-600">
                 <span>Convite (texto do balão que oferece este Flow ao contato)</span>
                 <textarea
                   value={convite}
@@ -430,17 +430,17 @@ function FlowCard({
                     }
                   }}
                   rows={2}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900"
                   placeholder={flow.nome}
                 />
-                <span className="text-[11px] text-gray-400 block">
+                <span className="text-[11px] text-gray-400 block light:text-gray-600">
                   Em branco, o balão usa o nome do Flow acima — que é rótulo do painel, não
                   texto escrito para o fã.
                 </span>
               </label>
             )}
 
-            <label className="text-xs text-gray-400 space-y-1 block">
+            <label className="text-xs text-gray-400 space-y-1 block light:text-gray-600">
               <span>Mensagem de boas-vindas (primeiro contato, e depois de 14 dias sem falar)</span>
               <textarea
                 value={boasVindas}
@@ -451,12 +451,12 @@ function FlowCard({
                   }
                 }}
                 rows={2}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900"
                 placeholder="Deixe em branco para não mandar boas-vindas"
               />
             </label>
 
-            <label className="text-xs text-gray-400 space-y-1 block">
+            <label className="text-xs text-gray-400 space-y-1 block light:text-gray-600">
               <span>Mensagem de fallback (quando nenhuma palavra-chave bate)</span>
               <textarea
                 value={fallback}
@@ -467,10 +467,10 @@ function FlowCard({
                   }
                 }}
                 rows={2}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900"
               />
             </label>
-            <label className="text-xs text-gray-400 space-y-1 block">
+            <label className="text-xs text-gray-400 space-y-1 block light:text-gray-600">
               <span>Abrir junto do fallback (opcional)</span>
               <select
                 value={fallbackDestino}
@@ -478,7 +478,7 @@ function FlowCard({
                   setFallbackDestino(e.target.value);
                   onAtualizar({ fallbackFlowDestinoId: e.target.value });
                 }}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900"
               >
                 <option value="">Só o texto</option>
                 {destinos.map((d) => (
@@ -486,12 +486,12 @@ function FlowCard({
                 ))}
               </select>
             </label>
-            <p className="text-[11px] text-gray-400">
+            <p className="text-[11px] text-gray-400 light:text-gray-600">
               Com um destino escolhido, quem escreve qualquer coisa que não casa
               palavra-chave recebe o texto <b>e</b> o balão da central — sem depender de
               palavra-chave. Palavra-chave continua tendo prioridade.
             </p>
-            <p className="text-[11px] text-gray-400">
+            <p className="text-[11px] text-gray-400 light:text-gray-600">
               Depois de 3 fallbacks seguidos, a automação se cala sozinha e registra um
               alerta — para não repetir a mesma resposta genérica indefinidamente. Isso
               vale também para o balão: oferecer a central indefinidamente a quem está
@@ -500,10 +500,10 @@ function FlowCard({
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-xs font-semibold text-gray-300">Palavras-chave</h3>
+            <h3 className="text-xs font-semibold text-gray-300 light:text-gray-700">Palavras-chave</h3>
 
             {keywords.length === 0 && (
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-400 light:text-gray-600">
                 Nenhuma ainda — é preciso ao menos uma para ativar o Flow.
               </p>
             )}
@@ -512,12 +512,12 @@ function FlowCard({
               {keywords.map((k) => (
                 <li
                   key={k.id}
-                  className="flex items-start justify-between gap-3 text-sm bg-gray-900/50 rounded px-2 py-1.5"
+                  className="flex items-start justify-between gap-3 text-sm bg-gray-900/50 rounded px-2 py-1.5 light:bg-gray-100"
                 >
                   <div className="min-w-0">
-                    <span className="text-white">{k.palavra_chave}</span>
-                    <span className="text-gray-400 text-xs"> → </span>
-                    <span className="text-gray-300 text-xs break-words">
+                    <span className="text-white light:text-gray-900">{k.palavra_chave}</span>
+                    <span className="text-gray-400 text-xs light:text-gray-600"> → </span>
+                    <span className="text-gray-300 text-xs break-words light:text-gray-700">
                       {k.tipo_resposta === "abrir_flow"
                         ? `abre: ${destinos.find((d) => d.id === k.flow_destino_id)?.nome ?? "Flow"}`
                         : k.resposta}
@@ -526,7 +526,7 @@ function FlowCard({
                   {isAdmin && (
                     <button
                       onClick={() => removerKeyword(k.id)}
-                      className="text-xs text-gray-400 hover:text-red-400 shrink-0"
+                      className="text-xs text-gray-400 hover:text-red-400 shrink-0 light:text-gray-600"
                     >
                       remover
                     </button>
@@ -540,12 +540,12 @@ function FlowCard({
                 value={novaPalavra}
                 onChange={(e) => setNovaPalavra(e.target.value)}
                 placeholder="palavra-chave"
-                className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white w-40"
+                className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white w-40 light:bg-white light:border-gray-300 light:text-gray-900"
               />
               <select
                 value={novoTipo}
                 onChange={(e) => setNovoTipo(e.target.value)}
-                className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+                className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900"
               >
                 <option value="texto">Texto</option>
                 <option value="link">Link</option>
@@ -557,7 +557,7 @@ function FlowCard({
                 <select
                   value={novoDestino}
                   onChange={(e) => setNovoDestino(e.target.value)}
-                  className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white flex-1 min-w-[12rem]"
+                  className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white flex-1 min-w-[12rem] light:bg-white light:border-gray-300 light:text-gray-900"
                 >
                   {destinos.map((d) => (
                     <option key={d.id} value={d.id}>{d.nome} ({d.tipo})</option>
@@ -568,57 +568,57 @@ function FlowCard({
                   value={novaResposta}
                   onChange={(e) => setNovaResposta(e.target.value)}
                   placeholder="resposta"
-                  className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white flex-1 min-w-[12rem]"
+                  className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white flex-1 min-w-[12rem] light:bg-white light:border-gray-300 light:text-gray-900"
                 />
               )}
               <button
                 type="submit"
                 disabled={addLoading}
-                className="bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white text-sm rounded px-3 py-1.5"
+                className="bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white text-sm rounded px-3 py-1.5 light:bg-gray-100 light:hover:bg-gray-200 light:text-gray-900"
               >
                 Adicionar
               </button>
             </form>
-            <p className="text-[11px] text-gray-400">
+            <p className="text-[11px] text-gray-400 light:text-gray-600">
               O match ignora acento, maiúscula e plural, e casa palavra inteira. Quando
               duas keywords batem, vence a mais específica (mais palavras).
             </p>
           </div>
 
-          <div className="space-y-2 border-t border-gray-800 pt-4">
+          <div className="space-y-2 border-t border-gray-800 pt-4 light:border-gray-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold text-gray-300">
+              <h3 className="text-xs font-semibold text-gray-300 light:text-gray-700">
                 Caiu em fallback recentemente
               </h3>
               <button
                 onClick={carregarFallbacks}
                 disabled={fallbacksLoading}
-                className="text-xs text-blue-400 hover:underline disabled:opacity-40"
+                className="text-xs text-blue-400 hover:underline disabled:opacity-40 light:text-blue-700"
               >
                 {fallbacksLoading ? "Carregando…" : fallbacks ? "Atualizar" : "Ver"}
               </button>
             </div>
-            <p className="text-[11px] text-gray-400">
+            <p className="text-[11px] text-gray-400 light:text-gray-600">
               Cada linha é alguém que perguntou algo que nenhuma palavra-chave cobre.
               Clique em &quot;usar&quot; para começar uma keyword com esse texto.
             </p>
 
             {fallbacks && fallbacks.length === 0 && (
-              <p className="text-xs text-gray-400">Nada em fallback por enquanto.</p>
+              <p className="text-xs text-gray-400 light:text-gray-600">Nada em fallback por enquanto.</p>
             )}
 
             {fallbacks && fallbacks.length > 0 && (
               <ul className="space-y-1">
                 {fallbacks.map((f) => (
-                  <li key={f.id} className="flex items-start justify-between gap-3 text-sm bg-gray-900/50 rounded px-2 py-1.5">
+                  <li key={f.id} className="flex items-start justify-between gap-3 text-sm bg-gray-900/50 rounded px-2 py-1.5 light:bg-gray-100">
                     <div className="min-w-0">
                       <p className="text-gray-200 break-words">{f.texto || "(sem texto)"}</p>
-                      <p className="text-[11px] text-gray-400">
+                      <p className="text-[11px] text-gray-400 light:text-gray-600">
                         {new Date(f.createdAt).toLocaleString("pt-BR")}
                         {f.chatId && (
                           <>
                             {" · "}
-                            <a href={`/dashboard/chat/${f.chatId}`} className="text-blue-400 hover:underline">
+                            <a href={`/dashboard/chat/${f.chatId}`} className="text-blue-400 hover:underline light:text-blue-700">
                               abrir conversa
                             </a>
                           </>
@@ -627,7 +627,7 @@ function FlowCard({
                     </div>
                     <button
                       onClick={() => setNovaPalavra(f.texto.split(/\s+/).slice(0, 3).join(" "))}
-                      className="text-xs text-gray-400 hover:text-blue-400 shrink-0"
+                      className="text-xs text-gray-400 hover:text-blue-400 shrink-0 light:text-gray-600"
                     >
                       usar
                     </button>

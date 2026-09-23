@@ -50,7 +50,7 @@ export default function ConversationSummary({ chatId }: { chatId: string }) {
       <button
         onClick={() => setOpen(true)}
         title="Resumir conversa (IA)"
-        className="shrink-0 flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 border border-green-800/60 hover:border-green-700 rounded-md px-2 py-1 transition-colors"
+        className="shrink-0 flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 border border-green-800/60 hover:border-green-700 rounded-md px-2 py-1 transition-colors light:text-green-700"
       >
         <Sparkles size={13} />
         Resumir
@@ -59,26 +59,26 @@ export default function ConversationSummary({ chatId }: { chatId: string }) {
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setOpen(false)}>
           <div
-            className="bg-gray-900 border border-gray-800 rounded-lg w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl"
+            className="bg-gray-900 border border-gray-800 rounded-lg w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl light:bg-white light:border-gray-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-              <h2 className="text-sm font-medium text-white flex items-center gap-2">
-                <Sparkles size={15} className="text-green-400" />
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 light:border-gray-200">
+              <h2 className="text-sm font-medium text-white flex items-center gap-2 light:text-gray-900">
+                <Sparkles size={15} className="text-green-400 light:text-green-700" />
                 Resumo da conversa
               </h2>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-white transition-colors">
+              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-white transition-colors light:text-gray-600 light:hover:text-gray-900">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="px-4 py-3 border-b border-gray-800 space-y-2">
+            <div className="px-4 py-3 border-b border-gray-800 space-y-2 light:border-gray-200">
               <div className="flex items-center gap-2">
                 <select
                   value={period}
                   onChange={(e) => setPeriod(e.target.value as Period)}
                   disabled={loading}
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-md px-2 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+                  className="flex-1 bg-gray-800 border border-gray-700 rounded-md px-2 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
                 >
                   {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
                     <option key={p} value={p}>{PERIOD_LABELS[p]}</option>
@@ -95,7 +95,7 @@ export default function ConversationSummary({ chatId }: { chatId: string }) {
                 onKeyDown={(e) => { if (e.key === "Enter" && !loading) generate(); }}
                 disabled={loading}
                 placeholder="Foco (opcional): ex. tudo sobre preços / entrega / reclamações"
-                className="w-full bg-gray-800 border border-gray-700 rounded-md px-2 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                className="w-full bg-gray-800 border border-gray-700 rounded-md px-2 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900 light:placeholder-gray-400"
               />
             </div>
 
@@ -104,16 +104,16 @@ export default function ConversationSummary({ chatId }: { chatId: string }) {
                 <p className="text-sm px-3 py-2 rounded-md border bg-red-900/30 border-red-800 text-red-400">{error}</p>
               )}
               {loading && !summary && (
-                <p className="text-sm text-gray-400 animate-pulse">Analisando a conversa...</p>
+                <p className="text-sm text-gray-400 animate-pulse light:text-gray-600">Analisando a conversa...</p>
               )}
               {!loading && !summary && !error && (
-                <p className="text-sm text-gray-400">Escolha um período e clique em Gerar.</p>
+                <p className="text-sm text-gray-400 light:text-gray-600">Escolha um período e clique em Gerar.</p>
               )}
               {summary && (
                 <>
                   <SummaryRender text={summary} />
                   {meta && (
-                    <p className="text-xs text-gray-400 mt-4 pt-3 border-t border-gray-800">
+                    <p className="text-xs text-gray-400 mt-4 pt-3 border-t border-gray-800 light:text-gray-600 light:border-gray-200">
                       Baseado em {meta.messageCount} mensagens · {PERIOD_LABELS[period]}
                     </p>
                   )}
@@ -139,15 +139,15 @@ function SummaryRender({ text }: { text: string }) {
         if (header) {
           return (
             <p key={i}>
-              <span className="font-semibold text-green-400">{header[1]}</span>
+              <span className="font-semibold text-green-400 light:text-green-700">{header[1]}</span>
               {header[2] ? <span className="text-gray-200">: {header[2]}</span> : null}
             </p>
           );
         }
         if (line.startsWith("-") || line.startsWith("•") || line.startsWith("*")) {
-          return <p key={i} className="pl-3 text-gray-300">• {line.replace(/^[-•*]\s*/, "")}</p>;
+          return <p key={i} className="pl-3 text-gray-300 light:text-gray-700">• {line.replace(/^[-•*]\s*/, "")}</p>;
         }
-        return <p key={i} className="text-gray-300">{line}</p>;
+        return <p key={i} className="text-gray-300 light:text-gray-700">{line}</p>;
       })}
     </div>
   );

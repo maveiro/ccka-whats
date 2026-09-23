@@ -31,8 +31,8 @@ export default async function TemplatesPage() {
   return (
     <div className="p-6 max-w-3xl space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-white">Templates — WhatsApp Cloud API</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Templates — WhatsApp Cloud API</h1>
+        <p className="text-sm text-gray-400 mt-1 light:text-gray-600">
           Crie, submeta e acompanhe a revisão da Meta — por conta (WABA). Botão de URL
           rastreada já sai com a convenção certa; ver docs/prd/prd-criacao-de-templates.md.
         </p>

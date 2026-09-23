@@ -34,16 +34,16 @@ export default function OptOutsList({ optOuts }: { optOuts: OptOut[] }) {
   }
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
+    <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3 light:bg-white light:border-gray-200">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-gray-400">{optOuts.length} contato(s) pediram para não receber mais campanhas.</p>
-        <button onClick={handleExport} className="text-xs text-green-400 hover:text-green-300">
+        <p className="text-xs text-gray-400 light:text-gray-600">{optOuts.length} contato(s) pediram para não receber mais campanhas.</p>
+        <button onClick={handleExport} className="text-xs text-green-400 hover:text-green-300 light:text-green-700">
           Exportar CSV
         </button>
       </div>
-      <div className="max-h-64 overflow-y-auto border border-gray-800 rounded-md">
+      <div className="max-h-64 overflow-y-auto border border-gray-800 rounded-md light:border-gray-200">
         <table className="w-full text-xs">
-          <thead className="bg-gray-800 text-gray-400 sticky top-0">
+          <thead className="bg-gray-800 text-gray-400 sticky top-0 light:bg-gray-100 light:text-gray-600">
             <tr>
               <th className="text-left px-2 py-1.5">Telefone</th>
               <th className="text-left px-2 py-1.5">Motivo</th>
@@ -52,10 +52,10 @@ export default function OptOutsList({ optOuts }: { optOuts: OptOut[] }) {
           </thead>
           <tbody>
             {optOuts.map((o) => (
-              <tr key={o.id} className="border-t border-gray-800 text-gray-300">
+              <tr key={o.id} className="border-t border-gray-800 text-gray-300 light:border-gray-200 light:text-gray-700">
                 <td className="px-2 py-1.5">{formatPhone(o.phone_e164)}</td>
-                <td className="px-2 py-1.5 text-gray-400">{o.reason ?? "—"}</td>
-                <td className="px-2 py-1.5 text-gray-400">{new Date(o.created_at).toLocaleString("pt-BR")}</td>
+                <td className="px-2 py-1.5 text-gray-400 light:text-gray-600">{o.reason ?? "—"}</td>
+                <td className="px-2 py-1.5 text-gray-400 light:text-gray-600">{new Date(o.created_at).toLocaleString("pt-BR")}</td>
               </tr>
             ))}
           </tbody>

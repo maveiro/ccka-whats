@@ -84,13 +84,13 @@ export default function IntegrationsManager({ integrations: initial, tenantId }:
       {integrations.map((integration) => (
         <div
           key={integration.id}
-          className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 flex items-center justify-between"
+          className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 flex items-center justify-between light:bg-white light:border-gray-200"
         >
           <div>
-            <p className="text-sm font-medium text-white">{integration.label ?? integration.type}</p>
-            <p className="text-xs text-gray-400 capitalize">{integration.type}</p>
+            <p className="text-sm font-medium text-white light:text-gray-900">{integration.label ?? integration.type}</p>
+            <p className="text-xs text-gray-400 capitalize light:text-gray-600">{integration.type}</p>
             {typeof integration.config["api_key"] === "string" && (
-              <p className="text-xs text-gray-400 font-mono mt-0.5">
+              <p className="text-xs text-gray-400 font-mono mt-0.5 light:text-gray-600">
                 ••••••••{integration.config["api_key"].slice(-4)}
               </p>
             )}
@@ -100,8 +100,8 @@ export default function IntegrationsManager({ integrations: initial, tenantId }:
               onClick={() => handleToggle(integration.id, integration.active)}
               className={`text-xs px-2 py-1 rounded border transition-colors ${
                 integration.active
-                  ? "border-green-700 text-green-400 hover:bg-green-900/30"
-                  : "border-gray-700 text-gray-400 hover:bg-gray-800"
+                  ? "border-green-700 text-green-400 hover:bg-green-900/30 light:border-green-300 light:text-green-700 light:hover:bg-green-50"
+                  : "border-gray-700 text-gray-400 hover:bg-gray-800 light:border-gray-300 light:text-gray-600 light:hover:bg-gray-100"
               }`}
             >
               {integration.active ? "Ativo" : "Inativo"}
@@ -117,13 +117,13 @@ export default function IntegrationsManager({ integrations: initial, tenantId }:
       ))}
 
       {adding ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4">
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4 light:bg-white light:border-gray-200">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Tipo</label>
+            <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">Tipo</label>
             <select
               value={type}
               onChange={(e) => { setType(e.target.value); setFields({}); }}
-              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             >
               {INTEGRATION_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -132,24 +132,24 @@ export default function IntegrationsManager({ integrations: initial, tenantId }:
           </div>
 
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Label (opcional)</label>
+            <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">Label (opcional)</label>
             <input
               type="text"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder={selectedType.label}
-              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             />
           </div>
 
           {selectedType.fields.map((field) => (
             <div key={field.key}>
-              <label className="block text-xs text-gray-400 mb-1">{field.label}</label>
+              <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">{field.label}</label>
               <input
                 type={field.type}
                 value={fields[field.key] ?? ""}
                 onChange={(e) => setFields((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 font-mono"
+                className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 font-mono light:bg-gray-100 light:border-gray-300 light:text-gray-900"
               />
             </div>
           ))}
@@ -174,7 +174,7 @@ export default function IntegrationsManager({ integrations: initial, tenantId }:
       ) : (
         <button
           onClick={() => setAdding(true)}
-          className="w-full py-2 px-4 border border-dashed border-gray-700 text-gray-400 hover:border-green-600 hover:text-green-400 text-sm rounded-md transition-colors"
+          className="w-full py-2 px-4 border border-dashed border-gray-700 text-gray-400 hover:border-green-600 hover:text-green-400 text-sm rounded-md transition-colors light:border-gray-300 light:text-gray-600 light:hover:text-green-700"
         >
           + Adicionar integração
         </button>

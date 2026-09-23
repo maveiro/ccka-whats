@@ -80,15 +80,15 @@ export default function LoginForm() {
       </button>
 
       <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-gray-800" />
-        <span className="text-xs text-gray-400">ou</span>
-        <div className="h-px flex-1 bg-gray-800" />
+        <div className="h-px flex-1 bg-gray-800 light:bg-gray-100" />
+        <span className="text-xs text-gray-400 light:text-gray-500">ou</span>
+        <div className="h-px flex-1 bg-gray-800 light:bg-gray-100" />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-3">
           <div className="space-y-1">
-            <label htmlFor="email" className="block text-xs font-medium text-gray-400">
+            <label htmlFor="email" className="block text-xs font-medium text-gray-400 light:text-gray-500">
               Email
             </label>
             <input
@@ -100,12 +100,12 @@ export default function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-800 text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-950"
+              className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-800 text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-950 light:bg-white light:border-gray-200 light:text-gray-900 light:placeholder-gray-400"
             />
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="password" className="block text-xs font-medium text-gray-400">
+            <label htmlFor="password" className="block text-xs font-medium text-gray-400 light:text-gray-500">
               Senha
             </label>
             <div className="relative">
@@ -117,12 +117,12 @@ export default function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="w-full px-3 py-2 pr-10 rounded-md bg-gray-900 border border-gray-800 text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-950"
+                className="w-full px-3 py-2 pr-10 rounded-md bg-gray-900 border border-gray-800 text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-950 light:bg-white light:border-gray-200 light:text-gray-900 light:placeholder-gray-400"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors p-1"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors p-1 light:text-gray-500 light:hover:text-gray-700"
                 aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -131,7 +131,7 @@ export default function LoginForm() {
             <div className="flex justify-end">
               <Link
                 href="/forgot-password"
-                className="text-xs text-gray-400 underline hover:text-gray-300 transition-colors"
+                className="text-xs text-gray-400 underline hover:text-gray-300 transition-colors light:text-gray-500 light:hover:text-gray-700"
               >
                 Esqueceu a senha?
               </Link>
@@ -155,7 +155,7 @@ export default function LoginForm() {
         <div className="text-center pt-1">
           <Link
             href="/register"
-            className="inline-block w-full py-2 px-4 border border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white text-sm font-medium rounded-md transition-colors"
+            className="inline-block w-full py-2 px-4 border border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white text-sm font-medium rounded-md transition-colors light:border-gray-300 light:text-gray-700 light:hover:text-gray-900"
           >
             Criar conta
           </Link>

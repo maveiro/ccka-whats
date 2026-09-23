@@ -32,11 +32,11 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-950">
+    <main className="min-h-screen flex items-center justify-center bg-gray-950 light:bg-white">
       <div className="w-full max-w-sm space-y-6 px-6">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold text-white">Recuperar senha</h1>
-          <p className="text-sm text-gray-400">
+          <h1 className="text-2xl font-semibold text-white light:text-gray-900">Recuperar senha</h1>
+          <p className="text-sm text-gray-400 light:text-gray-500">
             Enviaremos um link para redefinir sua senha
           </p>
         </div>
@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
             </div>
             <Link
               href="/login"
-              className="block text-center text-sm text-gray-400 underline hover:text-white transition-colors"
+              className="block text-center text-sm text-gray-400 underline hover:text-white transition-colors light:text-gray-500 light:hover:text-gray-900"
             >
               ← Voltar para o login
             </Link>
@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
-              <label htmlFor="email" className="block text-xs font-medium text-gray-400">
+              <label htmlFor="email" className="block text-xs font-medium text-gray-400 light:text-gray-500">
                 Email
               </label>
               <input
@@ -68,7 +68,7 @@ export default function ForgotPasswordPage() {
                 required
                 autoFocus
                 autoComplete="email"
-                className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-800 text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-950"
+                className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-800 text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-950 light:bg-white light:border-gray-200 light:text-gray-900 light:placeholder-gray-400"
               />
             </div>
 
@@ -80,7 +80,7 @@ export default function ForgotPasswordPage() {
 
             <Link
               href="/login"
-              className="block text-center text-sm text-gray-400 underline hover:text-gray-300 transition-colors"
+              className="block text-center text-sm text-gray-400 underline hover:text-gray-300 transition-colors light:text-gray-500 light:hover:text-gray-700"
             >
               ← Voltar para o login
             </Link>

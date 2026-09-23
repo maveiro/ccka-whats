@@ -321,15 +321,15 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
   const missingFlow = templateFlowButton !== null && !flowId;
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4">
+    <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4 light:bg-white light:border-gray-200">
       {error && <p className="text-xs text-red-400 bg-red-900/20 border border-red-900 rounded-md px-3 py-2">{error}</p>}
 
       {step === "credential" && (
         <div className="space-y-3">
-          <p className="text-sm font-medium text-white">
+          <p className="text-sm font-medium text-white light:text-gray-900">
             {hasCredential ? "Cadastrar outro número do WhatsApp Cloud API" : "Conectar WhatsApp Cloud API"}
           </p>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 light:text-gray-600">
             Dados do WhatsApp Business Account (WABA) no Meta Business Manager. O token de
             acesso nunca é reexibido depois de salvo.
             {hasCredential && " Cadastrar aqui NÃO mexe nos outros números do tenant — para administrá-los, use Números."}
@@ -360,14 +360,14 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
       {step === "template" && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-white">Escolher modelo (template aprovado)</p>
-            <button onClick={() => void loadTemplates()} className="text-xs text-gray-400 hover:text-white">
+            <p className="text-sm font-medium text-white light:text-gray-900">Escolher modelo (template aprovado)</p>
+            <button onClick={() => void loadTemplates()} className="text-xs text-gray-400 hover:text-white light:text-gray-600 light:hover:text-gray-900">
               {loadingTemplates ? "Carregando..." : "Recarregar"}
             </button>
           </div>
           {hasCredential && (
-            <div className="space-y-1 bg-gray-800/50 rounded-md px-3 py-2">
-              <label className="block text-xs text-gray-400">Disparar a partir de</label>
+            <div className="space-y-1 bg-gray-800/50 rounded-md px-3 py-2 light:bg-gray-100">
+              <label className="block text-xs text-gray-400 light:text-gray-600">Disparar a partir de</label>
               <select
                 value={credentialId ?? ""}
                 onChange={(e) => {
@@ -380,7 +380,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
                   setTemplates([]);
                   void loadTemplates(e.target.value);
                 }}
-                className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white text-sm"
+                className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white text-sm light:bg-white light:border-gray-300 light:text-gray-900"
               >
                 {credentials.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -388,13 +388,13 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
                   </option>
                 ))}
               </select>
-              <p className="text-[11px] text-gray-400">
+              <p className="text-[11px] text-gray-400 light:text-gray-600">
                 É este número que aparece para quem recebe, e é o limite e a nota de
                 qualidade dele que valem no disparo. Os modelos vêm da conta (WABA), então
                 números da mesma conta oferecem a mesma lista.{" "}
                 <button
                   onClick={() => { setStep("credential"); setError(null); }}
-                  className="text-green-400 hover:text-green-300"
+                  className="text-green-400 hover:text-green-300 light:text-green-700"
                 >
                   cadastrar outro número
                 </button>
@@ -402,7 +402,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
             </div>
           )}
           {templates.length === 0 && !loadingTemplates && (
-            <button onClick={() => void loadTemplates()} className="text-xs text-green-400 hover:text-green-300">
+            <button onClick={() => void loadTemplates()} className="text-xs text-green-400 hover:text-green-300 light:text-green-700">
               Buscar templates aprovados na Meta
             </button>
           )}
@@ -411,10 +411,10 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
               <button
                 key={t.id}
                 onClick={() => handleSelectTemplate(t)}
-                className="w-full text-left bg-gray-800 hover:bg-gray-750 border border-gray-700 rounded-md px-3 py-2 transition-colors"
+                className="w-full text-left bg-gray-800 hover:bg-gray-750 border border-gray-700 rounded-md px-3 py-2 transition-colors light:bg-gray-100 light:border-gray-300"
               >
-                <p className="text-sm text-white">{t.name}</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-sm text-white light:text-gray-900">{t.name}</p>
+                <p className="text-xs text-gray-400 light:text-gray-600">
                   {t.language} · {t.category} · {countPlaceholders(t.components)} variável(is)
                   {contarVariaveis(t.components).header > 0 ? " (1 no cabeçalho)" : ""}
                   {headerDeMidia(t.components) ? ` · cabeçalho de ${headerDeMidia(t.components)}` : ""}
@@ -427,8 +427,8 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
 
       {step === "csv" && selectedTemplate && (
         <div className="space-y-3">
-          <p className="text-sm font-medium text-white">Base de contatos — {selectedTemplate.name}</p>
-          <p className="text-xs text-gray-400">
+          <p className="text-sm font-medium text-white light:text-gray-900">Base de contatos — {selectedTemplate.name}</p>
+          <p className="text-xs text-gray-400 light:text-gray-600">
             CSV com coluna <code className="font-mono">phone</code> (E.164 sem &quot;+&quot;) e, se o
             template tiver variáveis, colunas adicionais na ordem dos placeholders {"{{1}}"}, {"{{2}}"}...
             (template tem {countPlaceholders(selectedTemplate.components)} variável(is)).
@@ -461,10 +461,10 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
             type="file"
             accept=".csv"
             onChange={(e) => e.target.files?.[0] && handleCsvFile(e.target.files[0])}
-            className="text-sm text-gray-300"
+            className="text-sm text-gray-300 light:text-gray-700"
           />
           {csvError && <p className="text-xs text-red-400">{csvError}</p>}
-          <button onClick={() => setStep("template")} className="text-xs text-gray-400 hover:text-white">
+          <button onClick={() => setStep("template")} className="text-xs text-gray-400 hover:text-white light:text-gray-600 light:hover:text-gray-900">
             ← Voltar
           </button>
         </div>
@@ -472,7 +472,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
 
       {step === "review" && selectedTemplate && (
         <div className="space-y-3">
-          <p className="text-sm font-medium text-white">Revisão</p>
+          <p className="text-sm font-medium text-white light:text-gray-900">Revisão</p>
           <Field label="Nome da campanha" value={name} onChange={setName} />
           {trackedButton && (
             <div className="space-y-1">
@@ -481,7 +481,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
                 value={clickTargetUrl}
                 onChange={setClickTargetUrl}
               />
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-400 light:text-gray-600">
                 Para onde a pessoa vai depois do clique (ex: a página do evento no Sympla).
                 O link do template passa pelo nosso redirect, que registra quem clicou.
               </p>
@@ -489,13 +489,13 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
           )}
           {templateFlowButton && (
             <div className="space-y-1">
-              <label className="block text-xs text-gray-400 mb-1">
+              <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">
                 Central aberta pelo botão &quot;{templateFlowButton.text}&quot;
               </label>
               <select
                 value={flowId}
                 onChange={(e) => setFlowId(e.target.value)}
-                className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
               >
                 <option value="">Escolher...</option>
                 {flowsDisponiveis.map((f) => (
@@ -504,7 +504,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-400 light:text-gray-600">
                 Cada destinatário recebe um token próprio, então quem já é cadastrado abre a
                 central direto no menu, sem se cadastrar de novo.
               </p>
@@ -516,12 +516,12 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
               )}
             </div>
           )}
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 light:text-gray-600">
             {recipients.length} destinatário(s) válido(s) · template <b>{selectedTemplate.name}</b> ({selectedTemplate.category})
           </p>
-          <div className="max-h-40 overflow-y-auto border border-gray-800 rounded-md">
+          <div className="max-h-40 overflow-y-auto border border-gray-800 rounded-md light:border-gray-200">
             <table className="w-full text-xs">
-              <thead className="bg-gray-800 text-gray-400">
+              <thead className="bg-gray-800 text-gray-400 light:bg-gray-100 light:text-gray-600">
                 <tr>
                   <th className="text-left px-2 py-1">Telefone</th>
                   <th className="text-left px-2 py-1">Variáveis</th>
@@ -529,7 +529,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
               </thead>
               <tbody>
                 {recipients.slice(0, 10).map((r, i) => (
-                  <tr key={i} className="border-t border-gray-800 text-gray-300">
+                  <tr key={i} className="border-t border-gray-800 text-gray-300 light:border-gray-200 light:text-gray-700">
                     <td className="px-2 py-1">{r.phone}</td>
                     <td className="px-2 py-1">{Object.values(r.variables).join(", ")}</td>
                   </tr>
@@ -537,7 +537,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
               </tbody>
             </table>
             {recipients.length > 10 && (
-              <p className="text-xs text-gray-400 px-2 py-1">+{recipients.length - 10} destinatário(s)</p>
+              <p className="text-xs text-gray-400 px-2 py-1 light:text-gray-600">+{recipients.length - 10} destinatário(s)</p>
             )}
           </div>
           <div className="flex gap-2">
@@ -559,15 +559,15 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
 
       {step === "done" && result && (
         <div className="space-y-3">
-          <p className="text-sm font-medium text-green-400">Campanha criada</p>
-          <p className="text-xs text-gray-400">
+          <p className="text-sm font-medium text-green-400 light:text-green-700">Campanha criada</p>
+          <p className="text-xs text-gray-400 light:text-gray-600">
             {result.accepted} destinatário(s) aceitos
             {result.skippedOptOut > 0 && `, ${result.skippedOptOut} removido(s) por opt-out`}
             {result.skippedInvalid > 0 && `, ${result.skippedInvalid} inválido(s)`}
             {result.skippedDuplicate > 0 && `, ${result.skippedDuplicate} duplicado(s) (telefone repetido no CSV)`}.
             Dispare na lista abaixo quando estiver pronta.
           </p>
-          <button onClick={reset} className="text-xs text-green-400 hover:text-green-300">
+          <button onClick={reset} className="text-xs text-green-400 hover:text-green-300 light:text-green-700">
             + Nova campanha
           </button>
         </div>
@@ -582,13 +582,13 @@ function Field({
   const id = useId();
   return (
     <div>
-      <label htmlFor={id} className="block text-xs text-gray-400 mb-1">{label}</label>
+      <label htmlFor={id} className="block text-xs text-gray-400 mb-1 light:text-gray-600">{label}</label>
       <input
         id={id}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+        className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
       />
     </div>
   );

@@ -63,7 +63,7 @@ export default function SaudeManager({ iniciais, temWebhook }: { iniciais: Erro[
               key={p.horas}
               onClick={() => { setHoras(p.horas); setVersao((v) => v + 1); }}
               className={`text-xs px-2 py-1 rounded ${
-                p.horas === horas ? "bg-gray-800 text-white" : "text-gray-300 hover:text-white"
+                p.horas === horas ? "bg-gray-800 text-white light:bg-gray-100 light:text-gray-900" : "text-gray-300 hover:text-white light:text-gray-600 light:hover:text-gray-900"
               }`}
             >
               {p.rotulo}
@@ -75,13 +75,13 @@ export default function SaudeManager({ iniciais, temWebhook }: { iniciais: Erro[
           // de 18/09/2026 (aviso ativo em standby), não um defeito — por isso
           // a frase é neutra e não um alerta em âmbar, que lido todo dia
           // pareceria problema.
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-gray-400 light:text-gray-600">
             aviso ativo não configurado — a leitura é por esta tela
           </span>
         )}
       </div>
 
-      <Suspense fallback={<p className="text-sm text-gray-400">carregando...</p>}>
+      <Suspense fallback={<p className="text-sm text-gray-400 light:text-gray-600">carregando...</p>}>
         <Lista promessa={promessa} onReconhecer={reconhecer} />
       </Suspense>
     </div>
@@ -99,7 +99,7 @@ function Lista({
 
   const erros = resposta.erros;
   if (erros.length === 0) {
-    return <p className="text-sm text-gray-400">Nenhum erro no período. É o estado que a gente quer.</p>;
+    return <p className="text-sm text-gray-400 light:text-gray-600">Nenhum erro no período. É o estado que a gente quer.</p>;
   }
 
   return (
@@ -110,13 +110,13 @@ function Lista({
           <div
             key={e.assinatura}
             className={`rounded-lg border p-4 space-y-2 ${
-              novo ? "bg-gray-900 border-gray-800" : "bg-gray-900/40 border-gray-800/50 opacity-70"
+              novo ? "bg-gray-900 border-gray-800 light:bg-white light:border-gray-200" : "bg-gray-900/40 border-gray-800/50 opacity-70 light:bg-gray-50 light:border-gray-200/50"
             }`}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm text-white">
-                  <span className="text-gray-400">{e.event_type}</span>{" "}
+                <p className="text-sm text-white light:text-gray-900">
+                  <span className="text-gray-400 light:text-gray-600">{e.event_type}</span>{" "}
                   <b>{Number(e.ocorrencias)}×</b>
                   {e.reconhecido && Number(e.novo_desde_ack) > 0 && (
                     <span className="text-amber-400"> · {Number(e.novo_desde_ack)} depois de reconhecido</span>
@@ -124,8 +124,8 @@ function Lista({
                 </p>
                 {/* A amostra é uma mensagem REAL; a assinatura tem `#` no
                     lugar dos ids e serve para agrupar, não para investigar. */}
-                <p className="text-xs text-gray-400 mt-1 break-words">{e.amostra ?? e.assinatura}</p>
-                <p className="text-[11px] text-gray-400 mt-1">
+                <p className="text-xs text-gray-400 mt-1 break-words light:text-gray-600">{e.amostra ?? e.assinatura}</p>
+                <p className="text-[11px] text-gray-400 mt-1 light:text-gray-600">
                   de {new Date(e.primeiro).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                   {" a "}
                   {new Date(e.ultimo).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
@@ -133,7 +133,7 @@ function Lista({
               </div>
               <button
                 onClick={() => onReconhecer(e.assinatura, e.reconhecido)}
-                className="shrink-0 text-xs text-gray-400 hover:text-white"
+                className="shrink-0 text-xs text-gray-400 hover:text-white light:text-gray-600 light:hover:text-gray-900"
               >
                 {e.reconhecido ? "voltar a acompanhar" : "reconhecer"}
               </button>

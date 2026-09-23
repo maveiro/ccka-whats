@@ -37,13 +37,13 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  draft: "text-gray-400 border-gray-700",
-  ready: "text-blue-400 border-blue-800",
-  sending: "text-yellow-400 border-yellow-800",
-  paused: "text-orange-400 border-orange-800",
-  completed: "text-green-400 border-green-800",
-  failed: "text-red-400 border-red-800",
-  cancelled: "text-gray-400 border-gray-700",
+  draft: "text-gray-400 border-gray-700 light:text-gray-600 light:border-gray-300",
+  ready: "text-blue-400 border-blue-800 light:text-blue-700 light:border-blue-300",
+  sending: "text-yellow-400 border-yellow-800 light:text-yellow-700 light:border-yellow-300",
+  paused: "text-orange-400 border-orange-800 light:text-orange-700 light:border-orange-300",
+  completed: "text-green-400 border-green-800 light:text-green-700 light:border-green-300",
+  failed: "text-red-400 border-red-800 light:text-red-700 light:border-red-300",
+  cancelled: "text-gray-400 border-gray-700 light:text-gray-600 light:border-gray-300",
 };
 
 export default function CampaignsList({ initial }: { initial: Campaign[] }) {
@@ -150,11 +150,11 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
   return (
     <div className="space-y-3">
       {campaigns.map((c) => (
-        <div key={c.id} className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3">
+        <div key={c.id} className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 light:bg-white light:border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-white">{c.name}</p>
-              <p className="text-xs text-gray-400">
+              <p className="text-sm font-medium text-white light:text-gray-900">{c.name}</p>
+              <p className="text-xs text-gray-400 light:text-gray-600">
                 {c.template_name} {c.template_category ? `· ${c.template_category}` : ""}
               </p>
               {/* O motivo da pausa fica na TELA, não só no events_log: uma
@@ -165,7 +165,7 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <span className={`text-xs px-2 py-1 rounded border ${STATUS_COLOR[c.status] ?? "text-gray-400 border-gray-700"}`}>
+              <span className={`text-xs px-2 py-1 rounded border ${STATUS_COLOR[c.status] ?? "text-gray-400 border-gray-700 light:text-gray-600 light:border-gray-300"}`}>
                 {STATUS_LABEL[c.status] ?? c.status}
               </span>
               {c.status === "ready" && (
@@ -189,8 +189,8 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
                   title="Encerra a campanha. O que já foi enviado permanece no histórico e no custo; quem ainda não recebeu nunca recebe."
                   className={`text-xs px-2.5 py-1 rounded-md transition-colors disabled:opacity-50 ${
                     cancelConfirm === c.id
-                      ? "bg-red-900/40 border border-red-800 text-red-300"
-                      : "bg-gray-800 hover:bg-gray-700 text-gray-300"
+                      ? "bg-red-900/40 border border-red-800 text-red-300 light:bg-red-50 light:border-red-300 light:text-red-700"
+                      : "bg-gray-800 hover:bg-gray-700 text-gray-300 light:bg-gray-100 light:hover:bg-gray-200 light:text-gray-700"
                   }`}
                 >
                   {cancelLoading === c.id ? "Cancelando..." : cancelConfirm === c.id ? "Confirmar?" : "Cancelar"}
@@ -215,17 +215,17 @@ export default function CampaignsList({ initial }: { initial: Campaign[] }) {
 
           {c.total_recipients > 0 && (
             <div className="mt-2 space-y-1">
-              <div className="flex justify-between text-xs text-gray-400">
+              <div className="flex justify-between text-xs text-gray-400 light:text-gray-600">
                 <span>{c.sent_count + c.failed_count}/{c.total_recipients} processados</span>
                 <span>
                   {c.delivered_count} entregues · {c.read_count} lidos · {c.failed_count} falhas
                   {c.clicked_count > 0 && ` · ${c.clicked_count} clicaram`}
                   {(c.cost ?? 0) > 0 && (
-                    <span className="text-gray-400"> · {formatCurrency(c.cost!)}</span>
+                    <span className="text-gray-400 light:text-gray-600"> · {formatCurrency(c.cost!)}</span>
                   )}
                 </span>
               </div>
-              <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+              <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden light:bg-gray-100">
                 <div
                   className="h-full bg-green-600 transition-all"
                   style={{ width: `${Math.min(100, ((c.sent_count + c.failed_count) / c.total_recipients) * 100)}%` }}

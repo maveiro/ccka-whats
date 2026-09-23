@@ -82,27 +82,27 @@ export default function FaqManager({
 
   return (
     <div className="space-y-8">
-      <form onSubmit={adicionar} className="border border-gray-800 rounded p-4 space-y-3">
-        <h2 className="text-sm font-semibold text-white">Nova pergunta</h2>
+      <form onSubmit={adicionar} className="border border-gray-800 rounded p-4 space-y-3 light:border-gray-200">
+        <h2 className="text-sm font-semibold text-white light:text-gray-900">Nova pergunta</h2>
         <input
           value={pergunta}
           onChange={(e) => setPergunta(e.target.value)}
           placeholder="Ex: Tem meia-entrada?"
-          className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+          className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900"
         />
         <textarea
           value={resposta}
           onChange={(e) => setResposta(e.target.value)}
           rows={3}
           placeholder="Resposta que o fã vai ler no WhatsApp"
-          className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+          className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900"
         />
         <div className="flex items-center gap-3">
           <select
             value={artista}
             onChange={(e) => setArtista(e.target.value)}
             aria-label="Artista (opcional)"
-            className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+            className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900"
           >
             <option value="">Todos os artistas</option>
             {artistas.map((a) => <option key={a} value={a}>{a}</option>)}
@@ -118,24 +118,24 @@ export default function FaqManager({
       </form>
 
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-white">
-          Perguntas <span className="text-gray-400 font-normal">({itens.length})</span>
+        <h2 className="text-sm font-semibold text-white light:text-gray-900">
+          Perguntas <span className="text-gray-400 font-normal light:text-gray-600">({itens.length})</span>
         </h2>
         {itens.length === 0 && <EmptyState title="Nenhuma pergunta cadastrada." />}
 
         {itens.map((item) => (
-          <div key={item.id} className={`border border-gray-800 rounded p-4 space-y-2 ${item.ativo ? "" : "opacity-60"}`}>
+          <div key={item.id} className={`border border-gray-800 light:border-gray-200 rounded p-4 space-y-2 ${item.ativo ? "" : "opacity-60"}`}>
             <div className="flex items-start justify-between gap-3">
-              <p className="text-sm text-white">{item.pergunta}</p>
+              <p className="text-sm text-white light:text-gray-900">{item.pergunta}</p>
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => atualizar(item.id, { ativo: !item.ativo })}
-                  className="text-xs text-gray-400 hover:text-white"
+                  className="text-xs text-gray-400 hover:text-white light:text-gray-600 light:hover:text-gray-900"
                 >
                   {item.ativo ? "desativar" : "ativar"}
                 </button>
                 {isAdmin && (
-                  <button onClick={() => remover(item.id)} className="text-xs text-gray-400 hover:text-red-400">
+                  <button onClick={() => remover(item.id)} className="text-xs text-gray-400 hover:text-red-400 light:text-gray-600">
                     remover
                   </button>
                 )}
@@ -149,9 +149,9 @@ export default function FaqManager({
                   atualizar(item.id, { resposta: e.target.value });
                 }
               }}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200 light:bg-white light:border-gray-300"
             />
-            <p className="text-[11px] text-gray-400">
+            <p className="text-[11px] text-gray-400 light:text-gray-600">
               {item.artista ?? "todos os artistas"} · ordem {item.ordem}
               {!item.ativo && " · inativa (não aparece na central)"}
             </p>

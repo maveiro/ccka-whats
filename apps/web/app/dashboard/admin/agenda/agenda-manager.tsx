@@ -149,10 +149,10 @@ export default function AgendaManager({
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">
-            Shows na agenda <span className="text-gray-400 font-normal">({visiveis.length})</span>
+          <h2 className="text-sm font-semibold text-white light:text-gray-900">
+            Shows na agenda <span className="text-gray-400 font-normal light:text-gray-600">({visiveis.length})</span>
             {sincronizados > 0 && (
-              <span className="text-gray-400 font-normal text-xs ml-2">
+              <span className="text-gray-400 font-normal text-xs ml-2 light:text-gray-600">
                 {sincronizados} do Monday{manuais.length > 0 && `, ${manuais.length} fora do board`}
                 {aguardando.length > 0 && `, ${aguardando.length} aguardando publicação`}
               </span>
@@ -160,7 +160,7 @@ export default function AgendaManager({
           </h2>
           {artistas.length > 1 && (
             <select value={filtroArtista} onChange={(e) => setFiltroArtista(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-white">
+              className="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-white light:bg-white light:border-gray-300 light:text-gray-900">
               <option value="">Todos os artistas</option>
               {artistas.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
@@ -168,7 +168,7 @@ export default function AgendaManager({
         </div>
 
         {visiveis.length === 0 && (
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-gray-400 light:text-gray-600">
             Nenhum show na agenda. Crie uma agenda sincronizada acima e clique em
             &quot;sincronizar agora&quot;.
           </p>
@@ -214,12 +214,12 @@ function ShowLinha({
 
   if (!editando) {
     return (
-      <div className={`border rounded px-4 py-3 flex items-start justify-between gap-3 ${passado ? "opacity-60" : ""} ${show.publicado ? "border-gray-800" : "border-amber-900/60 bg-amber-950/10"}`}>
+      <div className={`border rounded px-4 py-3 flex items-start justify-between gap-3 ${passado ? "opacity-60" : ""} ${show.publicado ? "border-gray-800 light:border-gray-200" : "border-amber-900/60 bg-amber-950/10 light:border-amber-300 light:bg-amber-50"}`}>
         <div className="min-w-0">
-          <p className="text-sm text-white">
+          <p className="text-sm text-white light:text-gray-900">
             {show.cidade ?? "—"}
-            {show.teatro ? <span className="text-gray-400"> · {show.teatro}</span> : null}
-            {passado && <span className="text-[11px] text-gray-400 ml-2">(já passou)</span>}
+            {show.teatro ? <span className="text-gray-400 light:text-gray-600"> · {show.teatro}</span> : null}
+            {passado && <span className="text-[11px] text-gray-400 ml-2 light:text-gray-600">(já passou)</span>}
             {!doBoard && (
               <span className="text-[11px] text-amber-400/80 ml-2">fora do board</span>
             )}
@@ -227,7 +227,7 @@ function ShowLinha({
               <span className="text-[11px] text-amber-400 ml-2">não publicado</span>
             )}
           </p>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-gray-400 mt-0.5 light:text-gray-600">
             {show.artista} ·{" "}
             {show.data_show
               ? new Date(show.data_show).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })
@@ -239,7 +239,7 @@ function ShowLinha({
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => onAtualizar({ publicado: !show.publicado })}
-            className={`text-xs ${show.publicado ? "text-gray-400 hover:text-amber-400" : "text-amber-400 hover:text-amber-300"}`}
+            className={`text-xs ${show.publicado ? "text-gray-400 hover:text-amber-400 light:text-gray-600 light:hover:text-amber-700" : "text-amber-400 hover:text-amber-300 light:text-amber-700 light:hover:text-amber-800"}`}
             title={show.publicado
               ? "Esconder este show da central, sem mexer no board"
               : "Voltar a mostrar este show na central"}
@@ -250,12 +250,12 @@ function ShowLinha({
             // Fora de `publicado`, sem ações: a próxima rodada do sync
             // desfaria qualquer edição, e remover aqui só faria o show voltar
             // na hora seguinte. Correção de show sincronizado se faz no board.
-            <span className="text-[11px] text-gray-400">vem do Monday</span>
+            <span className="text-[11px] text-gray-400 light:text-gray-600">vem do Monday</span>
           ) : (
             <>
-              <button onClick={() => setEditando(true)} className="text-xs text-gray-400 hover:text-white">editar</button>
+              <button onClick={() => setEditando(true)} className="text-xs text-gray-400 hover:text-white light:text-gray-600 light:hover:text-gray-900">editar</button>
               {isAdmin && (
-                <button onClick={onRemover} className="text-xs text-gray-400 hover:text-red-400">remover</button>
+                <button onClick={onRemover} className="text-xs text-gray-400 hover:text-red-400 light:text-gray-600">remover</button>
               )}
             </>
           )}
@@ -265,34 +265,34 @@ function ShowLinha({
   }
 
   return (
-    <div className="border border-gray-700 rounded p-4 space-y-3">
+    <div className="border border-gray-700 rounded p-4 space-y-3 light:border-gray-300">
       <div className="grid grid-cols-3 gap-3">
-        <label className="text-xs text-gray-400 space-y-1">
+        <label className="text-xs text-gray-400 space-y-1 light:text-gray-600">
           <span>Cidade</span>
           <input value={cidade} onChange={(e) => setCidade(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white" />
+            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900" />
         </label>
-        <label className="text-xs text-gray-400 space-y-1">
+        <label className="text-xs text-gray-400 space-y-1 light:text-gray-600">
           <span>Teatro / casa</span>
           <input value={teatro} onChange={(e) => setTeatro(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white" />
+            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900" />
         </label>
-        <label className="text-xs text-gray-400 space-y-1">
+        <label className="text-xs text-gray-400 space-y-1 light:text-gray-600">
           <span>Data e hora</span>
           <input type="datetime-local" value={dataShow} onChange={(e) => setDataShow(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white" />
+            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900" />
         </label>
-        <label className="text-xs text-gray-400 space-y-1">
+        <label className="text-xs text-gray-400 space-y-1 light:text-gray-600">
           <span>Status</span>
           <select value={statusVenda} onChange={(e) => setStatusVenda(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white">
+            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900">
             {STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </label>
-        <label className="text-xs text-gray-400 space-y-1 col-span-2">
+        <label className="text-xs text-gray-400 space-y-1 col-span-2 light:text-gray-600">
           <span>Link de compra</span>
           <input value={linkCompra} onChange={(e) => setLinkCompra(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white" />
+            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900" />
         </label>
       </div>
       <div className="flex gap-2">
@@ -305,7 +305,7 @@ function ShowLinha({
         >
           Salvar
         </button>
-        <button onClick={() => setEditando(false)} className="text-sm text-gray-400 hover:text-white px-3 py-1.5">
+        <button onClick={() => setEditando(false)} className="text-sm text-gray-400 hover:text-white px-3 py-1.5 light:text-gray-600 light:hover:text-gray-900">
           Cancelar
         </button>
       </div>

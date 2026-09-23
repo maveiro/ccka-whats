@@ -23,8 +23,8 @@ export default async function AprendizadosPage() {
   return (
     <div className="p-6 max-w-3xl space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-white">Aprendizados</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Aprendizados</h1>
+        <p className="text-sm text-gray-400 mt-1 light:text-gray-600">
           Registro de bugs reais, decisões e comportamentos externos (Meta/Graph API etc.)
           encontrados operando a plataforma — pra não redescobrir o mesmo problema duas vezes.
         </p>

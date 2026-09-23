@@ -259,12 +259,12 @@ export default function TemplateForm({
   }
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-4">
+    <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-4 light:bg-white light:border-gray-200">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-white">
+        <p className="text-sm font-medium text-white light:text-gray-900">
           {editando ? `Editando "${editando.name}"` : "Novo template"}
         </p>
-        <button onClick={resetar} className="text-xs text-gray-400 hover:text-white">Cancelar</button>
+        <button onClick={resetar} className="text-xs text-gray-400 hover:text-white light:text-gray-600 light:hover:text-gray-900">Cancelar</button>
       </div>
 
       {editando && (
@@ -274,13 +274,13 @@ export default function TemplateForm({
         </p>
       )}
 
-      <div className="space-y-1 bg-gray-800/50 rounded-md px-3 py-2">
-        <label className="block text-xs text-gray-400">Conta (WABA)</label>
+      <div className="space-y-1 bg-gray-800/50 rounded-md px-3 py-2 light:bg-gray-100">
+        <label className="block text-xs text-gray-400 light:text-gray-600">Conta (WABA)</label>
         <select
           value={credentialId ?? ""}
           onChange={(e) => onCredentialChange(e.target.value)}
           disabled={Boolean(editando)}
-          className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white text-sm disabled:opacity-60"
+          className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white text-sm disabled:opacity-60 light:bg-white light:border-gray-300 light:text-gray-900"
         >
           {credentials.map((c) => (
             <option key={c.id} value={c.id}>
@@ -293,25 +293,25 @@ export default function TemplateForm({
       {!editando && (
         <div className="grid grid-cols-3 gap-2">
           <div className="col-span-2">
-            <label className="block text-xs text-gray-400 mb-1">Título (vira o nome do template)</label>
+            <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">Título (vira o nome do template)</label>
             <input
               value={titulo}
               onChange={(e) => setTitulo(e.target.value)}
               placeholder="Vendas abertas — Natal"
-              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             />
-            {titulo && <p className="text-[11px] text-gray-400 mt-1 font-mono">name: {nomeGerado || "(precisa de letra ou número)"}</p>}
+            {titulo && <p className="text-[11px] text-gray-400 mt-1 font-mono light:text-gray-600">name: {nomeGerado || "(precisa de letra ou número)"}</p>}
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Idioma</label>
-            <input value={language} disabled className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-gray-400 text-sm" />
+            <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">Idioma</label>
+            <input value={language} disabled className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-gray-400 text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-600" />
           </div>
         </div>
       )}
 
       <div>
-        <label className="block text-xs text-gray-400 mb-1">Categoria</label>
-        <div className="flex gap-3 text-sm text-gray-300">
+        <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">Categoria</label>
+        <div className="flex gap-3 text-sm text-gray-300 light:text-gray-700">
           <label className="flex items-center gap-1.5">
             <input type="radio" checked={category === "MARKETING"} onChange={() => setCategory("MARKETING")} />
             Marketing
@@ -321,15 +321,15 @@ export default function TemplateForm({
             Utility
           </label>
         </div>
-        <p className="text-[11px] text-gray-400 mt-1">
+        <p className="text-[11px] text-gray-400 mt-1 light:text-gray-600">
           A Meta pode reclassificar depois de revisar — se o texto tiver tom promocional,
           Utility pode sair aprovado como Marketing, e o preço segue a categoria final.
         </p>
       </div>
 
       <div>
-        <label className="block text-xs text-gray-400 mb-1">Cabeçalho (opcional)</label>
-        <div className="flex flex-wrap gap-3 text-xs text-gray-400 mb-2">
+        <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">Cabeçalho (opcional)</label>
+        <div className="flex flex-wrap gap-3 text-xs text-gray-400 mb-2 light:text-gray-600">
           <label className="flex items-center gap-1.5">
             <input type="radio" checked={headerTipo === "nenhum"} onChange={() => setHeaderTipo("nenhum")} />
             Nenhum
@@ -351,15 +351,15 @@ export default function TemplateForm({
               onChange={(e) => setHeaderTexto(e.target.value)}
               maxLength={LIMITE_HEADER}
               placeholder="Olá, {{1}}!"
-              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             />
-            <p className="text-[11px] text-gray-400 mt-1">{headerTexto.length}/{LIMITE_HEADER} · no máximo 1 variável</p>
+            <p className="text-[11px] text-gray-400 mt-1 light:text-gray-600">{headerTexto.length}/{LIMITE_HEADER} · no máximo 1 variável</p>
             {headerVars.length === 1 && (
               <input
                 value={headerExemplo}
                 onChange={(e) => setHeaderExemplo(e.target.value)}
                 placeholder="Valor de exemplo para {{1}} (ex: Marcelo)"
-                className="mt-1.5 w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+                className="mt-1.5 w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
               />
             )}
           </>
@@ -377,28 +377,28 @@ export default function TemplateForm({
               type="file"
               accept="image/jpeg,image/png,video/mp4,video/3gpp,application/pdf"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) void subirMidia(f); }}
-              className="text-xs text-gray-300"
+              className="text-xs text-gray-300 light:text-gray-700"
             />
-            <p className="text-[11px] text-gray-400">JPEG/PNG até 5MB · MP4/3GPP até 16MB · PDF até 5MB</p>
-            {enviandoMidia && <p className="text-[11px] text-gray-400">Enviando…</p>}
+            <p className="text-[11px] text-gray-400 light:text-gray-600">JPEG/PNG até 5MB · MP4/3GPP até 16MB · PDF até 5MB</p>
+            {enviandoMidia && <p className="text-[11px] text-gray-400 light:text-gray-600">Enviando…</p>}
             {headerMidiaHandle && (
-              <p className="text-[11px] text-green-400">✓ {headerMidiaNome} ({headerMidiaFormato.toLowerCase()}) pronto</p>
+              <p className="text-[11px] text-green-400 light:text-green-700">✓ {headerMidiaNome} ({headerMidiaFormato.toLowerCase()}) pronto</p>
             )}
           </div>
         )}
       </div>
 
       <div>
-        <label className="block text-xs text-gray-400 mb-1">Corpo</label>
+        <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">Corpo</label>
         <textarea
           value={bodyTexto}
           onChange={(e) => onBodyChange(e.target.value)}
           maxLength={LIMITE_BODY}
           rows={4}
           placeholder="O show {{1}} chega em {{2}}. Garanta seu ingresso!"
-          className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+          className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
         />
-        <p className="text-[11px] text-gray-400 mt-1">{bodyTexto.length}/{LIMITE_BODY}</p>
+        <p className="text-[11px] text-gray-400 mt-1 light:text-gray-600">{bodyTexto.length}/{LIMITE_BODY}</p>
         {bodyVars.length > 0 && variavelNaBordaDoCorpo(bodyTexto) && (
           <p className="text-[11px] text-amber-400 mt-1">
             A Meta recusa variável logo no início ou no fim do corpo — falta uma palavra
@@ -415,24 +415,24 @@ export default function TemplateForm({
               return novo;
             })}
             placeholder={`Valor de exemplo para {{${n}}}`}
-            className="mt-1.5 w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+            className="mt-1.5 w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
           />
         ))}
       </div>
 
       <div>
-        <label className="block text-xs text-gray-400 mb-1">Rodapé (opcional, sem variável)</label>
+        <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">Rodapé (opcional, sem variável)</label>
         <input
           value={footerTexto}
           onChange={(e) => setFooterTexto(e.target.value)}
           maxLength={LIMITE_FOOTER}
           placeholder="Plauz Produções"
-          className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+          className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
         />
       </div>
 
       <div className="space-y-2">
-        <label className="flex items-center gap-1.5 text-sm text-gray-300">
+        <label className="flex items-center gap-1.5 text-sm text-gray-300 light:text-gray-700">
           <input
             type="checkbox"
             checked={temBotao}
@@ -449,10 +449,10 @@ export default function TemplateForm({
               value={botaoTexto}
               onChange={(e) => setBotaoTexto(e.target.value)}
               placeholder="Texto do botão"
-              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             />
 
-            <div className="flex flex-wrap gap-3 text-xs text-gray-400">
+            <div className="flex flex-wrap gap-3 text-xs text-gray-400 light:text-gray-600">
               <label className="flex items-center gap-1.5">
                 <input type="radio" checked={botaoModo === "rastreada"} onChange={() => setBotaoModo("rastreada")} />
                 URL rastreada
@@ -477,7 +477,7 @@ export default function TemplateForm({
 
             {botaoModo === "rastreada" && (
               urlRastreadaPreview ? (
-                <p className="text-[11px] text-gray-400 font-mono">{urlRastreadaPreview}</p>
+                <p className="text-[11px] text-gray-400 font-mono light:text-gray-600">{urlRastreadaPreview}</p>
               ) : (
                 <p className="text-[11px] text-red-400">
                   NEXT_PUBLIC_LINK_BASE_URL não configurado — não dá para montar a URL rastreada.
@@ -490,13 +490,13 @@ export default function TemplateForm({
                 value={botaoUrlEstatica}
                 onChange={(e) => setBotaoUrlEstatica(e.target.value)}
                 placeholder="https://exemplo.com/ingressos"
-                className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+                className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
               />
             )}
 
             {botaoModo === "flow" && (
               flows.length === 0 ? (
-                <button onClick={() => void carregarFlows()} className="text-[11px] text-blue-400 hover:text-blue-300">
+                <button onClick={() => void carregarFlows()} className="text-[11px] text-blue-400 hover:text-blue-300 light:text-blue-700 light:hover:text-blue-800">
                   Carregar Flows
                 </button>
               ) : flowsDisponiveis.length > 0 ? (
@@ -507,7 +507,7 @@ export default function TemplateForm({
                   <select
                     value={botaoFlowId}
                     onChange={(e) => setBotaoFlowId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+                    className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
                   >
                     <option value="">Escolha o Flow</option>
                     {flowsDisponiveis.map((f) => (
@@ -523,7 +523,7 @@ export default function TemplateForm({
             )}
 
             {botaoModo === "quick_reply" && (
-              <p className="text-[11px] text-gray-400">
+              <p className="text-[11px] text-gray-400 light:text-gray-600">
                 Sem link — a resposta chega como mensagem, rastreável do mesmo jeito que os
                 botões de opt-out.
               </p>
@@ -533,16 +533,16 @@ export default function TemplateForm({
       </div>
 
       {bodyTexto.trim() && (
-        <div className="bg-gray-800/40 border border-gray-800 rounded-md p-3 space-y-1">
-          <p className="text-[11px] text-gray-400 uppercase tracking-wide">Como o fã vê</p>
-          {headerTipo === "texto" && headerTexto.trim() && <p className="text-sm text-white font-semibold">{previewHeader}</p>}
+        <div className="bg-gray-800/40 border border-gray-800 rounded-md p-3 space-y-1 light:border-gray-200">
+          <p className="text-[11px] text-gray-400 uppercase tracking-wide light:text-gray-600">Como o fã vê</p>
+          {headerTipo === "texto" && headerTexto.trim() && <p className="text-sm text-white font-semibold light:text-gray-900">{previewHeader}</p>}
           {headerTipo === "midia" && (
-            <p className="text-xs text-gray-400">🖼 {headerMidiaNome ?? `cabeçalho de ${headerMidiaFormato.toLowerCase()}`}</p>
+            <p className="text-xs text-gray-400 light:text-gray-600">🖼 {headerMidiaNome ?? `cabeçalho de ${headerMidiaFormato.toLowerCase()}`}</p>
           )}
           <p className="text-sm text-gray-200 whitespace-pre-wrap">{previewBody}</p>
-          {footerTexto.trim() && <p className="text-xs text-gray-400">{footerTexto}</p>}
+          {footerTexto.trim() && <p className="text-xs text-gray-400 light:text-gray-600">{footerTexto}</p>}
           {temBotao && botaoTexto.trim() && (
-            <p className="text-xs text-green-400 pt-1 border-t border-gray-800 mt-1">↗ {botaoTexto}</p>
+            <p className="text-xs text-green-400 pt-1 border-t border-gray-800 mt-1 light:text-green-700 light:border-gray-200">↗ {botaoTexto}</p>
           )}
         </div>
       )}

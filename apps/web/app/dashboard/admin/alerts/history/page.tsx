@@ -30,12 +30,12 @@ export default async function AlertHistoryPage() {
   return (
     <div className="p-6 space-y-4 h-full overflow-y-auto">
       <div className="flex items-center gap-3">
-        <a href="/dashboard/admin/alerts" className="text-gray-400 hover:text-white text-sm transition-colors">
+        <a href="/dashboard/admin/alerts" className="text-gray-400 hover:text-white text-sm transition-colors light:text-gray-600 light:hover:text-gray-900">
           ← Alertas
         </a>
-        <h1 className="text-lg font-semibold text-white">Histórico de alertas</h1>
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Histórico de alertas</h1>
         {(total ?? 0) > 0 && (
-          <span className="text-xs text-gray-400">{total} evento{total !== 1 ? "s" : ""}</span>
+          <span className="text-xs text-gray-400 light:text-gray-600">{total} evento{total !== 1 ? "s" : ""}</span>
         )}
       </div>
       <AlertHistoryClient

@@ -29,8 +29,8 @@ export default async function SaudePage() {
   return (
     <div className="p-6 max-w-4xl space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-white">Saúde</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Saúde</h1>
+        <p className="text-sm text-gray-400 mt-1 light:text-gray-600">
           Erros agrupados por assinatura — 57 ocorrências do mesmo problema viram
           uma linha. De hora em hora, assinatura nova ou volume acima de 20 no dia
           dispara aviso pelas integrações de webhook.

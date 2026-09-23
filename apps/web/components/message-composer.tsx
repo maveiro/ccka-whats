@@ -99,15 +99,15 @@ export default function MessageComposer({ chatId, onSent, quotedMessage, onClear
   }
 
   return (
-    <div className="border-t border-gray-800 bg-gray-950 shrink-0">
+    <div className="border-t border-gray-800 bg-gray-950 shrink-0 light:border-gray-200 light:bg-white">
       {/* Quote preview */}
       {quotedMessage && (
         <div className="flex items-start gap-2 px-4 pt-3">
-          <div className="flex-1 border-l-2 border-green-500 pl-2 text-xs text-gray-400 truncate">
-            <span className="text-green-400 font-medium">{quotedMessage.senderName ?? "Você"}</span>
+          <div className="flex-1 border-l-2 border-green-500 pl-2 text-xs text-gray-400 truncate light:text-gray-600">
+            <span className="text-green-400 font-medium light:text-green-700">{quotedMessage.senderName ?? "Você"}</span>
             <p className="truncate opacity-70">{quotedMessage.body ?? "Mídia"}</p>
           </div>
-          <button onClick={onClearQuote} className="text-gray-400 hover:text-white text-lg leading-none">×</button>
+          <button onClick={onClearQuote} className="text-gray-400 hover:text-white text-lg leading-none light:text-gray-600 light:hover:text-gray-900">×</button>
         </div>
       )}
 
@@ -116,7 +116,7 @@ export default function MessageComposer({ chatId, onSent, quotedMessage, onClear
         <button
           onClick={() => fileRef.current?.click()}
           disabled={sending}
-          className="shrink-0 text-gray-400 hover:text-white p-1.5 rounded transition-colors"
+          className="shrink-0 text-gray-400 hover:text-white p-1.5 rounded transition-colors light:text-gray-600 light:hover:text-gray-900"
           title="Enviar arquivo"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -134,7 +134,7 @@ export default function MessageComposer({ chatId, onSent, quotedMessage, onClear
           onKeyDown={handleKeyDown}
           placeholder="Digite uma mensagem..."
           rows={1}
-          className="flex-1 resize-none bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 placeholder-gray-500 max-h-32 overflow-y-auto"
+          className="flex-1 resize-none bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 placeholder-gray-500 max-h-32 overflow-y-auto light:bg-gray-100 light:border-gray-300 light:text-gray-900 light:placeholder-gray-400"
           style={{ minHeight: 40 }}
         />
 

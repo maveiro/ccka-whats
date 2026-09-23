@@ -22,7 +22,7 @@ export default function ThemeToggle({ collapsed = false }: { collapsed?: boolean
   return (
     <button
       onClick={toggle}
-      className={`flex items-center min-h-[36px] rounded-md text-sm transition-colors text-gray-400 hover:bg-gray-900 hover:text-white light:text-gray-500 light:hover:bg-gray-100 light:hover:text-gray-900 ${
+      className={`flex items-center min-h-[36px] rounded-md text-sm transition-colors text-gray-400 hover:bg-gray-900 hover:text-white light:text-gray-600 light:hover:bg-gray-100 light:hover:text-gray-900 ${
         collapsed ? "justify-center px-0 w-full" : "gap-2.5 px-3"
       }`}
       aria-label={isLight ? "Mudar para tema escuro" : "Mudar para tema claro"}

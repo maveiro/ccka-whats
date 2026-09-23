@@ -89,32 +89,32 @@ export default function FormulariosManager({
 
   return (
     <div className="space-y-8">
-      <form onSubmit={criar} className="border border-gray-800 rounded p-4 space-y-3">
-        <h2 className="text-sm font-semibold text-white">Novo formulário</h2>
+      <form onSubmit={criar} className="border border-gray-800 rounded p-4 space-y-3 light:border-gray-200">
+        <h2 className="text-sm font-semibold text-white light:text-gray-900">Novo formulário</h2>
         <div className="grid grid-cols-3 gap-3">
-          <label className="text-xs text-gray-400 space-y-1">
+          <label className="text-xs text-gray-400 space-y-1 light:text-gray-600">
             <span>Nome interno</span>
             <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Landing turnê 2026"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white" />
+              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900" />
           </label>
-          <label className="text-xs text-gray-400 space-y-1">
+          <label className="text-xs text-gray-400 space-y-1 light:text-gray-600">
             <span>Endereço (slug)</span>
             <input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} placeholder="turne-2026"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white" />
+              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900" />
           </label>
-          <label className="text-xs text-gray-400 space-y-1">
+          <label className="text-xs text-gray-400 space-y-1 light:text-gray-600">
             <span>Artista</span>
             <select value={artista} onChange={(e) => setArtista(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white">
+              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900">
               <option value="">Nenhum específico</option>
               {artistas.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </label>
         </div>
-        <label className="text-xs text-gray-400 space-y-1 block">
+        <label className="text-xs text-gray-400 space-y-1 block light:text-gray-600">
           <span>Texto de consentimento (o que a pessoa aceita ao marcar a caixa)</span>
           <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={2}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white" />
+            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900" />
         </label>
         <button type="submit" disabled={criando || !nome.trim() || !slug.trim()}
           className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm rounded px-3 py-1.5">
@@ -157,76 +157,76 @@ function Cartao({
   }
 
   return (
-    <div className={`border border-gray-800 rounded p-4 space-y-3 ${form.ativo ? "" : "opacity-60"}`}>
+    <div className={`border border-gray-800 light:border-gray-200 rounded p-4 space-y-3 ${form.ativo ? "" : "opacity-60"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-white">{form.nome}</span>
+            <span className="text-sm font-medium text-white light:text-gray-900">{form.nome}</span>
             <span className={`text-[11px] px-1.5 py-0.5 rounded border ${
-              form.ativo ? "text-green-400 border-green-800" : "text-gray-400 border-gray-700"
+              form.ativo ? "text-green-400 border-green-800 light:text-green-700 light:border-green-300" : "text-gray-400 border-gray-700 light:text-gray-600 light:border-gray-300"
             }`}>
               {form.ativo ? "Ativo" : "Desligado"}
             </span>
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-gray-400 mt-0.5 light:text-gray-600">
             /f/{form.slug}
             {form.artista ? ` · ${form.artista}` : ""} · consentimento {form.versao_consentimento}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => onAtualizar({ ativo: !form.ativo })}
-            className="text-xs text-gray-400 hover:text-white">
+            className="text-xs text-gray-400 hover:text-white light:text-gray-600 light:hover:text-gray-900">
             {form.ativo ? "desligar" : "ligar"}
           </button>
-          <button onClick={onRemover} className="text-xs text-gray-400 hover:text-red-400">remover</button>
+          <button onClick={onRemover} className="text-xs text-gray-400 hover:text-red-400 light:text-gray-600">remover</button>
         </div>
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <code className="flex-1 text-[11px] bg-gray-900 border border-gray-800 rounded px-2 py-1.5 text-gray-300 truncate">
+          <code className="flex-1 text-[11px] bg-gray-900 border border-gray-800 rounded px-2 py-1.5 text-gray-300 truncate light:bg-white light:border-gray-200 light:text-gray-700">
             {embed}
           </code>
           <button onClick={() => copiar(embed, "Embed")}
-            className="text-xs text-blue-400 hover:underline shrink-0">copiar embed</button>
+            className="text-xs text-blue-400 hover:underline shrink-0 light:text-blue-700">copiar embed</button>
         </div>
         <div className="flex items-center gap-2">
-          <code className="flex-1 text-[11px] bg-gray-900 border border-gray-800 rounded px-2 py-1.5 text-gray-300 truncate">
+          <code className="flex-1 text-[11px] bg-gray-900 border border-gray-800 rounded px-2 py-1.5 text-gray-300 truncate light:bg-white light:border-gray-200 light:text-gray-700">
             POST {origem}/api/public/cadastro/{form.slug}
           </code>
           <button onClick={() => copiar(`${origem}/api/public/cadastro/${form.slug}`, "Endpoint")}
-            className="text-xs text-blue-400 hover:underline shrink-0">copiar endpoint</button>
+            className="text-xs text-blue-400 hover:underline shrink-0 light:text-blue-700">copiar endpoint</button>
         </div>
-        <p className="text-[11px] text-gray-400">
+        <p className="text-[11px] text-gray-400 light:text-gray-600">
           O endpoint aceita <code>{"{ nome, email, telefone, consentiu: true }"}</code> — use se preferir
           montar o formulário no seu próprio site.
         </p>
       </div>
 
-      <div className="space-y-2 border-t border-gray-800 pt-3">
-        <p className="text-xs text-gray-400">Depois de cadastrar, abrir conversa em:</p>
+      <div className="space-y-2 border-t border-gray-800 pt-3 light:border-gray-200">
+        <p className="text-xs text-gray-400 light:text-gray-600">Depois de cadastrar, abrir conversa em:</p>
         <div className="flex flex-wrap gap-2">
           <input value={waNumero} onChange={(e) => setWaNumero(e.target.value)}
             onBlur={() => {
               if (waNumero !== (form.whatsapp_numero ?? "")) onAtualizar({ whatsappNumero: waNumero });
             }}
             placeholder="+55 41 8440-8675"
-            className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white w-44" />
+            className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white w-44 light:bg-white light:border-gray-300 light:text-gray-900" />
           <input value={waMensagem} onChange={(e) => setWaMensagem(e.target.value)}
             onBlur={() => {
               if (waMensagem !== (form.whatsapp_mensagem ?? "")) onAtualizar({ whatsappMensagem: waMensagem });
             }}
             placeholder="menu"
-            className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white flex-1 min-w-[10rem]" />
+            className="bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white flex-1 min-w-[10rem] light:bg-white light:border-gray-300 light:text-gray-900" />
         </div>
-        <p className="text-[11px] text-gray-400">
+        <p className="text-[11px] text-gray-400 light:text-gray-600">
           Sem número, a tela de sucesso não mostra botão nenhum. O texto vai preenchido na
           conversa e precisa bater com uma palavra-chave da automação desse número — hoje
           &quot;menu&quot; abre a central.
         </p>
       </div>
 
-      <label className="text-xs text-gray-400 space-y-1 block">
+      <label className="text-xs text-gray-400 space-y-1 block light:text-gray-600">
         <span>Domínios permitidos (vazio = qualquer origem)</span>
         <input value={dominios} onChange={(e) => setDominios(e.target.value)}
           onBlur={() => {
@@ -236,10 +236,10 @@ function Cartao({
             }
           }}
           placeholder="plauz.com.br, www.plauz.com.br"
-          className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white" />
+          className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900" />
       </label>
 
-      <p className="text-[11px] text-gray-400">
+      <p className="text-[11px] text-gray-400 light:text-gray-600">
         Trocar o texto de consentimento exige informar uma versão nova — sem isso, quem
         aceitou o texto anterior apareceria como tendo aceitado este.
       </p>

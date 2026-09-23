@@ -185,11 +185,11 @@ export default function Sidebar({ operatorName, role, mobileOpen = false, onClos
     >
       {/* Logo + toggle */}
       <div className={`h-[57px] border-b border-gray-800 light:border-gray-200 flex items-center ${iconOnly ? "justify-center" : "justify-between px-4"}`}>
-        {!iconOnly && <span className="text-sm font-semibold text-green-400 light:text-green-600 truncate">WA Intelligence</span>}
+        {!iconOnly && <span className="text-sm font-semibold text-green-400 light:text-green-700 truncate">WA Intelligence</span>}
         <div className="flex items-center gap-1">
           <button
             onClick={toggle}
-            className="hidden md:inline-flex text-gray-400 hover:text-white hover:bg-gray-900 light:text-gray-500 light:hover:text-gray-900 light:hover:bg-gray-100 transition-colors p-1.5 rounded-md"
+            className="hidden md:inline-flex text-gray-400 hover:text-white hover:bg-gray-900 light:text-gray-600 light:hover:text-gray-900 light:hover:bg-gray-100 transition-colors p-1.5 rounded-md"
             aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
             title={collapsed ? "Expandir menu" : "Recolher menu"}
           >
@@ -197,7 +197,7 @@ export default function Sidebar({ operatorName, role, mobileOpen = false, onClos
           </button>
           <button
             onClick={onCloseMobile}
-            className="md:hidden text-gray-400 hover:text-white hover:bg-gray-900 light:text-gray-500 light:hover:text-gray-900 light:hover:bg-gray-100 transition-colors p-1.5 rounded-md"
+            className="md:hidden text-gray-400 hover:text-white hover:bg-gray-900 light:text-gray-600 light:hover:text-gray-900 light:hover:bg-gray-100 transition-colors p-1.5 rounded-md"
             aria-label="Fechar menu"
           >
             <X size={18} />
@@ -223,7 +223,7 @@ export default function Sidebar({ operatorName, role, mobileOpen = false, onClos
                   <div className="my-2 mx-2 border-t border-gray-800 light:border-gray-200" />
                 ) : (
                   <div className="px-3 pt-4 pb-1">
-                    <p className="text-xs font-medium text-gray-400 light:text-gray-500 uppercase tracking-widest">
+                    <p className="text-xs font-medium text-gray-400 light:text-gray-600 uppercase tracking-widest">
                       {SECTION_LABELS[item.section] ?? item.section}
                     </p>
                   </div>
@@ -242,7 +242,7 @@ export default function Sidebar({ operatorName, role, mobileOpen = false, onClos
                 }`}
               >
                 <span className="relative shrink-0 flex items-center justify-center">
-                  <Icon size={16} className={active ? "text-green-400 light:text-green-600" : ""} aria-hidden="true" />
+                  <Icon size={16} className={active ? "text-green-400 light:text-green-700" : ""} aria-hidden="true" />
                   {iconOnly && (showStatus || showAlert) && (
                     <span className="absolute -top-1.5 -right-1.5">
                       {showStatus && <SessionStatusDot />}
@@ -273,12 +273,12 @@ export default function Sidebar({ operatorName, role, mobileOpen = false, onClos
           {!iconOnly && (
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-white light:text-gray-900 truncate">{operatorName}</p>
-              <p className="text-xs text-gray-400 light:text-gray-500 capitalize">{role}</p>
+              <p className="text-xs text-gray-400 light:text-gray-600 capitalize">{role}</p>
             </div>
           )}
           <button
             onClick={handleSignOut}
-            className="shrink-0 text-gray-400 hover:text-white hover:bg-gray-900 light:text-gray-500 light:hover:text-gray-900 light:hover:bg-gray-100 transition-colors p-2 rounded-md flex items-center justify-center"
+            className="shrink-0 text-gray-400 hover:text-white hover:bg-gray-900 light:text-gray-600 light:hover:text-gray-900 light:hover:bg-gray-100 transition-colors p-2 rounded-md flex items-center justify-center"
             aria-label="Sair da conta"
             title="Sair"
           >

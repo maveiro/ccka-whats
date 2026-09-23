@@ -23,8 +23,8 @@ export default async function IntegrationsPage() {
   return (
     <div className="p-6 max-w-2xl space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-white">Integrações & API Keys</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Integrações & API Keys</h1>
+        <p className="text-sm text-gray-400 mt-1 light:text-gray-600">
           Conecte serviços externos e gerencie chaves de API.
         </p>
       </div>

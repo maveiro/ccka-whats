@@ -107,11 +107,11 @@ export default function SearchBar() {
             onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
             placeholder="Buscar mensagens..."
-            className="w-full bg-gray-800 border border-gray-700 text-white text-xs rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 placeholder-gray-500"
+            className="w-full bg-gray-800 border border-gray-700 text-white text-xs rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 placeholder-gray-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900 light:placeholder-gray-400"
           />
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 light:text-gray-600"
             fill="none" viewBox="0 0 24 24" stroke="currentColor"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -130,8 +130,8 @@ export default function SearchBar() {
           className={[
             "shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors",
             searchMode === "semantic"
-              ? "bg-green-900/50 border-green-700 text-green-300 hover:bg-green-900"
-              : "bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700 hover:text-gray-300",
+              ? "bg-green-900/50 border-green-700 text-green-300 hover:bg-green-900 light:bg-green-100 light:border-green-300 light:text-green-700 light:hover:bg-green-200"
+              : "bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700 hover:text-gray-300 light:bg-gray-100 light:border-gray-300 light:text-gray-600 light:hover:bg-gray-200 light:hover:text-gray-700",
           ].join(" ")}
         >
           {searchMode === "semantic" ? (
@@ -148,31 +148,31 @@ export default function SearchBar() {
       </div>
 
       {open && query.length >= 2 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto light:bg-white light:border-gray-300">
           {/* Label de modo semântico */}
           {searchMode === "semantic" && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-gray-800">
-              <span className="text-green-400 text-xs">✦</span>
-              <span className="text-xs text-green-400/80">Busca semântica</span>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-gray-800 light:border-gray-200">
+              <span className="text-green-400 text-xs light:text-green-700">✦</span>
+              <span className="text-xs text-green-400/80 light:text-green-700">Busca semântica</span>
             </div>
           )}
 
           {!hasResults && !loading && (
-            <p className="text-center text-xs text-gray-400 py-4">Nenhum resultado para &ldquo;{query}&rdquo;</p>
+            <p className="text-center text-xs text-gray-400 py-4 light:text-gray-600">Nenhum resultado para &ldquo;{query}&rdquo;</p>
           )}
 
           {results?.chats && results.chats.length > 0 && (
             <div>
-              <p className="text-xs text-gray-400 px-3 pt-2 pb-1 uppercase tracking-wider">Conversas</p>
+              <p className="text-xs text-gray-400 px-3 pt-2 pb-1 uppercase tracking-wider light:text-gray-600">Conversas</p>
               {results.chats.map((chat) => (
                 <Link
                   key={chat.id}
                   href={`/dashboard/chat/${chat.id}`}
                   onClick={() => { setOpen(false); setQuery(""); }}
-                  className="block px-3 py-2 hover:bg-gray-800 transition-colors"
+                  className="block px-3 py-2 hover:bg-gray-800 transition-colors light:hover:bg-gray-100"
                 >
-                  <p className="text-sm text-white">{highlight(displayChatName(chat.name, chat.jid), query)}</p>
-                  {chat.name && chat.name !== chat.jid && <p className="text-xs text-gray-400">{chat.jid}</p>}
+                  <p className="text-sm text-white light:text-gray-900">{highlight(displayChatName(chat.name, chat.jid), query)}</p>
+                  {chat.name && chat.name !== chat.jid && <p className="text-xs text-gray-400 light:text-gray-600">{chat.jid}</p>}
                 </Link>
               ))}
             </div>
@@ -180,7 +180,7 @@ export default function SearchBar() {
 
           {results?.messages && results.messages.length > 0 && (
             <div>
-              <p className="text-xs text-gray-400 px-3 pt-2 pb-1 uppercase tracking-wider">Mensagens</p>
+              <p className="text-xs text-gray-400 px-3 pt-2 pb-1 uppercase tracking-wider light:text-gray-600">Mensagens</p>
               {results.messages.map((msg) => {
                 const text = msg.body ?? msg.caption;
                 const sender = msg.from_me ? "Você" : (msg.contacts?.push_name ?? msg.contacts?.name ?? "");
@@ -189,26 +189,26 @@ export default function SearchBar() {
                     key={msg.id}
                     href={`/dashboard/chat/${msg.chat_id}`}
                     onClick={() => { setOpen(false); setQuery(""); }}
-                    className="block px-3 py-2 hover:bg-gray-800 transition-colors"
+                    className="block px-3 py-2 hover:bg-gray-800 transition-colors light:hover:bg-gray-100"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-xs text-gray-400 truncate">
+                        <p className="text-xs text-gray-400 truncate light:text-gray-600">
                           {msg.chats ? displayChatName(msg.chats.name, msg.chats.jid) : "Chat"}
-                          {sender && <span className="ml-1 text-gray-400">· {sender}</span>}
+                          {sender && <span className="ml-1 text-gray-400 light:text-gray-600">· {sender}</span>}
                           {searchMode === "semantic" && msg.similarity != null && (
                             <span className="ml-1 text-green-500/70">
                               · {Math.round(msg.similarity * 100)}%
                             </span>
                           )}
                         </p>
-                        <p className="text-sm text-white truncate mt-0.5">
+                        <p className="text-sm text-white truncate mt-0.5 light:text-gray-900">
                           {searchMode === "semantic"
                             ? (text ?? `[${msg.type}]`)
                             : highlight(text ?? `[${msg.type}]`, query)}
                         </p>
                       </div>
-                      <span className="text-xs text-gray-400 shrink-0">{formatTime(msg.timestamp)}</span>
+                      <span className="text-xs text-gray-400 shrink-0 light:text-gray-600">{formatTime(msg.timestamp)}</span>
                     </div>
                   </Link>
                 );

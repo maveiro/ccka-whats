@@ -72,24 +72,24 @@ export default function ProfileForm({ initialName, email, role }: Props) {
   return (
     <div className="space-y-4">
       {/* Profile card */}
-      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-4">
-        <h2 className="text-sm font-medium text-gray-300">Perfil</h2>
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-4 light:bg-white light:border-gray-200">
+        <h2 className="text-sm font-medium text-gray-300 light:text-gray-700">Perfil</h2>
 
         <div className="space-y-1 text-sm">
-          <p className="text-gray-400">Email: <span className="text-white">{email}</span></p>
-          <p className="text-gray-400">Função: <span className="text-white capitalize">{role}</span></p>
+          <p className="text-gray-400 light:text-gray-600">Email: <span className="text-white light:text-gray-900">{email}</span></p>
+          <p className="text-gray-400 light:text-gray-600">Função: <span className="text-white capitalize light:text-gray-900">{role}</span></p>
         </div>
 
         <form onSubmit={handleSaveName} className="flex items-end gap-3">
           <div className="flex-1">
-            <label htmlFor="profile-name" className="block text-xs text-gray-400 mb-1">Nome de exibição</label>
+            <label htmlFor="profile-name" className="block text-xs text-gray-400 mb-1 light:text-gray-600">Nome de exibição</label>
             <input
               id="profile-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             />
           </div>
           <Button
@@ -105,12 +105,12 @@ export default function ProfileForm({ initialName, email, role }: Props) {
       </div>
 
       {/* Password card */}
-      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-4">
-        <h2 className="text-sm font-medium text-gray-300">Alterar senha</h2>
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-4 light:bg-white light:border-gray-200">
+        <h2 className="text-sm font-medium text-gray-300 light:text-gray-700">Alterar senha</h2>
 
         <form onSubmit={handleChangePassword} className="space-y-3">
           <div>
-            <label htmlFor="profile-current-pw" className="block text-xs text-gray-400 mb-1">Senha atual</label>
+            <label htmlFor="profile-current-pw" className="block text-xs text-gray-400 mb-1 light:text-gray-600">Senha atual</label>
             <input
               id="profile-current-pw"
               type="password"
@@ -118,11 +118,11 @@ export default function ProfileForm({ initialName, email, role }: Props) {
               onChange={(e) => setCurrentPw(e.target.value)}
               required
               autoComplete="current-password"
-              className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             />
           </div>
           <div>
-            <label htmlFor="profile-new-pw" className="block text-xs text-gray-400 mb-1">Nova senha</label>
+            <label htmlFor="profile-new-pw" className="block text-xs text-gray-400 mb-1 light:text-gray-600">Nova senha</label>
             <input
               id="profile-new-pw"
               type="password"
@@ -131,11 +131,11 @@ export default function ProfileForm({ initialName, email, role }: Props) {
               required
               minLength={8}
               autoComplete="new-password"
-              className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             />
           </div>
           <div>
-            <label htmlFor="profile-confirm-pw" className="block text-xs text-gray-400 mb-1">Confirmar nova senha</label>
+            <label htmlFor="profile-confirm-pw" className="block text-xs text-gray-400 mb-1 light:text-gray-600">Confirmar nova senha</label>
             <input
               id="profile-confirm-pw"
               type="password"
@@ -144,7 +144,7 @@ export default function ProfileForm({ initialName, email, role }: Props) {
               required
               minLength={8}
               autoComplete="new-password"
-              className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             />
           </div>
           <Button type="submit" variant="primary" size="md" disabled={saving || !currentPw || !newPw || !confirmPw} className="w-full justify-center">
@@ -158,8 +158,8 @@ export default function ProfileForm({ initialName, email, role }: Props) {
         <p
           className={`text-sm px-3 py-2 rounded-md border ${
             msg.type === "ok"
-              ? "bg-green-900/30 border-green-800 text-green-400"
-              : "bg-red-900/30 border-red-800 text-red-400"
+              ? "bg-green-900/30 border-green-800 text-green-400 light:bg-green-50 light:border-green-300 light:text-green-700"
+              : "bg-red-900/30 border-red-800 text-red-400 light:bg-red-50 light:border-red-300 light:text-red-700"
           }`}
         >
           {msg.text}

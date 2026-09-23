@@ -72,26 +72,26 @@ function ResetPasswordForm() {
 
   if (error === "expired") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+      <div className="min-h-screen flex items-center justify-center bg-gray-950 light:bg-white">
         <div className="w-full max-w-sm space-y-6 px-6 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center mx-auto">
-            <LinkIcon size={24} className="text-gray-400" />
+          <div className="w-14 h-14 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center mx-auto light:bg-white light:border-gray-200">
+            <LinkIcon size={24} className="text-gray-400 light:text-gray-500" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-xl font-semibold text-white">Link expirado</h1>
-            <p className="text-sm text-gray-400">
+            <h1 className="text-xl font-semibold text-white light:text-gray-900">Link expirado</h1>
+            <p className="text-sm text-gray-400 light:text-gray-500">
               Este link de redefinição não é mais válido. Links expiram em 1 hora por segurança.
             </p>
           </div>
           <Link
             href="/forgot-password"
-            className="inline-block w-full py-2 px-4 bg-green-700 hover:bg-green-600 text-white text-sm font-medium rounded-md transition-colors"
+            className="inline-block w-full py-2 px-4 bg-green-700 hover:bg-green-600 text-white text-sm font-medium rounded-md transition-colors light:text-gray-900"
           >
             Solicitar novo link
           </Link>
           <Link
             href="/login"
-            className="block text-sm text-gray-400 hover:text-gray-300 transition-colors"
+            className="block text-sm text-gray-400 hover:text-gray-300 transition-colors light:text-gray-500 light:hover:text-gray-700"
           >
             ← Voltar para o login
           </Link>
@@ -101,17 +101,17 @@ function ResetPasswordForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950">
+    <div className="min-h-screen flex items-center justify-center bg-gray-950 light:bg-white">
       <div className="w-full max-w-sm space-y-6 px-6">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold text-white">Nova senha</h1>
-          <p className="text-sm text-gray-400">Digite sua nova senha abaixo</p>
+          <h1 className="text-2xl font-semibold text-white light:text-gray-900">Nova senha</h1>
+          <p className="text-sm text-gray-400 light:text-gray-500">Digite sua nova senha abaixo</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-3">
             <div className="space-y-1">
-              <label htmlFor="password" className="block text-xs font-medium text-gray-400">
+              <label htmlFor="password" className="block text-xs font-medium text-gray-400 light:text-gray-500">
                 Nova senha
               </label>
               <div className="relative">
@@ -124,12 +124,12 @@ function ResetPasswordForm() {
                   required
                   autoFocus
                   autoComplete="new-password"
-                  className="w-full px-3 py-2 pr-10 rounded-md bg-gray-900 border border-gray-800 text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-950"
+                  className="w-full px-3 py-2 pr-10 rounded-md bg-gray-900 border border-gray-800 text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-950 light:bg-white light:border-gray-200 light:text-gray-900 light:placeholder-gray-400"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors p-1"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors p-1 light:text-gray-500 light:hover:text-gray-700"
                   aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -138,7 +138,7 @@ function ResetPasswordForm() {
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="confirm-password" className="block text-xs font-medium text-gray-400">
+              <label htmlFor="confirm-password" className="block text-xs font-medium text-gray-400 light:text-gray-500">
                 Confirmar senha
               </label>
               <div className="relative">
@@ -150,12 +150,12 @@ function ResetPasswordForm() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   autoComplete="new-password"
-                  className="w-full px-3 py-2 pr-10 rounded-md bg-gray-900 border border-gray-800 text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-950"
+                  className="w-full px-3 py-2 pr-10 rounded-md bg-gray-900 border border-gray-800 text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-950 light:bg-white light:border-gray-200 light:text-gray-900 light:placeholder-gray-400"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirm((v) => !v)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors p-1"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors p-1 light:text-gray-500 light:hover:text-gray-700"
                   aria-label={showConfirm ? "Ocultar confirmação" : "Mostrar confirmação"}
                 >
                   {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -169,7 +169,7 @@ function ResetPasswordForm() {
           <button
             type="submit"
             disabled={loading || !sessionReady}
-            className="w-full py-2 px-4 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+            className="w-full py-2 px-4 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors light:text-gray-900"
           >
             {loading ? "Salvando..." : "Redefinir senha"}
           </button>

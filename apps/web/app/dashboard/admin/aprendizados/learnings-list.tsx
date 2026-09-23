@@ -13,10 +13,10 @@ interface Learning {
 }
 
 const CATEGORY_COLOR: Record<string, string> = {
-  bug: "text-red-400 border-red-800",
-  decisao: "text-blue-400 border-blue-800",
-  comportamento_externo: "text-orange-400 border-orange-800",
-  geral: "text-gray-400 border-gray-700",
+  bug: "text-red-400 border-red-800 light:text-red-700 light:border-red-300",
+  decisao: "text-blue-400 border-blue-800 light:text-blue-700 light:border-blue-300",
+  comportamento_externo: "text-orange-400 border-orange-800 light:text-orange-700 light:border-orange-300",
+  geral: "text-gray-400 border-gray-700 light:text-gray-600 light:border-gray-300",
 };
 
 export default function LearningsList({ initial }: { initial: Learning[] }) {
@@ -65,23 +65,23 @@ export default function LearningsList({ initial }: { initial: Learning[] }) {
   return (
     <div className="space-y-4">
       {adding ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-3">
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-3 light:bg-white light:border-gray-200">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Título</label>
+            <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">Título</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ex: service_role_key com aspas quebra o pg_cron"
-              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Categoria</label>
+            <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">Categoria</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             >
               <option value="geral">Geral</option>
               <option value="bug">Bug</option>
@@ -90,12 +90,12 @@ export default function LearningsList({ initial }: { initial: Learning[] }) {
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Descrição</label>
+            <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">Descrição</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
-              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             />
           </div>
           {error && <p className="text-xs text-red-400">{error}</p>}
@@ -111,7 +111,7 @@ export default function LearningsList({ initial }: { initial: Learning[] }) {
       ) : (
         <button
           onClick={() => setAdding(true)}
-          className="w-full py-2 px-4 border border-dashed border-gray-700 text-gray-400 hover:border-green-600 hover:text-green-400 text-sm rounded-md transition-colors"
+          className="w-full py-2 px-4 border border-dashed border-gray-700 text-gray-400 hover:border-green-600 hover:text-green-400 text-sm rounded-md transition-colors light:border-gray-300 light:text-gray-600 light:hover:text-green-700"
         >
           + Registrar aprendizado
         </button>
@@ -123,11 +123,11 @@ export default function LearningsList({ initial }: { initial: Learning[] }) {
 
       <div className="space-y-3">
         {learnings.map((l) => (
-          <div key={l.id} className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3">
+          <div key={l.id} className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 light:bg-white light:border-gray-200">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-white">{l.title}</p>
-                <p className="text-xs text-gray-400 mt-1 whitespace-pre-wrap">{l.description}</p>
+                <p className="text-sm font-medium text-white light:text-gray-900">{l.title}</p>
+                <p className="text-xs text-gray-400 mt-1 whitespace-pre-wrap light:text-gray-600">{l.description}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className={`text-xs px-2 py-0.5 rounded border ${CATEGORY_COLOR[l.category] ?? CATEGORY_COLOR.geral}`}>
@@ -136,14 +136,14 @@ export default function LearningsList({ initial }: { initial: Learning[] }) {
                 <button
                   onClick={() => handleDelete(l.id)}
                   className={`text-xs px-2 py-1 rounded transition-colors ${
-                    deleteConfirm === l.id ? "bg-red-700 text-white" : "text-red-500 hover:text-red-400"
+                    deleteConfirm === l.id ? "bg-red-700 text-white" : "text-red-500 hover:text-red-400 light:text-red-600 light:hover:text-red-700"
                   }`}
                 >
                   {deleteConfirm === l.id ? "Confirmar?" : "Excluir"}
                 </button>
               </div>
             </div>
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-gray-400 mt-2 light:text-gray-600">
               {new Date(l.created_at).toLocaleString("pt-BR")}
             </p>
           </div>

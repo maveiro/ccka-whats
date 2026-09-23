@@ -96,16 +96,16 @@ export default function NumbersManager({
       {!mostrarForm && (
         <button
           onClick={() => setMostrarForm(true)}
-          className="text-sm text-blue-400 hover:underline"
+          className="text-sm text-blue-400 hover:underline light:text-blue-700"
         >
           + Cadastrar outro número
         </button>
       )}
 
       {mostrarForm && (
-        <form onSubmit={cadastrar} className="border border-gray-800 rounded p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-white">Cadastrar número</h2>
-          <p className="text-xs text-gray-400">
+        <form onSubmit={cadastrar} className="border border-gray-800 rounded p-4 space-y-3 light:border-gray-200">
+          <h2 className="text-sm font-semibold text-white light:text-gray-900">Cadastrar número</h2>
+          <p className="text-xs text-gray-400 light:text-gray-600">
             Dados do WhatsApp Business Account (WABA) no Meta Business Manager. O token é
             verificado na Graph API antes de salvar e nunca é reexibido depois.
             Cadastrar um número não mexe nos demais.
@@ -128,7 +128,7 @@ export default function NumbersManager({
               <button
                 type="button"
                 onClick={() => setMostrarForm(false)}
-                className="text-sm text-gray-400 hover:text-white px-3 py-1.5"
+                className="text-sm text-gray-400 hover:text-white px-3 py-1.5 light:text-gray-600 light:hover:text-gray-900"
               >
                 Cancelar
               </button>
@@ -153,22 +153,22 @@ function NumeroCard({
   const [artista, setArtista] = useState(numero.artista ?? "");
 
   return (
-    <div className="border border-gray-800 rounded p-4 space-y-3">
+    <div className="border border-gray-800 rounded p-4 space-y-3 light:border-gray-200">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-white">
+            <span className="text-sm font-medium text-white light:text-gray-900">
               {numero.label || numero.display_phone_number || numero.phone_number_id}
             </span>
             <span
               className={`text-[11px] px-1.5 py-0.5 rounded border ${
-                numero.active ? "text-green-400 border-green-800" : "text-gray-400 border-gray-700"
+                numero.active ? "text-green-400 border-green-800 light:text-green-700 light:border-green-300" : "text-gray-400 border-gray-700 light:text-gray-600 light:border-gray-300"
               }`}
             >
               {numero.active ? "Ativo" : "Inativo"}
             </span>
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-gray-400 mt-0.5 light:text-gray-600">
             {numero.display_phone_number ?? "—"} · ID {numero.phone_number_id}
             {flowsAtivos > 0 && ` · ${flowsAtivos} automação ativa`}
           </p>
@@ -176,30 +176,30 @@ function NumeroCard({
 
         <button
           onClick={() => onAtualizar({ active: !numero.active })}
-          className="text-xs rounded px-2 py-1 border border-gray-700 text-gray-300 hover:bg-gray-800 shrink-0"
+          className="text-xs rounded px-2 py-1 border border-gray-700 text-gray-300 hover:bg-gray-800 shrink-0 light:border-gray-300 light:text-gray-700 light:hover:bg-gray-100"
         >
           {numero.active ? "Desativar" : "Reativar"}
         </button>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <label className="text-xs text-gray-400 space-y-1">
+        <label className="text-xs text-gray-400 space-y-1 light:text-gray-600">
           <span>Nome amigável</span>
           <input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             onBlur={() => { if (label !== (numero.label ?? "")) onAtualizar({ label }); }}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900"
             placeholder={numero.display_phone_number ?? numero.phone_number_id}
           />
         </label>
-        <label className="text-xs text-gray-400 space-y-1">
+        <label className="text-xs text-gray-400 space-y-1 light:text-gray-600">
           <span>Artista</span>
           <input
             value={artista}
             onChange={(e) => setArtista(e.target.value)}
             onBlur={() => { if (artista !== (numero.artista ?? "")) onAtualizar({ artista }); }}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900"
           />
         </label>
       </div>
@@ -221,14 +221,14 @@ function Campo({
   placeholder?: string;
 }) {
   return (
-    <label className="text-xs text-gray-400 space-y-1 block">
+    <label className="text-xs text-gray-400 space-y-1 block light:text-gray-600">
       <span>{label}</span>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+        className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-white light:bg-white light:border-gray-300 light:text-gray-900"
       />
     </label>
   );

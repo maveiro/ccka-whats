@@ -106,15 +106,15 @@ export default function HistorySyncForm({ sessions }: { sessions: Session[] }) {
   const loading = status === "starting" || status === "running";
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-5">
+    <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-5 light:bg-white light:border-gray-200">
       <div className="space-y-3">
         <div>
-          <label htmlFor="history-session" className="block text-xs text-gray-400 mb-1">Número WhatsApp</label>
+          <label htmlFor="history-session" className="block text-xs text-gray-400 mb-1 light:text-gray-600">Número WhatsApp</label>
           <select
             id="history-session"
             value={sessionId}
             onChange={(e) => setSessionId(e.target.value)}
-            className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
           >
             {sessions.map((s) => (
               <option key={s.id} value={s.id}>
@@ -125,14 +125,14 @@ export default function HistorySyncForm({ sessions }: { sessions: Session[] }) {
         </div>
 
         <div>
-          <label htmlFor="history-limit" className="block text-xs text-gray-400 mb-1">
+          <label htmlFor="history-limit" className="block text-xs text-gray-400 mb-1 light:text-gray-600">
             Máximo de mensagens por conversa
           </label>
           <select
             id="history-limit"
             value={limit}
             onChange={(e) => setLimit(e.target.value)}
-            className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
           >
             <option value="100">100 mensagens</option>
             <option value="200">200 mensagens</option>
@@ -164,7 +164,7 @@ export default function HistorySyncForm({ sessions }: { sessions: Session[] }) {
 
       {/* Estado running sem chatsFound ainda */}
       {status === "running" && chatsFound == null && (
-        <p className="text-xs text-gray-400 text-center">
+        <p className="text-xs text-gray-400 text-center light:text-gray-600">
           Aguardando início — pode levar alguns segundos...
         </p>
       )}
@@ -173,7 +173,7 @@ export default function HistorySyncForm({ sessions }: { sessions: Session[] }) {
       {status === "completed" && result && (
         <div className="bg-green-900/30 border border-green-800 rounded-md p-4 space-y-1">
           <p className="text-sm font-medium text-green-300">Importação concluída</p>
-          <p className="text-sm text-green-400">
+          <p className="text-sm text-green-400 light:text-green-700">
             {result.totalImported.toLocaleString("pt-BR")} mensagens importadas
             {" "}de {result.chats.toLocaleString("pt-BR")} conversas
           </p>
@@ -192,7 +192,7 @@ export default function HistorySyncForm({ sessions }: { sessions: Session[] }) {
         </div>
       )}
 
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-400 light:text-gray-600">
         A importação é segura para repetir — mensagens duplicadas são ignoradas automaticamente.
       </p>
     </div>

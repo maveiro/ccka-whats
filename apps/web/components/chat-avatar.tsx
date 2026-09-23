@@ -56,7 +56,7 @@ export default function ChatAvatar({ name, jid, avatarUrl, size = 40 }: ChatAvat
         className={`rounded-full ${color} flex items-center justify-center shrink-0`}
         aria-hidden="true"
       >
-        <Users size={Math.round(size * 0.45)} className="text-white opacity-90" />
+        <Users size={Math.round(size * 0.45)} className="text-white opacity-90 light:text-gray-900" />
       </div>
     );
   }

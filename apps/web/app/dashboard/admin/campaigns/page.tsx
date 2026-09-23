@@ -53,8 +53,8 @@ export default async function CampaignsPage() {
   return (
     <div className="p-6 max-w-3xl space-y-8">
       <div>
-        <h1 className="text-lg font-semibold text-white">Campanhas — WhatsApp Cloud API</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Campanhas — WhatsApp Cloud API</h1>
+        <p className="text-sm text-gray-400 mt-1 light:text-gray-600">
           Disparo oficial via templates aprovados pela Meta. Módulo independente do
           pipeline de captura de mensagens (Evolution).
         </p>
@@ -63,14 +63,14 @@ export default async function CampaignsPage() {
       <CampaignWizard credentials={credentials ?? []} />
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-3">Campanhas</h2>
+        <h2 className="text-sm font-semibold text-white mb-3 light:text-gray-900">Campanhas</h2>
         <CampaignsList
           initial={(campaigns ?? []).map((c) => ({ ...c, cost: custoPorCampanha.get(c.id) ?? 0 }))}
         />
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-3">Opt-outs</h2>
+        <h2 className="text-sm font-semibold text-white mb-3 light:text-gray-900">Opt-outs</h2>
         <OptOutsList optOuts={optOuts ?? []} />
       </div>
     </div>

@@ -47,7 +47,7 @@ export default function OperatorActions({ operator, currentUserId }: Props) {
   }
 
   if (isSelf) {
-    return <span className="text-xs text-gray-400">(você)</span>;
+    return <span className="text-xs text-gray-400 light:text-gray-600">(você)</span>;
   }
 
   return (
@@ -55,22 +55,22 @@ export default function OperatorActions({ operator, currentUserId }: Props) {
       <button
         onClick={() => patch({ role: operator.role === "admin" ? "operator" : "admin" })}
         disabled={loading}
-        className="text-xs text-gray-400 hover:text-white transition-colors disabled:opacity-40"
+        className="text-xs text-gray-400 hover:text-white transition-colors disabled:opacity-40 light:text-gray-600 light:hover:text-gray-900"
         title={operator.role === "admin" ? "Rebaixar para operador" : "Promover a admin"}
       >
         {operator.role === "admin" ? "→ Operador" : "→ Admin"}
       </button>
-      <span className="text-gray-400">·</span>
+      <span className="text-gray-400 light:text-gray-600">·</span>
       <button
         onClick={() => patch({ active: !operator.active })}
         disabled={loading}
         className={`text-xs transition-colors disabled:opacity-40 ${
-          operator.active ? "text-yellow-400 hover:text-yellow-300" : "text-green-400 hover:text-green-300"
+          operator.active ? "text-yellow-400 hover:text-yellow-300 light:text-yellow-700 light:hover:text-yellow-800" : "text-green-400 hover:text-green-300 light:text-green-700 light:hover:text-green-800"
         }`}
       >
         {operator.active ? "Desativar" : "Ativar"}
       </button>
-      <span className="text-gray-400">·</span>
+      <span className="text-gray-400 light:text-gray-600">·</span>
       <button
         onClick={handleDelete}
         disabled={loading}

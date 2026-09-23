@@ -60,11 +60,11 @@ export default function AlertHistoryClient({ initialEvents, total }: Props) {
         const inner = (
           <>
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-gray-400 light:text-gray-600">
                 Alerta:{" "}
-                <span className="text-white font-medium">{event.alerts?.name ?? event.alert_id}</span>
+                <span className="text-white font-medium light:text-gray-900">{event.alerts?.name ?? event.alert_id}</span>
               </span>
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-gray-400 light:text-gray-600">
                 {new Date(event.created_at).toLocaleString("pt-BR")}
               </span>
             </div>
@@ -73,15 +73,15 @@ export default function AlertHistoryClient({ initialEvents, total }: Props) {
                 {event.matched_keyword}
               </span>
               {event.messages?.body && (
-                <span className="text-xs text-gray-400 truncate max-w-sm">
+                <span className="text-xs text-gray-400 truncate max-w-sm light:text-gray-600">
                   {event.messages.body}
                 </span>
               )}
             </div>
           </>
         );
-        const cls = `block bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 space-y-1.5 ${
-          href ? "hover:border-green-700 transition-colors cursor-pointer" : ""
+        const cls = `block bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 space-y-1.5 light:bg-gray-100 light:border-gray-300 ${
+          href ? "hover:border-green-700 light:hover:border-green-400 transition-colors cursor-pointer" : ""
         }`;
         return href ? (
           <Link key={event.id} href={href} className={cls}>{inner}</Link>
@@ -94,7 +94,7 @@ export default function AlertHistoryClient({ initialEvents, total }: Props) {
         <button
           onClick={() => void loadMore()}
           disabled={loading}
-          className="w-full py-2 text-sm text-gray-400 hover:text-white border border-gray-700 rounded-lg hover:border-gray-600 transition-colors disabled:opacity-50"
+          className="w-full py-2 text-sm text-gray-400 hover:text-white border border-gray-700 rounded-lg hover:border-gray-600 transition-colors disabled:opacity-50 light:text-gray-600 light:hover:text-gray-900 light:border-gray-300"
         >
           {loading ? "Carregando..." : `Carregar mais (${total - events.length} restantes)`}
         </button>

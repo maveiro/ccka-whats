@@ -38,8 +38,8 @@ export default async function OperatorsPage() {
   return (
     <div className="p-6 max-w-2xl space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-white">Operadores</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Operadores</h1>
+        <p className="text-sm text-gray-400 mt-1 light:text-gray-600">
           Gerencie quem tem acesso à plataforma.
         </p>
       </div>
@@ -48,19 +48,19 @@ export default async function OperatorsPage() {
         {(operators ?? []).map((op) => (
           <div
             key={op.id}
-            className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3"
+            className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 light:bg-white light:border-gray-200"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-white">{op.name ?? op.email}</p>
-                <p className="text-xs text-gray-400">{op.email}</p>
+                <p className="text-sm font-medium text-white light:text-gray-900">{op.name ?? op.email}</p>
+                <p className="text-xs text-gray-400 light:text-gray-600">{op.email}</p>
               </div>
               <div className="flex items-center gap-3">
                 <span
                   className={`text-xs px-2 py-0.5 rounded-full border ${
                     op.role === "admin"
-                      ? "border-green-700 text-green-400"
-                      : "border-gray-700 text-gray-400"
+                      ? "border-green-700 text-green-400 light:border-green-300 light:text-green-700"
+                      : "border-gray-700 text-gray-400 light:border-gray-300 light:text-gray-600"
                   }`}
                 >
                   {op.role}
@@ -84,7 +84,7 @@ export default async function OperatorsPage() {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-3">Convidar operador</h2>
+        <h2 className="text-sm font-semibold text-white mb-3 light:text-gray-900">Convidar operador</h2>
         <InviteOperatorForm tenantId={operator.tenant_id} />
       </div>
     </div>

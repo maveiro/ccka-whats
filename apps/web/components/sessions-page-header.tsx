@@ -17,7 +17,7 @@ export default function SessionsPageHeader() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-white">Sessões WhatsApp</h1>
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Sessões WhatsApp</h1>
         <Button variant={showForm ? "secondary" : "primary"} size="md" onClick={() => setShowForm((v) => !v)}>
           {showForm ? "Cancelar" : "Nova Sessão"}
         </Button>

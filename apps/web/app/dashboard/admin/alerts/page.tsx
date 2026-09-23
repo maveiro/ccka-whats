@@ -34,7 +34,7 @@ export default async function AlertsPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-lg font-semibold text-white">Alertas</h1>
+      <h1 className="text-lg font-semibold text-white light:text-gray-900">Alertas</h1>
       <AlertsManager
         initialAlerts={alerts ?? []}
         sessions={sessions ?? []}

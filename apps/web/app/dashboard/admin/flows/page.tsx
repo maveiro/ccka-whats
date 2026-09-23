@@ -50,8 +50,8 @@ export default async function FlowsPage() {
   return (
     <div className="p-6 max-w-3xl space-y-8">
       <div>
-        <h1 className="text-lg font-semibold text-white">Automações por palavra-chave</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Automações por palavra-chave</h1>
+        <p className="text-sm text-gray-400 mt-1 light:text-gray-600">
           Resposta automática por regra fixa: a mensagem recebida é comparada com as
           palavras-chave do número e responde o texto ou link cadastrado. Sem IA
           gerando texto — o que não bate cai na mensagem de fallback.

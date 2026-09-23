@@ -251,19 +251,19 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-800 shrink-0 flex items-center justify-between gap-3">
+      <div className="px-4 py-3 border-b border-gray-800 shrink-0 flex items-center justify-between gap-3 light:border-gray-200">
         <div className="flex items-center gap-3 min-w-0">
           <Link
             href="/dashboard"
-            className="md:hidden shrink-0 text-gray-400 hover:text-white transition-colors -ml-1 p-1"
+            className="md:hidden shrink-0 text-gray-400 hover:text-white transition-colors -ml-1 p-1 light:text-gray-600 light:hover:text-gray-900"
             aria-label="Voltar para a lista de conversas"
           >
             <ArrowLeft size={18} />
           </Link>
           <ChatAvatar name={chatName} jid={chat.jid} avatarUrl={avatarUrl} size={36} />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-white truncate">{displayChatName(chatName, chat.jid)}</p>
-            <p className="text-xs text-gray-400 truncate">{chat.jid}</p>
+            <p className="text-sm font-medium text-white truncate light:text-gray-900">{displayChatName(chatName, chat.jid)}</p>
+            <p className="text-xs text-gray-400 truncate light:text-gray-600">{chat.jid}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -272,7 +272,7 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
             onClick={handleSyncName}
             disabled={syncingName}
             title="Sincronizar nome do contato/grupo"
-            className="text-gray-400 hover:text-gray-300 disabled:opacity-40 transition-colors p-1"
+            className="text-gray-400 hover:text-gray-300 disabled:opacity-40 transition-colors p-1 light:text-gray-600 light:hover:text-gray-700"
           >
             <RefreshCw size={14} className={syncingName ? "animate-spin" : ""} />
           </button>
@@ -283,7 +283,7 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
         <div ref={topSentinelRef} className="h-1" />
         {loadingMore && (
           <div className="flex justify-center py-2">
-            <span className="text-xs text-gray-400 animate-pulse">Carregando...</span>
+            <span className="text-xs text-gray-400 animate-pulse light:text-gray-600">Carregando...</span>
           </div>
         )}
         {(() => {
@@ -321,7 +321,7 @@ export default function ChatView({ chat, messages: initial, isGroup, hasMore: in
             if (!novoDia) return [bolha];
             return [
               <div key={`d-${dia}`} className="flex justify-center py-2">
-                <span className="text-xs text-gray-400 bg-gray-800/80 rounded-full px-3 py-1 capitalize">
+                <span className="text-xs text-gray-400 bg-gray-800/80 rounded-full px-3 py-1 capitalize light:text-gray-600">
                   {formatDateSeparator(msg.timestamp)}
                 </span>
               </div>,
@@ -368,7 +368,7 @@ function MessageBubble({ message, isGroup, reactions, onReply, highlighted }: { 
       {from_me && (
         <button
           onClick={() => onReply(message)}
-          className="text-gray-400 hover:text-gray-300 p-2 -m-1 transition-opacity opacity-0 group-hover:opacity-100 shrink-0"
+          className="text-gray-400 hover:text-gray-300 p-2 -m-1 transition-opacity opacity-0 group-hover:opacity-100 shrink-0 light:text-gray-600 light:hover:text-gray-700"
           title="Responder"
           aria-label="Responder mensagem"
         >
@@ -378,11 +378,11 @@ function MessageBubble({ message, isGroup, reactions, onReply, highlighted }: { 
 
       <div
         className={`max-w-sm px-3 py-2 rounded-lg text-sm ${
-          from_me ? "bg-green-700 text-white" : "bg-gray-800 text-gray-100"
+          from_me ? "bg-green-700 text-white" : "bg-gray-800 text-gray-100 light:bg-gray-100 light:text-gray-900"
         }`}
       >
         {isGroup && !from_me && senderName && (
-          <p className="text-xs font-medium text-green-400 mb-1">{senderName}</p>
+          <p className="text-xs font-medium text-green-400 mb-1 light:text-green-700">{senderName}</p>
         )}
 
         {deleted_at ? (
@@ -427,7 +427,7 @@ function MessageBubble({ message, isGroup, reactions, onReply, highlighted }: { 
       {!from_me && (
         <button
           onClick={() => onReply(message)}
-          className="text-gray-400 hover:text-gray-300 p-2 -m-1 transition-opacity opacity-0 group-hover:opacity-100 shrink-0"
+          className="text-gray-400 hover:text-gray-300 p-2 -m-1 transition-opacity opacity-0 group-hover:opacity-100 shrink-0 light:text-gray-600 light:hover:text-gray-700"
           title="Responder"
           aria-label="Responder mensagem"
         >
@@ -468,7 +468,7 @@ function AudioTranscribeButton({ messageId }: { messageId: string }) {
       <button
         onClick={transcribe}
         disabled={loading}
-        className="text-xs text-blue-400 hover:text-blue-300 mt-1 disabled:opacity-50"
+        className="text-xs text-blue-400 hover:text-blue-300 mt-1 disabled:opacity-50 light:text-blue-700 light:hover:text-blue-800"
       >
         {loading ? "Transcrevendo..." : "Transcrever"}
       </button>

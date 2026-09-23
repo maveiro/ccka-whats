@@ -37,7 +37,7 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold text-white mb-6">Analytics</h1>
+      <h1 className="text-2xl font-bold text-white mb-6 light:text-gray-900">Analytics</h1>
       <AnalyticsDashboard initialData={data} sessions={sessions ?? []} />
     </div>
   )

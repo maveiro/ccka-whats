@@ -47,8 +47,8 @@ export default async function NumbersPage() {
   return (
     <div className="p-6 max-w-3xl space-y-8">
       <div>
-        <h1 className="text-lg font-semibold text-white">Números — WhatsApp Cloud API</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Números — WhatsApp Cloud API</h1>
+        <p className="text-sm text-gray-400 mt-1 light:text-gray-600">
           Números oficiais do tenant. Cada um recebe mensagens na caixa de entrada
           compartilhada e pode ter campanhas e uma automação por palavra-chave.
         </p>

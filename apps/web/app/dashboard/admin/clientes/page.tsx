@@ -28,8 +28,8 @@ export default async function ClientesPage() {
   return (
     <div className="p-6 max-w-3xl space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-white">Dados de clientes (LGPD)</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Dados de clientes (LGPD)</h1>
+        <p className="text-sm text-gray-400 mt-1 light:text-gray-600">
           Busque pelo telefone para atender a um pedido de exclusão de dados pessoais.
           A exclusão apaga nome, e-mail e mensagens pendentes de forma definitiva; o
           telefone permanece, porque é o que liga a conversa ao histórico de mensagens.

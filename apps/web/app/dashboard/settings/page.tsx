@@ -34,15 +34,15 @@ export default async function SettingsPage() {
 
   return (
     <div className="p-6 max-w-xl space-y-6 h-full overflow-y-auto">
-      <h1 className="text-lg font-semibold text-white">Configurações</h1>
+      <h1 className="text-lg font-semibold text-white light:text-gray-900">Configurações</h1>
 
       {/* Tenant info */}
-      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-2">
-        <h2 className="text-sm font-medium text-gray-300">Empresa</h2>
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-2 light:bg-white light:border-gray-200">
+        <h2 className="text-sm font-medium text-gray-300 light:text-gray-700">Empresa</h2>
         <div className="space-y-1 text-sm">
-          <p className="text-gray-400">Nome: <span className="text-white">{tenant?.name}</span></p>
-          <p className="text-gray-400">Slug: <span className="text-white">{tenant?.slug}</span></p>
-          <p className="text-gray-400">Plano: <span className="text-white capitalize">{tenant?.plan}</span></p>
+          <p className="text-gray-400 light:text-gray-600">Nome: <span className="text-white light:text-gray-900">{tenant?.name}</span></p>
+          <p className="text-gray-400 light:text-gray-600">Slug: <span className="text-white light:text-gray-900">{tenant?.slug}</span></p>
+          <p className="text-gray-400 light:text-gray-600">Plano: <span className="text-white capitalize light:text-gray-900">{tenant?.plan}</span></p>
         </div>
       </div>
 
@@ -57,21 +57,21 @@ export default async function SettingsPage() {
       {isAdmin ? (
         <AiKeySection hasKey={hasOpenAI} source={source} maskedKey={maskedKey} features={aiFeatures} />
       ) : (
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
-          <h2 className="text-sm font-medium text-gray-300">Funcionalidades de IA</h2>
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3 light:bg-white light:border-gray-200">
+          <h2 className="text-sm font-medium text-gray-300 light:text-gray-700">Funcionalidades de IA</h2>
           <div className="space-y-2">
             {aiFeatures.map((f) => (
               <div key={f.name} className="flex items-start gap-3">
                 <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${hasOpenAI ? "bg-green-500" : "bg-gray-600"}`} />
                 <div>
-                  <p className={`text-sm ${hasOpenAI ? "text-white" : "text-gray-400"}`}>{f.name}</p>
-                  <p className="text-xs text-gray-400">{f.description}</p>
+                  <p className={`text-sm ${hasOpenAI ? "text-white light:text-gray-900" : "text-gray-400 light:text-gray-600"}`}>{f.name}</p>
+                  <p className="text-xs text-gray-400 light:text-gray-600">{f.description}</p>
                 </div>
               </div>
             ))}
           </div>
           {!hasOpenAI && (
-            <p className="text-xs text-yellow-600 border-t border-gray-800 pt-3">
+            <p className="text-xs text-yellow-600 border-t border-gray-800 pt-3 light:border-gray-200">
               IA não configurada. Peça ao administrador para ativá-la em Configurações.
             </p>
           )}

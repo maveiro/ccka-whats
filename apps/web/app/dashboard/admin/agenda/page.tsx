@@ -102,8 +102,8 @@ export default async function AgendaPage() {
   return (
     <div className="p-6 max-w-4xl space-y-8">
       <div>
-        <h1 className="text-lg font-semibold text-white">Agenda de shows</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Agenda de shows</h1>
+        <p className="text-sm text-gray-400 mt-1 light:text-gray-600">
           É esta lista que o Flow de agenda responde no WhatsApp. Ela pode ser
           sincronizada do board de shows do Monday (abaixo) e também editada à mão —
           o sync só mexe nas linhas que ele mesmo trouxe.

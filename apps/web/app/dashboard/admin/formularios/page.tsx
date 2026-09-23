@@ -43,8 +43,8 @@ export default async function FormulariosPage() {
   return (
     <div className="p-6 max-w-3xl space-y-8">
       <div>
-        <h1 className="text-lg font-semibold text-white">Formulários de cadastro</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Formulários de cadastro</h1>
+        <p className="text-sm text-gray-400 mt-1 light:text-gray-600">
           Cada formulário pode ser embutido em qualquer site por iframe, ou usado como
           endpoint se você preferir montar o visual na sua própria página. O texto de
           consentimento fica gravado com a versão em cada cadastro que entrar por ele.

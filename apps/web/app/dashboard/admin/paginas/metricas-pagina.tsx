@@ -48,16 +48,16 @@ export default function MetricasPagina({ paginaId, slug }: { paginaId: string; s
   const promessa = useMemo(() => buscar(paginaId, dias), [paginaId, dias]);
 
   return (
-    <section className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-4">
+    <section className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-4 light:bg-white light:border-gray-200">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-medium text-white">Métricas de /a/{slug}</p>
+        <p className="text-xs font-medium text-white light:text-gray-900">Métricas de /a/{slug}</p>
         <div className="flex gap-1">
           {PERIODOS.map((p) => (
             <button
               key={p}
               onClick={() => setDias(p)}
               className={`text-xs px-2 py-1 rounded ${
-                p === dias ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white"
+                p === dias ? "bg-gray-800 text-white light:bg-gray-100 light:text-gray-900" : "text-gray-400 hover:text-white light:text-gray-600 light:hover:text-gray-900"
               }`}
             >
               {p}d
@@ -66,7 +66,7 @@ export default function MetricasPagina({ paginaId, slug }: { paginaId: string; s
         </div>
       </div>
 
-      <Suspense fallback={<p className="text-xs text-gray-400">carregando...</p>}>
+      <Suspense fallback={<p className="text-xs text-gray-400 light:text-gray-600">carregando...</p>}>
         <Conteudo promessa={promessa} />
       </Suspense>
     </section>
@@ -101,69 +101,69 @@ function Conteudo({ promessa }: { promessa: Promise<Resposta> }) {
           {/* "Aberturas" e não "visitantes": não guardamos identificador de
               visitante, então o número é de aberturas de página. É escolha,
               não limitação — ver a nota abaixo. */}
-          <p className="text-[11px] text-gray-400">
+          <p className="text-[11px] text-gray-400 light:text-gray-600">
             Aberturas contam a página sendo aberta (uma por aba). Não há
             identificação de visitante: nenhum cookie, IP ou user-agent é guardado.
           </p>
 
           {dados.serie.length > 1 && (
             <div>
-              <p className="text-xs text-gray-400 mb-2">Por dia</p>
+              <p className="text-xs text-gray-400 mb-2 light:text-gray-600">Por dia</p>
               <div className="flex items-end gap-[3px] h-20">
                 {dados.serie.map((d) => (
                   <div key={d.dia} className="flex-1 flex flex-col justify-end gap-[2px]" title={`${new Date(d.dia).toLocaleDateString("pt-BR")}: ${d.visitas} abertura(s), ${d.cliques} clique(s)`}>
                     <div className="bg-green-600/80" style={{ height: `${(d.cliques / picoSerie) * 100}%` }} />
-                    <div className="bg-gray-700" style={{ height: `${(d.visitas / picoSerie) * 100}%` }} />
+                    <div className="bg-gray-700 light:bg-gray-200" style={{ height: `${(d.visitas / picoSerie) * 100}%` }} />
                   </div>
                 ))}
               </div>
-              <div className="flex gap-3 mt-1 text-[11px] text-gray-400">
-                <span className="flex items-center gap-1"><i className="inline-block w-2 h-2 bg-gray-700" /> aberturas</span>
+              <div className="flex gap-3 mt-1 text-[11px] text-gray-400 light:text-gray-600">
+                <span className="flex items-center gap-1"><i className="inline-block w-2 h-2 bg-gray-700 light:bg-gray-200" /> aberturas</span>
                 <span className="flex items-center gap-1"><i className="inline-block w-2 h-2 bg-green-600/80" /> cliques</span>
               </div>
             </div>
           )}
 
           <div>
-            <p className="text-xs text-gray-400 mb-2">Por botão</p>
+            <p className="text-xs text-gray-400 mb-2 light:text-gray-600">Por botão</p>
             <div className="space-y-1">
               {dados.por_bloco.filter((b) => b.tipo !== "texto" && b.tipo !== "imagem").map((b) => (
                 <div key={b.bloco_id} className="flex items-center justify-between text-xs">
-                  <span className="text-gray-300 truncate">
+                  <span className="text-gray-300 truncate light:text-gray-700">
                     {b.rotulo}
-                    {!b.ativo && <span className="text-gray-400"> (escondido)</span>}
+                    {!b.ativo && <span className="text-gray-400 light:text-gray-600"> (escondido)</span>}
                   </span>
-                  <span className="text-gray-400 shrink-0 ml-3">{b.cliques}</span>
+                  <span className="text-gray-400 shrink-0 ml-3 light:text-gray-600">{b.cliques}</span>
                 </div>
               ))}
-              {dados.por_bloco.length === 0 && <p className="text-xs text-gray-400">nenhum bloco</p>}
+              {dados.por_bloco.length === 0 && <p className="text-xs text-gray-400 light:text-gray-600">nenhum bloco</p>}
             </div>
           </div>
 
           <div>
-            <p className="text-xs text-gray-400 mb-2">
+            <p className="text-xs text-gray-400 mb-2 light:text-gray-600">
               Datas mais clicadas
-              <span className="text-gray-400"> · onde a demanda está</span>
+              <span className="text-gray-400 light:text-gray-600"> · onde a demanda está</span>
             </p>
             {dados.por_show.length === 0 ? (
-              <p className="text-xs text-gray-400">nenhum clique em data ainda</p>
+              <p className="text-xs text-gray-400 light:text-gray-600">nenhum clique em data ainda</p>
             ) : (
               <div className="space-y-1">
                 {dados.por_show.slice(0, 10).map((s) => (
                   <div key={s.show_id} className="flex items-center justify-between text-xs">
-                    <span className="text-gray-300 truncate">
+                    <span className="text-gray-300 truncate light:text-gray-700">
                       {s.cidade ?? "—"}
                       {s.data_show && (
-                        <span className="text-gray-400">
+                        <span className="text-gray-400 light:text-gray-600">
                           {" · "}
                           {new Date(s.data_show).toLocaleDateString("pt-BR", {
                             timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit",
                           })}
                         </span>
                       )}
-                      {s.status_venda && <span className="text-gray-400"> · {s.status_venda}</span>}
+                      {s.status_venda && <span className="text-gray-400 light:text-gray-600"> · {s.status_venda}</span>}
                     </span>
-                    <span className="text-gray-400 shrink-0 ml-3">{s.cliques}</span>
+                    <span className="text-gray-400 shrink-0 ml-3 light:text-gray-600">{s.cliques}</span>
                   </div>
                 ))}
               </div>
@@ -175,10 +175,10 @@ function Conteudo({ promessa }: { promessa: Promise<Resposta> }) {
 
 function Numero({ titulo, valor, nota }: { titulo: string; valor: number | string; nota?: string }) {
   return (
-    <div className="bg-gray-800/50 rounded-md px-3 py-2">
-      <p className="text-[11px] text-gray-400">{titulo}</p>
-      <p className="text-lg text-white">{valor}</p>
-      {nota && <p className="text-[11px] text-gray-400">{nota}</p>}
+    <div className="bg-gray-800/50 rounded-md px-3 py-2 light:bg-gray-100">
+      <p className="text-[11px] text-gray-400 light:text-gray-600">{titulo}</p>
+      <p className="text-lg text-white light:text-gray-900">{valor}</p>
+      {nota && <p className="text-[11px] text-gray-400 light:text-gray-600">{nota}</p>}
     </div>
   );
 }

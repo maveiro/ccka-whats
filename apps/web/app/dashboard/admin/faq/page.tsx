@@ -35,8 +35,8 @@ export default async function FaqPage() {
   return (
     <div className="p-6 max-w-3xl space-y-8">
       <div>
-        <h1 className="text-lg font-semibold text-white">Perguntas frequentes</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-lg font-semibold text-white light:text-gray-900">Perguntas frequentes</h1>
+        <p className="text-sm text-gray-400 mt-1 light:text-gray-600">
           É este conteúdo que a Central de Shows responde no WhatsApp. Editar aqui
           reflete na hora — não é preciso republicar o Flow na Meta. Pergunta sem
           artista vale para todos os números do tenant.

@@ -279,8 +279,8 @@ export default function AgendaFontes({
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="text-sm font-medium text-white">Sincronização com o Monday</h2>
-        <p className="text-xs text-gray-400 mt-1">
+        <h2 className="text-sm font-medium text-white light:text-gray-900">Sincronização com o Monday</h2>
+        <p className="text-xs text-gray-400 mt-1 light:text-gray-600">
           A agenda vem do board de shows, pelo painel-shows. Cada número declara como o
           board é filtrado para ele. O nome do artista na central não é digitado aqui: vem
           do próprio número, que é o mesmo valor que o Flow usa para montar a lista do fã.
@@ -288,10 +288,10 @@ export default function AgendaFontes({
       </div>
 
       {isAdmin && (
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3 light:bg-white light:border-gray-200">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-white">Conexão com o painel-shows</p>
-            <span className={`text-xs ${temConexao ? "text-green-400" : "text-amber-400"}`}>
+            <p className="text-xs font-medium text-white light:text-gray-900">Conexão com o painel-shows</p>
+            <span className={`text-xs ${temConexao ? "text-green-400 light:text-green-700" : "text-amber-400 light:text-amber-700"}`}>
               {temConexao ? "configurada" : "não configurada"}
             </span>
           </div>
@@ -300,17 +300,17 @@ export default function AgendaFontes({
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
               placeholder="https://shows.plauz.com.br"
-              className="px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+              className="px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             />
             <input
               type="password"
               value={token}
               onChange={(e) => setToken(e.target.value)}
               placeholder="Token da API interna"
-              className="px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+              className="px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             />
           </div>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 light:text-gray-600">
             O token nunca é reexibido depois de salvo.
           </p>
           <Button variant="primary" size="md" onClick={salvarConexao} disabled={salvandoConexao || !baseUrl || !token}>
@@ -326,18 +326,18 @@ export default function AgendaFontes({
             const naAgenda = (r?.inseridos ?? 0) + (r?.atualizados ?? 0);
             const vazia = f.ultima_sync_em !== null && naAgenda === 0;
             return (
-              <div key={f.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-2">
+              <div key={f.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-2 light:bg-white light:border-gray-200">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm text-white">
+                    <p className="text-sm text-white light:text-gray-900">
                       {f.artista_central ?? "(número sem artista)"}{" "}
-                      <span className="text-gray-400">· {f.numero ?? "—"}</span>
+                      <span className="text-gray-400 light:text-gray-600">· {f.numero ?? "—"}</span>
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      board: artista <b className="text-gray-300">{f.artista_origem}</b>
+                    <p className="text-xs text-gray-400 mt-0.5 light:text-gray-600">
+                      board: artista <b className="text-gray-300 light:text-gray-700">{f.artista_origem}</b>
                       {" · status "}
-                      <b className="text-gray-300">{f.status_permitidos.join(", ")}</b>
-                      {f.espetaculos && <> · espetáculo <b className="text-gray-300">{f.espetaculos.join(", ")}</b></>}
+                      <b className="text-gray-300 light:text-gray-700">{f.status_permitidos.join(", ")}</b>
+                      {f.espetaculos && <> · espetáculo <b className="text-gray-300 light:text-gray-700">{f.espetaculos.join(", ")}</b></>}
                       {f.janela_dias && <> · próximos {f.janela_dias} dias</>}
                     </p>
                   </div>
@@ -345,28 +345,28 @@ export default function AgendaFontes({
                     <button
                       onClick={() => sincronizar(f.id)}
                       disabled={sincronizando !== null || !temConexao}
-                      className="text-xs text-green-400 hover:text-green-300 disabled:opacity-40"
+                      className="text-xs text-green-400 hover:text-green-300 disabled:opacity-40 light:text-green-700"
                     >
                       {sincronizando === f.id ? "sincronizando..." : "sincronizar agora"}
                     </button>
                     <button
                       onClick={() => { setEditando(editando === f.id ? null : f.id); if (!opcoes) void carregarOpcoes(); }}
-                      className="text-xs text-gray-400 hover:text-white"
+                      className="text-xs text-gray-400 hover:text-white light:text-gray-600 light:hover:text-gray-900"
                     >
                       {editando === f.id ? "fechar" : "editar"}
                     </button>
-                    <button onClick={() => alternar(f)} className="text-xs text-gray-400 hover:text-white">
+                    <button onClick={() => alternar(f)} className="text-xs text-gray-400 hover:text-white light:text-gray-600 light:hover:text-gray-900">
                       {f.ativo ? "pausar" : "retomar"}
                     </button>
                     {isAdmin && (
-                      <button onClick={() => remover(f)} className="text-xs text-gray-400 hover:text-red-400">
+                      <button onClick={() => remover(f)} className="text-xs text-gray-400 hover:text-red-400 light:text-gray-600">
                         remover
                       </button>
                     )}
                   </div>
                 </div>
 
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 light:text-gray-600">
                   {f.ultima_sync_em
                     ? <>última sincronização {new Date(f.ultima_sync_em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} · {naAgenda} show(s) na agenda{(r?.removidos ?? 0) > 0 && `, ${r?.removidos} removido(s)`}</>
                     : "nunca sincronizada"}
@@ -383,7 +383,7 @@ export default function AgendaFontes({
                   </p>
                 )}
                 {!f.ativo && (
-                  <p className="text-xs text-gray-400">Pausada: o cron não atualiza esta agenda.</p>
+                  <p className="text-xs text-gray-400 light:text-gray-600">Pausada: o cron não atualiza esta agenda.</p>
                 )}
 
                 {editando === f.id && (
@@ -403,10 +403,10 @@ export default function AgendaFontes({
       )}
 
       {(temas.length > 0 || espetaculosSemTema.length > 0) && (
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3 light:bg-white light:border-gray-200">
           <div>
-            <p className="text-xs font-medium text-white">Espetáculos (arte e sinopse na tela do show)</p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs font-medium text-white light:text-gray-900">Espetáculos (arte e sinopse na tela do show)</p>
+            <p className="text-xs text-gray-400 mt-1 light:text-gray-600">
               Vêm do board de espetáculos. O show diz qual é o espetáculo; o espetáculo
               carrega a arte e o texto. A arte precisa ser JPEG ou PNG anexado na coluna de
               arquivo — reduzimos para caber no limite do WhatsApp.
@@ -414,23 +414,23 @@ export default function AgendaFontes({
           </div>
 
           {temas.map((t) => (
-            <div key={t.nome} className="text-xs flex items-start justify-between gap-3 border-t border-gray-800 pt-2">
+            <div key={t.nome} className="text-xs flex items-start justify-between gap-3 border-t border-gray-800 pt-2 light:border-gray-200">
               <div>
                 <p className="text-gray-200">
                   {t.nome}
-                  {t.artista_nome && <span className="text-gray-400"> · {t.artista_nome}</span>}
+                  {t.artista_nome && <span className="text-gray-400 light:text-gray-600"> · {t.artista_nome}</span>}
                 </p>
                 {t.imagem_erro && (
                   <p className="text-amber-400 mt-0.5">arte recusada: {t.imagem_erro}</p>
                 )}
               </div>
               <div className="shrink-0 flex items-center gap-2">
-                <span className={t.tem_arte ? "text-green-400" : "text-gray-400"}>
+                <span className={t.tem_arte ? "text-green-400 light:text-green-700" : "text-gray-400 light:text-gray-600"}>
                   {t.tem_arte
                     ? `arte${t.imagem_bytes ? ` (${Math.round(t.imagem_bytes / 1024)}KB)` : ""}`
                     : "sem arte"}
                 </span>
-                <span className={t.tem_sinopse ? "text-green-400" : "text-gray-400"}>
+                <span className={t.tem_sinopse ? "text-green-400 light:text-green-700" : "text-gray-400 light:text-gray-600"}>
                   {t.tem_sinopse ? "sinopse" : "sem sinopse"}
                 </span>
               </div>
@@ -450,24 +450,24 @@ export default function AgendaFontes({
       )}
 
       {temConexao && semAgenda.length > 0 && (
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3 light:bg-white light:border-gray-200">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-white">Nova agenda sincronizada</p>
+            <p className="text-xs font-medium text-white light:text-gray-900">Nova agenda sincronizada</p>
             <button
               onClick={carregarOpcoes}
-              className="text-xs text-green-400 hover:text-green-300"
+              className="text-xs text-green-400 hover:text-green-300 light:text-green-700"
             >
               {carregandoOpcoes ? "carregando..." : opcoes ? "recarregar opções do board" : "carregar opções do board"}
             </button>
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2">
-            <label className="text-xs text-gray-400 space-y-1">
+            <label className="text-xs text-gray-400 space-y-1 light:text-gray-600">
               <span>Número / central</span>
               <select
                 value={credencialId}
                 onChange={(e) => setCredencialId(e.target.value)}
-                className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+                className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
               >
                 <option value="">Escolher...</option>
                 {semAgenda.map((c) => (
@@ -478,13 +478,13 @@ export default function AgendaFontes({
               </select>
             </label>
 
-            <label className="text-xs text-gray-400 space-y-1">
+            <label className="text-xs text-gray-400 space-y-1 light:text-gray-600">
               <span>Artista no board</span>
               <select
                 value={artistaOrigem}
                 onChange={(e) => setArtistaOrigem(e.target.value)}
                 disabled={!opcoes}
-                className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm disabled:opacity-50"
+                className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm disabled:opacity-50 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
               >
                 <option value="">{opcoes ? "Escolher..." : "carregue as opções"}</option>
                 {(opcoes?.artistas ?? []).map((a) => <option key={a} value={a}>{a}</option>)}
@@ -495,7 +495,7 @@ export default function AgendaFontes({
           {opcoes && (
             <>
               <div className="space-y-1">
-                <p className="text-xs text-gray-400">Status que o fã pode ver</p>
+                <p className="text-xs text-gray-400 light:text-gray-600">Status que o fã pode ver</p>
                 <div className="flex flex-wrap gap-2">
                   {opcoes.status.map((s) => (
                     <Chip
@@ -508,7 +508,7 @@ export default function AgendaFontes({
                     />
                   ))}
                 </div>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 light:text-gray-600">
                   O board é agenda de produção: bloqueio, pauta e corporativo ficam de fora
                   por padrão, e não devem chegar ao fã.
                 </p>
@@ -516,7 +516,7 @@ export default function AgendaFontes({
 
               {opcoes.espetaculos.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-400">Espetáculo (vazio = todos)</p>
+                  <p className="text-xs text-gray-400 light:text-gray-600">Espetáculo (vazio = todos)</p>
                   <div className="flex flex-wrap gap-2">
                     {opcoes.espetaculos.map((e) => (
                       <Chip
@@ -534,14 +534,14 @@ export default function AgendaFontes({
             </>
           )}
 
-          <label className="text-xs text-gray-400 space-y-1 block max-w-[220px]">
+          <label className="text-xs text-gray-400 space-y-1 block max-w-[220px] light:text-gray-600">
             <span>Horizonte em dias (vazio = todo o futuro)</span>
             <input
               type="number"
               min={1}
               value={janelaDias}
               onChange={(e) => setJanelaDias(e.target.value)}
-              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+              className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
             />
           </label>
 
@@ -590,22 +590,22 @@ function FiltroEditor({
     !!opcoes && !(doBoard ?? []).includes(valor);
 
   return (
-    <div className="border-t border-gray-800 pt-3 space-y-3">
+    <div className="border-t border-gray-800 pt-3 space-y-3 light:border-gray-200">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-white">Editar filtro</p>
+        <p className="text-xs font-medium text-white light:text-gray-900">Editar filtro</p>
         {!opcoes && (
-          <button onClick={onCarregarOpcoes} className="text-xs text-green-400 hover:text-green-300">
+          <button onClick={onCarregarOpcoes} className="text-xs text-green-400 hover:text-green-300 light:text-green-700">
             {carregando ? "carregando..." : "carregar opções do board"}
           </button>
         )}
       </div>
 
-      <label className="text-xs text-gray-400 space-y-1 block max-w-[280px]">
+      <label className="text-xs text-gray-400 space-y-1 block max-w-[280px] light:text-gray-600">
         <span>Artista no board</span>
         <select
           value={artistaOrigem}
           onChange={(e) => setArtistaOrigem(e.target.value)}
-          className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+          className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
         >
           {artistasDisponiveis.map((a) => (
             <option key={a} value={a}>
@@ -616,7 +616,7 @@ function FiltroEditor({
       </label>
 
       <div className="space-y-1">
-        <p className="text-xs text-gray-400">Status que o fã pode ver</p>
+        <p className="text-xs text-gray-400 light:text-gray-600">Status que o fã pode ver</p>
         <div className="flex flex-wrap gap-2">
           {statusDisponiveis.map((s) => (
             <Chip
@@ -631,7 +631,7 @@ function FiltroEditor({
 
       {espetaculosDisponiveis.length > 0 && (
         <div className="space-y-1">
-          <p className="text-xs text-gray-400">Espetáculo (nenhum marcado = todos)</p>
+          <p className="text-xs text-gray-400 light:text-gray-600">Espetáculo (nenhum marcado = todos)</p>
           <div className="flex flex-wrap gap-2">
             {espetaculosDisponiveis.map((e) => (
               <Chip
@@ -645,14 +645,14 @@ function FiltroEditor({
         </div>
       )}
 
-      <label className="text-xs text-gray-400 space-y-1 block max-w-[220px]">
+      <label className="text-xs text-gray-400 space-y-1 block max-w-[220px] light:text-gray-600">
         <span>Horizonte em dias (vazio = todo o futuro)</span>
         <input
           type="number"
           min={1}
           value={janela}
           onChange={(e) => setJanela(e.target.value)}
-          className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm"
+          className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm light:bg-gray-100 light:border-gray-300 light:text-gray-900"
         />
       </label>
 
@@ -694,8 +694,8 @@ function Chip({ label, ativo, onToggle }: { label: string; ativo: boolean; onTog
       onClick={onToggle}
       className={`text-xs px-2 py-1 rounded-md border transition-colors ${
         ativo
-          ? "bg-green-900/40 border-green-700 text-green-300"
-          : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"
+          ? "bg-green-900/40 border-green-700 text-green-300 light:bg-green-50 light:border-green-300 light:text-green-700"
+          : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white light:bg-gray-100 light:border-gray-300 light:text-gray-600 light:hover:text-gray-900"
       }`}
     >
       {label}

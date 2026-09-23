@@ -31,12 +31,12 @@ export default function DashboardShell({
       <div className="md:hidden fixed top-0 inset-x-0 z-30 h-14 border-b border-gray-800 light:border-gray-200 bg-gray-950 light:bg-white flex items-center px-3 gap-3">
         <button
           onClick={() => setMobileOpen(true)}
-          className="text-gray-400 hover:text-white hover:bg-gray-900 light:text-gray-500 light:hover:text-gray-900 light:hover:bg-gray-100 transition-colors p-2 -ml-2 rounded-md"
+          className="text-gray-400 hover:text-white hover:bg-gray-900 light:text-gray-600 light:hover:text-gray-900 light:hover:bg-gray-100 transition-colors p-2 -ml-2 rounded-md"
           aria-label="Abrir menu"
         >
           <Menu size={20} />
         </button>
-        <span className="text-sm font-semibold text-green-400 light:text-green-600">WA Intelligence</span>
+        <span className="text-sm font-semibold text-green-400 light:text-green-700">WA Intelligence</span>
       </div>
 
       {mobileOpen && (

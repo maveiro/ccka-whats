@@ -45,37 +45,37 @@ export default function InviteOperatorForm({ tenantId }: Props) {
   }
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4">
+    <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4 light:bg-white light:border-gray-200">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Nome</label>
+          <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">Nome</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="João Silva"
-            className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
           />
         </div>
         <div>
-          <label className="block text-xs text-gray-400 mb-1">E-mail</label>
+          <label className="block text-xs text-gray-400 mb-1 light:text-gray-600">E-mail</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="joao@empresa.com"
-            className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
           />
         </div>
       </div>
 
       <div>
-        <label htmlFor="invite-role" className="block text-xs text-gray-400 mb-1">Papel</label>
+        <label htmlFor="invite-role" className="block text-xs text-gray-400 mb-1 light:text-gray-600">Papel</label>
         <select
           id="invite-role"
           value={role}
           onChange={(e) => setRole(e.target.value as "operator" | "admin")}
-          className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+          className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
         >
           <option value="operator">Operador — acesso às conversas</option>
           <option value="admin">Admin — acesso total</option>

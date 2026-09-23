@@ -147,18 +147,18 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
 
   if (chats.length === 0) {
     return (
-      <div className={`${rootWidthClass} md:w-72 border-r border-gray-800 flex-col`}>
-        <div className="px-4 py-3 border-b border-gray-800 space-y-2">
-          <h2 className="text-sm font-medium text-gray-300">Conversas</h2>
+      <div className={`${rootWidthClass} md:w-72 border-r border-gray-800 light:border-gray-200 flex-col`}>
+        <div className="px-4 py-3 border-b border-gray-800 space-y-2 light:border-gray-200">
+          <h2 className="text-sm font-medium text-gray-300 light:text-gray-700">Conversas</h2>
           <SearchBar />
         </div>
         <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
-          <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">
-            <Users size={22} className="text-gray-400" />
+          <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center light:bg-gray-100">
+            <Users size={22} className="text-gray-400 light:text-gray-600" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-400">Nenhuma conversa ainda</p>
-            <p className="text-xs text-gray-400 mt-1">As conversas do WhatsApp aparecem aqui em tempo real</p>
+            <p className="text-sm font-medium text-gray-400 light:text-gray-600">Nenhuma conversa ainda</p>
+            <p className="text-xs text-gray-400 mt-1 light:text-gray-600">As conversas do WhatsApp aparecem aqui em tempo real</p>
           </div>
         </div>
       </div>
@@ -172,22 +172,22 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
   ];
 
   return (
-    <div className={`${rootWidthClass} md:w-72 border-r border-gray-800 flex-col overflow-hidden`}>
-      <div className="px-4 pt-3 pb-2 border-b border-gray-800 space-y-2">
-        <h2 className="text-sm font-medium text-gray-300">Conversas</h2>
+    <div className={`${rootWidthClass} md:w-72 border-r border-gray-800 light:border-gray-200 flex-col overflow-hidden`}>
+      <div className="px-4 pt-3 pb-2 border-b border-gray-800 space-y-2 light:border-gray-200">
+        <h2 className="text-sm font-medium text-gray-300 light:text-gray-700">Conversas</h2>
         <SearchBar />
 
         {/* Trocador de caixa — cada número é sua própria "inbox", como trocar de conta */}
         {showSessionFilter && (
-          <div className="border border-gray-800 rounded-lg overflow-hidden" role="tablist" aria-label="Selecionar caixa de entrada">
+          <div className="border border-gray-800 rounded-lg overflow-hidden light:border-gray-200" role="tablist" aria-label="Selecionar caixa de entrada">
             <button
               role="tab"
               aria-selected={selectedSession === "all"}
               onClick={() => escolherSessao("all")}
               className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors ${
                 selectedSession === "all"
-                  ? "bg-gray-800 text-white font-medium"
-                  : "text-gray-300 hover:bg-gray-900"
+                  ? "bg-gray-800 text-white font-medium light:bg-gray-100 light:text-gray-900"
+                  : "text-gray-300 hover:bg-gray-900 light:text-gray-600 light:hover:bg-gray-100"
               }`}
             >
               <span>Todas as conversas</span>
@@ -197,7 +197,7 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
                 </span>
               )}
             </button>
-            <div className="border-t border-gray-800">
+            <div className="border-t border-gray-800 light:border-gray-200">
               {sessions.map((s) => (
                 <button
                   key={s.id}
@@ -206,8 +206,8 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
                   onClick={() => escolherSessao(s.id)}
                   className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors ${
                     selectedSession === s.id
-                      ? "bg-gray-800 text-white"
-                      : "text-gray-400 hover:bg-gray-900 hover:text-gray-300"
+                      ? "bg-gray-800 text-white light:bg-gray-100 light:text-gray-900"
+                      : "text-gray-400 hover:bg-gray-900 hover:text-gray-300 light:text-gray-600 light:hover:bg-gray-100 light:hover:text-gray-700"
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[s.status] ?? "bg-gray-500"}`} />
@@ -232,7 +232,7 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
               key={tab.key}
               onClick={() => setFilter(tab.key)}
               className={`flex-1 text-xs py-1 rounded-md font-medium transition-colors ${
-                filter === tab.key ? "bg-gray-700 text-white" : "text-gray-400 hover:text-gray-300"
+                filter === tab.key ? "bg-gray-700 text-white light:bg-gray-200 light:text-gray-900" : "text-gray-400 hover:text-gray-300 light:text-gray-600 light:hover:text-gray-700"
               }`}
             >
               {tab.label}
@@ -244,12 +244,12 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
       <div className="flex-1 overflow-y-auto" role="list" aria-label="Lista de conversas">
         {carregandoSessao && (
           <div className="flex items-center justify-center py-12">
-            <p className="text-xs text-gray-400">Carregando conversas…</p>
+            <p className="text-xs text-gray-400 light:text-gray-600">Carregando conversas…</p>
           </div>
         )}
         {!carregandoSessao && filteredChats.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-2 py-12 px-6 text-center">
-            <p className="text-xs text-gray-400">Nenhuma conversa nesta categoria</p>
+            <p className="text-xs text-gray-400 light:text-gray-600">Nenhuma conversa nesta categoria</p>
           </div>
         )}
         {filteredChats.map((chat) => {
@@ -259,20 +259,20 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
               key={chat.id}
               href={`/dashboard/chat/${chat.id}`}
               role="listitem"
-              className={`flex items-center gap-3 px-3 py-2.5 border-b border-gray-900 hover:bg-gray-900 transition-colors min-h-[60px] ${
-                active ? "bg-gray-900" : ""
+              className={`flex items-center gap-3 px-3 py-2.5 border-b border-gray-900 light:border-gray-100 hover:bg-gray-900 light:hover:bg-gray-50 transition-colors min-h-[60px] ${
+                active ? "bg-gray-900 light:bg-gray-50" : ""
               }`}
               aria-current={active ? "page" : undefined}
             >
               <ChatAvatar name={chat.name} jid={chat.jid} avatarUrl={chat.avatar_url} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium text-white truncate">
+                  <p className="text-sm font-medium text-white truncate light:text-gray-900">
                     {displayChatName(chat.name, chat.jid)}
                   </p>
                   <div className="flex flex-col items-end shrink-0 gap-1">
                     {chat.last_message_at && (
-                      <span className="text-xs text-gray-400" title={formatFullDateTime(chat.last_message_at)}>
+                      <span className="text-xs text-gray-400 light:text-gray-600" title={formatFullDateTime(chat.last_message_at)}>
                         {formatDistanceToNow(chat.last_message_at)}
                       </span>
                     )}
@@ -284,12 +284,12 @@ export default function ChatList({ chats: initial, sessoes, operatorRole }: Chat
                   </div>
                 </div>
                 {chat.last_message_body && (
-                  <p className="text-xs text-gray-400 truncate mt-0.5">
+                  <p className="text-xs text-gray-400 truncate mt-0.5 light:text-gray-600">
                     {chat.last_message_body}
                   </p>
                 )}
                 {operatorRole === "admin" && chat.wa_sessions && (
-                  <p className="text-xs text-gray-400 truncate mt-0.5">
+                  <p className="text-xs text-gray-400 truncate mt-0.5 light:text-gray-600">
                     {chat.wa_sessions.label ?? formatPhone(chat.wa_sessions.phone_number)}
                   </p>
                 )}

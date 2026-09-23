@@ -65,18 +65,19 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
       {/* Filtro por número */}
       {sessions.length > 0 && (
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-400">Número:</label>
+          <label htmlFor="analytics-session" className="text-sm text-gray-400 light:text-gray-600">Número:</label>
           <select
+            id="analytics-session"
             value={sessionId}
             onChange={(e) => void applyFilter(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500 light:bg-gray-100 light:border-gray-300 light:text-gray-900"
           >
             <option value="all">Todos os números</option>
             {sessions.map((s) => (
               <option key={s.id} value={s.id}>{sessionLabel(s)}</option>
             ))}
           </select>
-          {loading && <span className="text-xs text-gray-400 animate-pulse">Atualizando...</span>}
+          {loading && <span className="text-xs text-gray-400 animate-pulse light:text-gray-600">Atualizando...</span>}
         </div>
       )}
 
@@ -92,8 +93,8 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
       </div>
 
       {/* Grupos vs Contatos */}
-      <section className="bg-gray-800 rounded-xl p-5">
-        <h2 className="text-white font-semibold mb-4">Grupos vs Contatos</h2>
+      <section className="bg-gray-800 rounded-xl p-5 light:bg-gray-100">
+        <h2 className="text-white font-semibold mb-4 light:text-gray-900">Grupos vs Contatos</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <SplitBar title="Conversas" groups={data.chatsByType.groups} contacts={data.chatsByType.contacts} />
           <SplitBar title="Mensagens" groups={data.messagesByKind.groups} contacts={data.messagesByKind.contacts} />
@@ -102,11 +103,11 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
 
       {/* Messages by Day */}
       <section
-        className="bg-gray-800 rounded-xl p-5"
+        className="bg-gray-800 rounded-xl p-5 light:bg-gray-100"
         aria-labelledby="chart-by-day-title"
       >
-        <h2 id="chart-by-day-title" className="text-white font-semibold mb-4">
-          Mensagens por dia <span className="text-gray-400 font-normal text-sm">(últimos 14 dias)</span>
+        <h2 id="chart-by-day-title" className="text-white font-semibold mb-4 light:text-gray-900">
+          Mensagens por dia <span className="text-gray-400 font-normal text-sm light:text-gray-600">(últimos 14 dias)</span>
         </h2>
 
         {data.messagesByDay.length === 0 || data.messagesByDay.every(d => d.count === 0) ? (
@@ -134,7 +135,7 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
                   {/* Tooltip */}
                   {isHovered && d.count > 0 && (
                     <div
-                      className="absolute -top-9 left-1/2 -translate-x-1/2 bg-gray-700 border border-gray-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10 pointer-events-none"
+                      className="absolute -top-9 left-1/2 -translate-x-1/2 bg-gray-700 border border-gray-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10 pointer-events-none light:bg-gray-200 light:text-gray-900"
                       role="tooltip"
                     >
                       {d.count.toLocaleString("pt-BR")} msg
@@ -152,10 +153,11 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
                       }`}
                       style={{ height: `${Math.max(heightPct, d.count > 0 ? 4 : 0)}%` }}
                       tabIndex={d.count > 0 ? 0 : -1}
+                      role="img"
                       aria-label={`${d.date}: ${d.count} mensagens`}
                     />
                   </div>
-                  <span className="text-xs text-gray-400 select-none">{day}</span>
+                  <span className="text-xs text-gray-400 select-none light:text-gray-600">{day}</span>
                 </div>
               )
             })}
@@ -166,10 +168,10 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Type Breakdown */}
         <section
-          className="bg-gray-800 rounded-xl p-5"
+          className="bg-gray-800 rounded-xl p-5 light:bg-gray-100"
           aria-labelledby="chart-by-type-title"
         >
-          <h2 id="chart-by-type-title" className="text-white font-semibold mb-4">
+          <h2 id="chart-by-type-title" className="text-white font-semibold mb-4 light:text-gray-900">
             Tipos de mensagem
           </h2>
           {data.messagesByType.length === 0 ? (
@@ -182,11 +184,11 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
                 return (
                   <div key={t.type} role="listitem">
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-300">{label}</span>
-                      <span className="text-gray-400 tabular-nums">{t.count.toLocaleString("pt-BR")}</span>
+                      <span className="text-gray-300 light:text-gray-700">{label}</span>
+                      <span className="text-gray-400 tabular-nums light:text-gray-600">{t.count.toLocaleString("pt-BR")}</span>
                     </div>
                     <div
-                      className="w-full bg-gray-700 rounded-full h-1.5"
+                      className="w-full bg-gray-700 rounded-full h-1.5 light:bg-gray-200"
                       role="meter"
                       aria-valuenow={t.count}
                       aria-valuemax={maxTypeCount}
@@ -206,10 +208,10 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
 
         {/* Top Chats */}
         <section
-          className="bg-gray-800 rounded-xl p-5"
+          className="bg-gray-800 rounded-xl p-5 light:bg-gray-100"
           aria-labelledby="chart-top-chats-title"
         >
-          <h2 id="chart-top-chats-title" className="text-white font-semibold mb-4">
+          <h2 id="chart-top-chats-title" className="text-white font-semibold mb-4 light:text-gray-900">
             Top 5 conversas
           </h2>
           {data.topChats.length === 0 ? (
@@ -220,14 +222,14 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
                 const pct = Math.round((c.count / maxChatCount) * 100)
                 return (
                   <div key={c.jid} className="flex items-center gap-3" role="listitem">
-                    <span className="text-gray-400 text-sm tabular-nums w-4 shrink-0">{i + 1}.</span>
+                    <span className="text-gray-400 text-sm tabular-nums w-4 shrink-0 light:text-gray-600">{i + 1}.</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-gray-300 text-sm truncate">
-                        {c.isGroup && <span className="text-xs text-gray-400 mr-1">[grupo]</span>}
+                      <p className="text-gray-300 text-sm truncate light:text-gray-700">
+                        {c.isGroup && <span className="text-xs text-gray-400 mr-1 light:text-gray-600">[grupo]</span>}
                         {c.name || c.jid}
                       </p>
                       <div
-                        className="w-full bg-gray-700 rounded-full h-1 mt-1"
+                        className="w-full bg-gray-700 rounded-full h-1 mt-1 light:bg-gray-200"
                         role="meter"
                         aria-valuenow={c.count}
                         aria-valuemax={maxChatCount}
@@ -239,7 +241,7 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
                         />
                       </div>
                     </div>
-                    <span className="text-gray-400 text-sm tabular-nums shrink-0">
+                    <span className="text-gray-400 text-sm tabular-nums shrink-0 light:text-gray-600">
                       {c.count.toLocaleString("pt-BR")}
                     </span>
                   </div>
@@ -255,12 +257,12 @@ export function AnalyticsDashboard({ initialData, sessions }: { initialData: Ana
 
 function StatCard({ label, value, sub }: { label: string; value: number; sub?: string }) {
   return (
-    <div className="bg-gray-800 rounded-xl p-5">
-      <p className="text-gray-400 text-sm">{label}</p>
-      <p className="text-white text-3xl font-bold mt-1 tabular-nums">
+    <div className="bg-gray-800 rounded-xl p-5 light:bg-gray-100">
+      <p className="text-gray-400 text-sm light:text-gray-600">{label}</p>
+      <p className="text-white text-3xl font-bold mt-1 tabular-nums light:text-gray-900">
         {value.toLocaleString("pt-BR")}
       </p>
-      {sub && <p className="text-gray-400 text-xs mt-1">{sub}</p>}
+      {sub && <p className="text-gray-400 text-xs mt-1 light:text-gray-600">{sub}</p>}
     </div>
   )
 }
@@ -271,14 +273,14 @@ function SplitBar({ title, groups, contacts }: { title: string; groups: number; 
   const cPct = total ? 100 - gPct : 0
   return (
     <div>
-      <p className="text-gray-400 text-sm mb-2">{title} <span className="text-gray-400">({total.toLocaleString("pt-BR")})</span></p>
-      <div className="flex h-2.5 rounded-full overflow-hidden bg-gray-700">
+      <p className="text-gray-400 text-sm mb-2 light:text-gray-600">{title} <span className="text-gray-400 light:text-gray-600">({total.toLocaleString("pt-BR")})</span></p>
+      <div className="flex h-2.5 rounded-full overflow-hidden bg-gray-700 light:bg-gray-200">
         <div className="bg-emerald-500" style={{ width: `${gPct}%` }} title={`Grupos: ${groups}`} />
         <div className="bg-sky-500" style={{ width: `${cPct}%` }} title={`Contatos: ${contacts}`} />
       </div>
       <div className="flex justify-between mt-2 text-xs">
-        <span className="text-emerald-400">Grupos: {groups.toLocaleString("pt-BR")} ({gPct}%)</span>
-        <span className="text-sky-400">Contatos: {contacts.toLocaleString("pt-BR")} ({cPct}%)</span>
+        <span className="text-emerald-400 light:text-emerald-700">Grupos: {groups.toLocaleString("pt-BR")} ({gPct}%)</span>
+        <span className="text-sky-400 light:text-sky-700">Contatos: {contacts.toLocaleString("pt-BR")} ({cPct}%)</span>
       </div>
     </div>
   )
@@ -287,12 +289,12 @@ function SplitBar({ title, groups, contacts }: { title: string; groups: number; 
 function EmptyChart({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-8 gap-2">
-      <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400" aria-hidden="true">
+      <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center light:bg-gray-200">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 light:text-gray-600" aria-hidden="true">
           <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
         </svg>
       </div>
-      <p className="text-xs text-gray-400 text-center">{message}</p>
+      <p className="text-xs text-gray-400 text-center light:text-gray-600">{message}</p>
     </div>
   )
 }

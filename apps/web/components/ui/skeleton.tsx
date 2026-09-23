@@ -3,7 +3,7 @@
 // fallback visual; as demais ou não têm skeleton, ou reimplementam o próprio
 // `animate-pulse` na hora. Uso: <Suspense fallback={<Skeleton className="h-24" />}>.
 export default function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-md bg-gray-800 ${className}`} aria-hidden="true" />;
+  return <div className={`animate-pulse rounded-md bg-gray-800 light:bg-gray-200 ${className}`} aria-hidden="true" />;
 }
 
 export function SkeletonRows({ rows = 3 }: { rows?: number }) {

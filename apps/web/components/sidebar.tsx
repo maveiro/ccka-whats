@@ -32,6 +32,7 @@ import {
   X,
 } from "lucide-react";
 import AlertBadge from "@/components/alert-badge";
+import ThemeToggle from "@/components/theme-toggle";
 
 const COLLAPSE_KEY = "wa-sidebar-collapsed";
 
@@ -180,15 +181,15 @@ export default function Sidebar({ operatorName, role, mobileOpen = false, onClos
 
   return (
     <aside
-      className={`${iconOnly ? "w-16" : "w-56"} flex flex-col border-r border-gray-800 bg-gray-950 shrink-0 transition-all duration-200 fixed inset-y-0 left-0 z-50 ${mobileOpen ? "translate-x-0" : "-translate-x-full"} md:static md:translate-x-0`}
+      className={`${iconOnly ? "w-16" : "w-56"} flex flex-col border-r border-gray-800 light:border-gray-200 bg-gray-950 light:bg-white shrink-0 transition-all duration-200 fixed inset-y-0 left-0 z-50 ${mobileOpen ? "translate-x-0" : "-translate-x-full"} md:static md:translate-x-0`}
     >
       {/* Logo + toggle */}
-      <div className={`h-[57px] border-b border-gray-800 flex items-center ${iconOnly ? "justify-center" : "justify-between px-4"}`}>
-        {!iconOnly && <span className="text-sm font-semibold text-green-400 truncate">WA Intelligence</span>}
+      <div className={`h-[57px] border-b border-gray-800 light:border-gray-200 flex items-center ${iconOnly ? "justify-center" : "justify-between px-4"}`}>
+        {!iconOnly && <span className="text-sm font-semibold text-green-400 light:text-green-600 truncate">WA Intelligence</span>}
         <div className="flex items-center gap-1">
           <button
             onClick={toggle}
-            className="hidden md:inline-flex text-gray-400 hover:text-white transition-colors p-1.5 rounded-md hover:bg-gray-900"
+            className="hidden md:inline-flex text-gray-400 hover:text-white hover:bg-gray-900 light:text-gray-500 light:hover:text-gray-900 light:hover:bg-gray-100 transition-colors p-1.5 rounded-md"
             aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
             title={collapsed ? "Expandir menu" : "Recolher menu"}
           >
@@ -196,7 +197,7 @@ export default function Sidebar({ operatorName, role, mobileOpen = false, onClos
           </button>
           <button
             onClick={onCloseMobile}
-            className="md:hidden text-gray-400 hover:text-white transition-colors p-1.5 rounded-md hover:bg-gray-900"
+            className="md:hidden text-gray-400 hover:text-white hover:bg-gray-900 light:text-gray-500 light:hover:text-gray-900 light:hover:bg-gray-100 transition-colors p-1.5 rounded-md"
             aria-label="Fechar menu"
           >
             <X size={18} />
@@ -219,10 +220,10 @@ export default function Sidebar({ operatorName, role, mobileOpen = false, onClos
             <div key={item.href}>
               {isNewSection && (
                 iconOnly ? (
-                  <div className="my-2 mx-2 border-t border-gray-800" />
+                  <div className="my-2 mx-2 border-t border-gray-800 light:border-gray-200" />
                 ) : (
                   <div className="px-3 pt-4 pb-1">
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-widest">
+                    <p className="text-xs font-medium text-gray-400 light:text-gray-500 uppercase tracking-widest">
                       {SECTION_LABELS[item.section] ?? item.section}
                     </p>
                   </div>
@@ -236,12 +237,12 @@ export default function Sidebar({ operatorName, role, mobileOpen = false, onClos
                   iconOnly ? "justify-center px-0" : "gap-2.5 px-3"
                 } ${
                   active
-                    ? "bg-gray-800 text-white"
-                    : "text-gray-400 hover:bg-gray-900 hover:text-white"
+                    ? "bg-gray-800 text-white light:bg-gray-100 light:text-gray-900"
+                    : "text-gray-400 hover:bg-gray-900 hover:text-white light:text-gray-600 light:hover:bg-gray-100 light:hover:text-gray-900"
                 }`}
               >
                 <span className="relative shrink-0 flex items-center justify-center">
-                  <Icon size={16} className={active ? "text-green-400" : ""} aria-hidden="true" />
+                  <Icon size={16} className={active ? "text-green-400 light:text-green-600" : ""} aria-hidden="true" />
                   {iconOnly && (showStatus || showAlert) && (
                     <span className="absolute -top-1.5 -right-1.5">
                       {showStatus && <SessionStatusDot />}
@@ -260,21 +261,24 @@ export default function Sidebar({ operatorName, role, mobileOpen = false, onClos
             </div>
           );
         })}
+        <div className={`mt-2 pt-2 border-t border-gray-800 light:border-gray-200 ${iconOnly ? "px-0" : "px-1"}`}>
+          <ThemeToggle collapsed={iconOnly} />
+        </div>
       </nav>
 
       {/* Operator footer */}
-      <div className={`py-3 border-t border-gray-800 ${iconOnly ? "px-2" : "px-3"}`}>
+      <div className={`py-3 border-t border-gray-800 light:border-gray-200 ${iconOnly ? "px-2" : "px-3"}`}>
         <div className={`flex items-center ${iconOnly ? "flex-col gap-2" : "gap-2.5"}`}>
           <OperatorAvatar name={operatorName} />
           {!iconOnly && (
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-white truncate">{operatorName}</p>
-              <p className="text-xs text-gray-400 capitalize">{role}</p>
+              <p className="text-xs font-medium text-white light:text-gray-900 truncate">{operatorName}</p>
+              <p className="text-xs text-gray-400 light:text-gray-500 capitalize">{role}</p>
             </div>
           )}
           <button
             onClick={handleSignOut}
-            className="shrink-0 text-gray-400 hover:text-white transition-colors p-2 rounded-md hover:bg-gray-900 flex items-center justify-center"
+            className="shrink-0 text-gray-400 hover:text-white hover:bg-gray-900 light:text-gray-500 light:hover:text-gray-900 light:hover:bg-gray-100 transition-colors p-2 rounded-md flex items-center justify-center"
             aria-label="Sair da conta"
             title="Sair"
           >

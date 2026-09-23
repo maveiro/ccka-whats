@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Painel é dark-only desde sempre (bg-gray-950 etc. fixos no código, ver
+   revisão de UX 22-23/09/2026). Em vez de inverter tudo pra claro-por-padrão
+   (arriscado — reescreveria as classes que já funcionam), o claro entra como
+   variante aditiva: elementos ganham "light:" ao lado da classe escura já
+   existente, e a classe .light na <html> ativa. Zero risco pro tema atual. */
+@custom-variant light (&:where(.light, .light *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

@@ -10,12 +10,17 @@ import { ButtonHTMLAttributes, forwardRef } from "react";
 type Variant = "primary" | "secondary" | "danger" | "dangerOutline" | "ghost" | "warning";
 type Size = "sm" | "md";
 
+// Variantes sólidas (primary/secondary/danger/warning) são autocontidas —
+// fundo e texto próprios, legíveis em qualquer fundo de página, por isso não
+// levam "light:". Só ghost/dangerOutline usam bg-transparent: essas herdam
+// o fundo da página, e um hover/borda pensado pra fundo escuro fica errado
+// (halo escuro) sobre página clara — essas duas precisam da variante.
 const VARIANT_CLASSES: Record<Variant, string> = {
   primary: "bg-green-700 hover:bg-green-600 text-white",
   secondary: "bg-gray-700 hover:bg-gray-600 text-gray-100",
   danger: "bg-red-700 hover:bg-red-600 text-white",
-  dangerOutline: "bg-transparent border border-red-800 text-red-500 hover:bg-red-900/30",
-  ghost: "bg-transparent border border-gray-700 text-gray-300 hover:bg-gray-800",
+  dangerOutline: "bg-transparent border border-red-800 text-red-500 hover:bg-red-900/30 light:border-red-300 light:text-red-600 light:hover:bg-red-50",
+  ghost: "bg-transparent border border-gray-700 text-gray-300 hover:bg-gray-800 light:border-gray-300 light:text-gray-600 light:hover:bg-gray-100",
   warning: "bg-yellow-800 hover:bg-yellow-700 text-yellow-200",
 };
 
@@ -40,7 +45,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         disabled={disabled || loading}
-        className={`inline-flex items-center gap-1.5 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 focus-visible:ring-gray-400 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 focus-visible:ring-gray-400 light:focus-visible:ring-offset-white light:focus-visible:ring-gray-500 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
         {...props}
       >
         {loading ? (loadingText ?? "...") : children}

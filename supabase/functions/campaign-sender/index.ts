@@ -236,7 +236,7 @@ Deno.serve(async (req: Request) => {
     for (let i = 0; i < recipients.length; i += CONCURRENCY) {
       if (messagingLimitHit || throughputLimitHit) break;
       const slice = recipients.slice(i, i + CONCURRENCY);
-      const results = await Promise.allSettled(slice.map((r) => sendOne(campaign, credential, r, urlButtonIndex, flowSessionPlan, planoVariaveis)));
+      const results = await Promise.allSettled(slice.map((r) => sendOne(campaign, credential, r, urlButtonIndex, flowSessionPlan, planoVariaveis, componenteMidia)));
 
       for (const result of results) {
         if (result.status !== "fulfilled") continue;
@@ -288,6 +288,7 @@ async function sendOne(
   urlButtonIndex: number | null,
   flowSessionPlan: FlowSessionPlan | null,
   planoVariaveis: ReturnType<typeof planoDeVariaveis>,
+  componenteMidia: unknown | null,
 ): Promise<{ messagingLimitHit: boolean; throughputLimitHit: boolean }> {
   const components = buildComponents(recipient, urlButtonIndex, flowSessionPlan, planoVariaveis, componenteMidia);
 

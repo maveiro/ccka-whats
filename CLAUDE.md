@@ -1388,6 +1388,26 @@ incluir `|| !atual?.imagem_path` — **coluna nova precisa de um caminho de
 autocorreção**, não de alguém lembrar.
 
 ### Pendente / próximos passos
+- **Auditoria multiperspectiva de 24/09/2026 — 18 itens em 4 sprints, NENHUM
+  executado ainda** (ver `docs/auditoria-24-09-2026.md`, que tem os achados com
+  arquivo:linha e o critério de teste de cada item). **O que não pode esperar
+  (Sprint 1):** as Edge Functions internas (`delete-session`, `flow-engine`,
+  `campaign-sender`, `generate-embeddings`, `webhook-delivery`, `history-sync`,
+  `agenda-sync`) usam `verify_jwt = true` como se restringisse a chamador
+  privilegiado — mas a anon key pública é um JWT válido e passa nesse gate, e
+  nenhuma confere identidade por dentro; e funções `security definer`
+  (`claim_campaign_recipients`, `registrar_cliente`, `sincronizar_agenda_shows`
+  e outras) recebem `tenant_id`/IDs como parâmetro sem `REVOKE EXECUTE FROM
+  PUBLIC`. Dois agentes independentes chegaram a isso, um em cada camada.
+  **Antes de mexer:** confirmar em produção se o grant a `PUBLIC` está aberto
+  (`information_schema.routine_privileges`) — o achado é por leitura estática.
+  Também no Sprint 1: índice em `alert_events.message_id` (mesma família das
+  regras 17/18). **Ressalva de teste:** banco e Edge Functions têm suíte real
+  (`npm run test:db`); o **frontend não tem suíte automatizada nenhuma** — os
+  itens de UI dos sprints 2-4 fecham com build limpo + verificação visual, e o
+  documento diz isso item a item. Direção registrada, ainda não decidida:
+  Vitest (lógica pura) + Playwright (4-5 fluxos críticos) sobre o Supabase
+  local que o job `banco` já sobe.
 - **Criação de templates pela plataforma — Fases 1-3 e parte da 4 no ar
   (22/09/2026).** Só categoria Authentication ficou de fora (zero uso hoje).
   `docs/prd/prd-criacao-de-templates.md`. `GET /api/templates` lista TODO

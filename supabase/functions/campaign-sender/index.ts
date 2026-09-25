@@ -7,7 +7,7 @@
 // double-send). verify_jwt=true — só chamada internamente com service role.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { dividirVariaveis, planoDeVariaveis } from "./variaveis.ts";
+import { componenteDeMidia, dividirVariaveis, planoDeVariaveis } from "./variaveis.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -67,6 +67,7 @@ interface Campaign {
   template_name: string;
   template_language: string;
   template_components: unknown[] | null;
+  header_media_url: string | null;
   credential_id: string;
   flow_id: string | null;
 }
@@ -91,7 +92,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: campaign, error: campaignError } = await supabase
     .from("campaigns")
-    .select("id, tenant_id, status, template_name, template_language, template_components, credential_id, flow_id")
+    .select("id, tenant_id, status, template_name, template_language, template_components, credential_id, flow_id, header_media_url")
     .eq("id", campaignId)
     .single<Campaign>();
 
@@ -141,6 +142,16 @@ Deno.serve(async (req: Request) => {
   // Onde cada coluna do CSV entra (cabeçalho ou corpo). Uma vez por
   // invocação: é metadata do template, igual para todo destinatário.
   const planoVariaveis = planoDeVariaveis(campaign.template_components);
+
+  // Cabeçalho de mídia: validado ANTES do primeiro envio. Sem a URL a Meta
+  // recusa todos com o mesmo 400 — pega template editado depois da campanha.
+  let componenteMidia: unknown | null = null;
+  try {
+    componenteMidia = componenteDeMidia(planoVariaveis, campaign.header_media_url);
+  } catch (err) {
+    await failCampaign(campaign, err instanceof Error ? err.message : String(err));
+    return new Response("Campaign missing header media", { status: 409 });
+  }
 
   // Botão de FLOW (Sprint C4): abre a central já sabendo quem é a pessoa.
   // Resolvido aqui, não por destinatário — e validado ANTES do primeiro
@@ -278,7 +289,7 @@ async function sendOne(
   flowSessionPlan: FlowSessionPlan | null,
   planoVariaveis: ReturnType<typeof planoDeVariaveis>,
 ): Promise<{ messagingLimitHit: boolean; throughputLimitHit: boolean }> {
-  const components = buildComponents(recipient, urlButtonIndex, flowSessionPlan, planoVariaveis);
+  const components = buildComponents(recipient, urlButtonIndex, flowSessionPlan, planoVariaveis, componenteMidia);
 
   try {
     const response = await fetchWithRetry(`${GRAPH_API_BASE}/${credential.phone_number_id}/messages`, {
@@ -406,8 +417,13 @@ function buildComponents(
   urlButtonIndex: number | null,
   flowSessionPlan: FlowSessionPlan | null,
   plano: ReturnType<typeof planoDeVariaveis>,
+  componenteMidia: unknown | null,
 ): unknown[] | undefined {
   const components: unknown[] = [];
+
+  // Cabeçalho de mídia é mutuamente exclusivo com o de texto (a Meta só tem
+  // um HEADER por template), então nunca colide com o `header` abaixo.
+  if (componenteMidia) components.push(componenteMidia);
 
   // Cabeçalho e corpo numeram placeholders separadamente (os dois começam em
   // {{1}}), então quem decide o destino de cada coluna é o PLANO lido do

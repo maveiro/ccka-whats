@@ -1229,6 +1229,14 @@ Resposta às quatro frentes aprovadas na revisão de 17/09.
     do esperado; e template com cabeçalho de **mídia** (IMAGE/VIDEO/DOCUMENT)
     é recusado com o motivo — ainda não montamos esse parâmetro, e sem a
     guarda ele falharia igual, 100%, só que em silêncio.
+    **Atualização (25/09/2026): cabeçalho de mídia agora é suportado.**
+    A mídia vai por LINK (`{type:"image", image:{link}}`, idem video/document),
+    uma URL por campanha em `campaigns.header_media_url`, sem upload nem
+    handle. `POST /api/campaigns` sonda a URL (https, host público — bloqueio
+    de SSRF —, sem redirect, tipo e tamanho: imagem JPEG/PNG 5MB, vídeo
+    MP4/3GPP 16MB, documento 100MB) e o `campaign-sender` falha a campanha
+    antes do 1º envio se o template exige mídia e a URL faltou. A Meta baixa
+    o link na hora do envio: hospedagem instável derruba os envios seguintes.
 
 62. **A pausa por qualidade é por TAXA, não na primeira recusa** (migration
     `pausa_por_taxa`, 18/09/2026). O erro **131049** ("healthy ecosystem

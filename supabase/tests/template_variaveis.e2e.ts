@@ -7,7 +7,7 @@
 //
 // COMO RODAR: `npm run test:db` (não usa banco).
 
-import { dividirVariaveis, planoDeVariaveis } from "../functions/campaign-sender/variaveis.ts";
+import { componenteDeMidia, dividirVariaveis, planoDeVariaveis } from "../functions/campaign-sender/variaveis.ts";
 
 let falhas = 0;
 let passou = 0;
@@ -91,6 +91,32 @@ cenario("template sem variável nenhuma não monta componente", () => {
 cenario("components ausente não explode", () => {
   const plano = planoDeVariaveis(null);
   checar(plano.header === 0 && plano.body === 0 && plano.headerMidia === null, JSON.stringify(plano));
+});
+
+cenario("cabeçalho de mídia vira parâmetro por link, nos três formatos", () => {
+  for (const [formato, tipo] of [["IMAGE", "image"], ["VIDEO", "video"], ["DOCUMENT", "document"]] as const) {
+    const plano = planoDeVariaveis([{ type: "HEADER", format: formato }, { type: "BODY", text: "Oi" }]);
+    const comp = componenteDeMidia(plano, " https://cdn.exemplo.com/a.bin ") as {
+      type: string; parameters: Record<string, unknown>[];
+    };
+    checar(comp?.type === "header", `${formato}: componente header`);
+    const p = comp?.parameters?.[0] as Record<string, unknown>;
+    checar(p?.type === tipo, `${formato}: parâmetro ${tipo}`);
+    checar((p?.[tipo] as { link?: string })?.link === "https://cdn.exemplo.com/a.bin", `${formato}: link sem espaços`);
+  }
+});
+
+cenario("template de texto não gera componente de mídia", () => {
+  checar(componenteDeMidia(planoDeVariaveis(NATAL_POA), "https://x.com/a.png") === null, "deveria ser null");
+});
+
+cenario("template com mídia sem URL é recusado antes de enviar", () => {
+  const plano = planoDeVariaveis([{ type: "HEADER", format: "IMAGE" }]);
+  for (const url of [null, undefined, "", "   "]) {
+    let lancou = false;
+    try { componenteDeMidia(plano, url); } catch { lancou = true; }
+    checar(lancou, `deveria lançar para ${JSON.stringify(url)}`);
+  }
 });
 
 console.log(`\n${passou} asserções passaram, ${falhas} falharam`);

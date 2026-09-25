@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { formatoDeMidia, sondarMidia } from "@/lib/whatsapp-cloud/midiaCabecalho";
 
 interface RecipientInput {
   phone: string;
@@ -82,6 +83,7 @@ export async function POST(req: NextRequest) {
     templateCategory?: unknown;
     templateComponents?: unknown;
     clickTargetUrl?: unknown;
+    headerMediaUrl?: unknown;
     flowId?: unknown;
     recipients?: unknown;
   };
@@ -130,15 +132,22 @@ export async function POST(req: NextRequest) {
     // 100% de falha — em uma frase antes de existir base para disparar
     // (18/09/2026).
     const plano = planoDeVariaveis(body.templateComponents);
+    // Cabeçalho de mídia (IMAGE/VIDEO/DOCUMENT): a mídia vai por link, igual
+    // para todos. Sondar aqui evita descobrir o problema no `error` de cada
+    // destinatário, com a campanha já criada.
+    let headerMediaUrl: string | null = null;
     if (plano.headerMidia) {
-      return NextResponse.json(
-        {
-          error:
-            `O template "${body.templateName}" tem cabeçalho de ${plano.headerMidia}, que ainda não ` +
-            `sabemos preencher — a Meta recusaria todos os envios. Use um template com cabeçalho em texto.`,
-        },
-        { status: 400 },
-      );
+      const formato = formatoDeMidia(plano.headerMidia);
+      if (!formato) {
+        return NextResponse.json(
+          { error: `O template "${body.templateName}" tem cabeçalho de ${plano.headerMidia}, que não suportamos.` },
+          { status: 400 },
+        );
+      }
+      const url = typeof body.headerMediaUrl === "string" ? body.headerMediaUrl.trim() : "";
+      const erroMidia = await sondarMidia(formato, url);
+      if (erroMidia) return NextResponse.json({ error: erroMidia }, { status: 400 });
+      headerMediaUrl = url;
     }
 
     const esperadas = plano.header + plano.body;
@@ -229,6 +238,7 @@ export async function POST(req: NextRequest) {
           ? body.clickTargetUrl.trim()
           : null,
         flow_id: flowId,
+        header_media_url: headerMediaUrl,
         status: "draft",
       })
       .select("id")

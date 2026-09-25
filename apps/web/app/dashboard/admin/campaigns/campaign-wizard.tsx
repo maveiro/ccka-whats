@@ -97,7 +97,7 @@ function contarVariaveis(components: Template["components"]): { header: number; 
   return { header, body, total: header + body };
 }
 
-/** Cabeçalho de mídia exige um parâmetro de imagem/vídeo que ainda não montamos. */
+/** Cabeçalho de mídia: a campanha precisa de um link público para a imagem/vídeo/documento. */
 function headerDeMidia(components: Template["components"]): string | null {
   const cabecalho = components.find((c) => c.type === "HEADER");
   const formato = cabecalho?.format?.toUpperCase();
@@ -137,6 +137,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
   // Campanha
   const [name, setName] = useState("");
   const [clickTargetUrl, setClickTargetUrl] = useState("");
+  const [headerMediaUrl, setHeaderMediaUrl] = useState("");
   const [flows, setFlows] = useState<Flow[]>([]);
   const [flowId, setFlowId] = useState("");
 
@@ -271,6 +272,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
           templateCategory: selectedTemplate.category,
           templateComponents: selectedTemplate.components,
           clickTargetUrl,
+          headerMediaUrl: headerMediaUrl.trim() || undefined,
           flowId: flowId || undefined,
           recipients,
         }),
@@ -298,10 +300,13 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
     setCsvError(null);
     setName("");
     setClickTargetUrl("");
+    setHeaderMediaUrl("");
     setFlowId("");
   }
 
   const trackedButton = selectedTemplate ? dynamicUrlButton(selectedTemplate.components) : null;
+  const midiaFormato = selectedTemplate ? headerDeMidia(selectedTemplate.components) : null;
+  const missingMediaUrl = midiaFormato !== null && !/^https:\/\//i.test(headerMediaUrl.trim());
   const missingTargetUrl = trackedButton !== null && !clickTargetUrl.trim();
 
   const templateFlowButton = selectedTemplate ? flowButton(selectedTemplate.components) : null;
@@ -443,11 +448,10 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
                 : " (o corpo não tem nenhuma)."}
             </p>
           )}
-          {headerDeMidia(selectedTemplate.components) && (
-            <p className="text-xs text-red-300 bg-red-900/20 border border-red-900 rounded-md px-3 py-2">
-              Este template tem cabeçalho de <b>{headerDeMidia(selectedTemplate.components)}</b>, que
-              ainda não sabemos preencher — todos os envios seriam recusados pela Meta. Escolha um
-              template de cabeçalho em texto.
+          {midiaFormato && (
+            <p className="text-xs text-blue-300 bg-blue-900/20 border border-blue-900 rounded-md px-3 py-2">
+              Este template tem cabeçalho de <b>{midiaFormato}</b>. O link da mídia é informado na
+              próxima etapa e vale para todos os destinatários — não é coluna do CSV.
             </p>
           )}
           {trackedButton && (
@@ -474,6 +478,26 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
         <div className="space-y-3">
           <p className="text-sm font-medium text-white light:text-gray-900">Revisão</p>
           <Field label="Nome da campanha" value={name} onChange={setName} />
+          {midiaFormato && (
+            <div className="space-y-2">
+              <Field
+                label={`URL do cabeçalho (${midiaFormato === "IMAGE" ? "imagem" : midiaFormato === "VIDEO" ? "vídeo" : "documento"})`}
+                value={headerMediaUrl}
+                onChange={setHeaderMediaUrl}
+              />
+              <p className="text-xs text-gray-400 light:text-gray-600">
+                {midiaFormato === "IMAGE" && "JPEG ou PNG, até 5 MB. "}
+                {midiaFormato === "VIDEO" && "MP4 ou 3GPP, até 16 MB. "}
+                {midiaFormato === "DOCUMENT" && "PDF, Office ou TXT, até 100 MB. "}
+                A Meta baixa este link na hora do envio: precisa ser https, público, estável e sem
+                redirecionamento. Se a hospedagem sair do ar no meio da campanha, os envios seguintes falham.
+              </p>
+              {midiaFormato === "IMAGE" && /^https:\/\//i.test(headerMediaUrl.trim()) && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={headerMediaUrl.trim()} alt="Pré-visualização" className="max-h-40 rounded-md border border-gray-700" />
+              )}
+            </div>
+          )}
           {trackedButton && (
             <div className="space-y-1">
               <Field
@@ -545,7 +569,7 @@ export default function CampaignWizard({ credentials: iniciais }: { credentials:
               variant="primary"
               size="md"
               onClick={handleCreate}
-              disabled={creating || !name.trim() || missingTargetUrl || missingFlow}
+              disabled={creating || !name.trim() || missingTargetUrl || missingMediaUrl || missingFlow}
               className="flex-1 justify-center"
             >
               {creating ? "Criando..." : "Criar campanha"}

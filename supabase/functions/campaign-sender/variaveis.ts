@@ -77,3 +77,30 @@ export function dividirVariaveis(
     body: valores.slice(plano.header),
   };
 }
+
+/**
+ * Componente de cabeçalho para template com mídia (IMAGE/VIDEO/DOCUMENT).
+ *
+ * A mídia vai por LINK — a Meta baixa a URL no envio, sem upload nem handle.
+ * Devolve null quando o template não tem cabeçalho de mídia, e lança quando
+ * tem e a campanha não trouxe URL: enviar assim faz a Meta recusar 100% dos
+ * envios, e o chamador precisa decidir isso ANTES do primeiro.
+ */
+export function componenteDeMidia(
+  plano: PlanoDeVariaveis,
+  url: string | null | undefined,
+): unknown | null {
+  if (!plano.headerMidia) return null;
+  const formato = plano.headerMidia;
+  if (formato !== "IMAGE" && formato !== "VIDEO" && formato !== "DOCUMENT") {
+    throw new Error(`Cabeçalho de mídia "${formato}" não suportado`);
+  }
+  if (!url || !url.trim()) {
+    throw new Error(`O template tem cabeçalho de ${formato}, mas a campanha não trouxe a URL da mídia`);
+  }
+  const tipo = formato.toLowerCase();
+  return {
+    type: "header",
+    parameters: [{ type: tipo, [tipo]: { link: url.trim() } }],
+  };
+}
